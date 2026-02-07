@@ -45,6 +45,7 @@ export function useTypingEngine({
 
     const previousComboLevel = useRef(0);
     const hasCompleted = useRef(false);
+    const finishTestCalledRef = useRef(false);
 
     // Initialize
     useEffect(() => {
@@ -106,22 +107,27 @@ export function useTypingEngine({
     // Time limit check
     useEffect(() => {
         if (!timeLimitSeconds || !state.startTime || state.isComplete) return;
+        if (finishTestCalledRef.current) return;
 
         const interval = setInterval(() => {
-            if (getElapsedTime() >= timeLimitSeconds) {
+            if (getElapsedTime() >= timeLimitSeconds && !finishTestCalledRef.current) {
+                finishTestCalledRef.current = true;
                 finishTest();
             }
         }, 100);
 
         return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.startTime, state.isComplete, timeLimitSeconds, getElapsedTime]);
 
     // Completion handler
     useEffect(() => {
-        if (state.isComplete && !hasCompleted.current) {
+        if (state.isComplete && !hasCompleted.current && !finishTestCalledRef.current) {
             hasCompleted.current = true;
+            finishTestCalledRef.current = true;
             finishTest();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.isComplete]);
 
     const finishTest = useCallback(() => {
@@ -165,7 +171,7 @@ export function useTypingEngine({
         onComplete?.(record);
     }, [
         getWpm, getAccuracy, getElapsedTime,
-        game.maxCombo, game.score, game,
+        game,
         state.currentIndex, state.errorIndices.length, state.keystrokes.length,
         lessonId, mode, progress,
         completeLesson, addRecord, updatePersonalBests, addPracticeTime, addKeystrokes,
@@ -177,6 +183,7 @@ export function useTypingEngine({
         reset();
         clearSession();
         hasCompleted.current = false;
+        finishTestCalledRef.current = false;
         previousComboLevel.current = 0;
     }, [reset, clearSession]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, RotateCcw, Clock } from 'lucide-react';
@@ -29,12 +29,20 @@ function PracticeContent() {
     const [result, setResult] = useState<PerformanceRecord | null>(null);
 
     const { fireLessonComplete } = useConfetti();
+    const completionHandledRef = useRef(false);
 
     const handleComplete = (record: PerformanceRecord) => {
+        if (completionHandledRef.current) return;
+        completionHandledRef.current = true;
+
         setIsComplete(true);
         setResult(record);
         fireLessonComplete();
-        toast.success(`Test complete! ${record.wpm} WPM with ${record.accuracy}% accuracy`);
+        toast.dismiss();
+        toast.success(`Test complete! ${record.wpm} WPM with ${record.accuracy}% accuracy`, {
+            id: 'speed-test-complete',
+            duration: 5000,
+        });
     };
 
     const {
@@ -67,6 +75,8 @@ function PracticeContent() {
         reset();
         setIsComplete(false);
         setResult(null);
+        completionHandledRef.current = false;
+        toast.dismiss();
     };
 
     return (

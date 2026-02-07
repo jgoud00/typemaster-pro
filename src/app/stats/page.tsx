@@ -76,7 +76,7 @@ export default function StatsPage() {
     const router = useRouter();
     const { progress, resetProgress } = useProgressStore();
     const { game, resetGame } = useGameStore();
-    const { keyStats, getKeyAccuracy, clearSession } = useAnalyticsStore();
+    const { keyStats, clearSession } = useAnalyticsStore();
     const [hoveredKey, setHoveredKey] = useState<string | null>(null);
     const [showResetModal, setShowResetModal] = useState(false);
 

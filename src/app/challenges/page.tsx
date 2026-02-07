@@ -50,13 +50,7 @@ export default function DailyChallengesPage() {
     );
     const totalReward = completedChallenges.reduce((sum, c) => sum + c.reward, 0);
 
-    const challengeIcons: Record<string, React.ReactNode> = {
-        speed: <Zap className="w-5 h-5" />,
-        accuracy: <Target className="w-5 h-5" />,
-        combo: <Flame className="w-5 h-5" />,
-        endurance: <Clock className="w-5 h-5" />,
-        perfect: <Trophy className="w-5 h-5" />,
-    };
+
 
     const difficultyColors = {
         easy: 'text-green-500 bg-green-500/10',

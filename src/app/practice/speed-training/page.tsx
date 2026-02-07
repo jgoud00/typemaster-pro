@@ -67,13 +67,19 @@ function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t:
     const [isActive, setIsActive] = useState(false);
     const [beat, setBeat] = useState(false);
     const beatRef = useRef<NodeJS.Timeout | null>(null);
+    const completionHandledRef = useRef(false);
     const { play } = useSound();
     const { fireLessonComplete } = useConfetti();
 
     const handleComplete = useCallback((record: PerformanceRecord) => {
+        if (completionHandledRef.current) return;
+        completionHandledRef.current = true;
         setIsActive(false);
         fireLessonComplete();
-        toast.success(`Great job! ${record.wpm} WPM at ${record.accuracy}% accuracy`);
+        toast.dismiss();
+        toast.success(`Great job! ${record.wpm} WPM at ${record.accuracy}% accuracy`, {
+            id: 'metronome-complete',
+        });
     }, [fireLessonComplete]);
 
     const {
@@ -113,6 +119,8 @@ function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t:
     const handleReset = () => {
         reset();
         setIsActive(false);
+        completionHandledRef.current = false;
+        toast.dismiss();
         onTextChange(getRandomParagraph());
     };
 

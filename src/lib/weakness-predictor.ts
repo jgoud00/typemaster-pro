@@ -7,7 +7,7 @@
  * using finger conflict detection, row jump analysis, and other heuristics.
  */
 
-import { ngramAnalyzer, NgramStats } from './ngram-analyzer';
+import { ngramAnalyzer } from './ngram-analyzer';
 
 // Keyboard layout mapping for finger analysis
 const FINGER_MAP: Record<string, number> = {

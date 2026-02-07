@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Keyboard, Trophy, TrendingUp, Flame, Clock, Target, ChevronRight, ChevronDown, Star, Zap } from 'lucide-react';
+import { Keyboard, Trophy, TrendingUp, Flame, Clock, Target, ChevronRight, ChevronDown, Star, Zap, Settings, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +12,8 @@ import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { cn } from '@/lib/utils';
+import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
+import { DailyGoals } from '@/components/goals/DailyGoals';
 
 export default function HomePage() {
   const { progress } = useProgressStore();
@@ -63,6 +65,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
+      {/* Welcome Modal for first-time users */}
+      <WelcomeModal />
+
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -100,6 +105,16 @@ export default function HomePage() {
               <Button variant="ghost" size="sm">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Stats
+              </Button>
+            </Link>
+            <Link href="/settings">
+              <Button variant="ghost" size="icon">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Link href="/about">
+              <Button variant="ghost" size="icon">
+                <Info className="w-4 h-4" />
               </Button>
             </Link>
           </div>
@@ -166,6 +181,15 @@ export default function HomePage() {
             label="Practice Time"
             value={formatTime(progress.totalPracticeTime)}
           />
+        </motion.section>
+
+        {/* Daily Goals */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <DailyGoals />
         </motion.section>
 
         {/* Collapsible Lesson Categories */}

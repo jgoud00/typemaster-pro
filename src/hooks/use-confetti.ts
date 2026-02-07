@@ -59,7 +59,13 @@ export function useConfetti() {
     const fireLessonComplete = useCallback(() => {
         const duration = 3000;
         const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+        const defaults = {
+            startVelocity: 30,
+            spread: 360,
+            ticks: 60,
+            zIndex: 999, // Below modals but above content
+            disableForReducedMotion: true,
+        };
 
         const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 

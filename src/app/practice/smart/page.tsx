@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -51,6 +51,7 @@ export default function SmartPracticePage() {
     const [currentExercise, setCurrentExercise] = useState<{ text: string; focusKeys: string[]; reason: string } | null>(null);
     const [exercisesCompleted, setExercisesCompleted] = useState(0);
     const [sessionResults, setSessionResults] = useState<PerformanceRecord[]>([]);
+    const completionHandledRef = useRef(false);
 
     // Calculate per-key errors from analytics store
     const perKeyErrors = new Map<string, { attempts: number; errors: number }>();
@@ -93,6 +94,9 @@ export default function SmartPracticePage() {
 
     // Handle exercise completion
     const handleComplete = useCallback((record: PerformanceRecord) => {
+        if (completionHandledRef.current) return;
+        completionHandledRef.current = true;
+
         setIsTyping(false);
         setExercisesCompleted(prev => prev + 1);
         setSessionResults(prev => [...prev, record]);
@@ -101,12 +105,18 @@ export default function SmartPracticePage() {
         ngramAnalyzer.save();
 
         play('complete');
+        toast.dismiss();
 
         if (record.accuracy >= 95) {
             fireLessonComplete();
-            toast.success(`Excellent! ${record.wpm} WPM at ${record.accuracy}% accuracy`);
+            toast.success(`Excellent! ${record.wpm} WPM at ${record.accuracy}% accuracy`, {
+                id: 'smart-practice-complete',
+            });
         } else {
-            toast(`${record.wpm} WPM at ${record.accuracy}% accuracy`, { icon: '📊' });
+            toast(`${record.wpm} WPM at ${record.accuracy}% accuracy`, {
+                icon: '📊',
+                id: 'smart-practice-result',
+            });
         }
     }, [play, fireLessonComplete]);
 
@@ -129,6 +139,8 @@ export default function SmartPracticePage() {
     // Start new exercise
     const startNewExercise = () => {
         reset();
+        completionHandledRef.current = false;
+        toast.dismiss();
         ngramAnalyzer.resetSequence();
         generateExercise();
     };

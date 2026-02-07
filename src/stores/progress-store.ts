@@ -7,6 +7,20 @@ import { UserProgress, PerformanceRecord, LessonScore } from '@/types';
 interface ProgressStore {
     progress: UserProgress;
 
+    // Onboarding
+    hasSeenWelcome: boolean;
+    setHasSeenWelcome: (seen: boolean) => void;
+
+    // Daily tracking
+    todayPracticeTime: number;
+    todayLessonsCompleted: number;
+    todayBestAccuracy: number;
+    lastResetDate: string | null;
+    checkAndResetDaily: () => void;
+    addTodayPracticeTime: (seconds: number) => void;
+    incrementTodayLessons: () => void;
+    setTodayBestAccuracy: (accuracy: number) => void;
+
     // Actions
     completeLesson: (lessonId: string, wpm: number, accuracy: number, score: number) => void;
     addRecord: (record: PerformanceRecord) => void;
@@ -15,6 +29,10 @@ interface ProgressStore {
     addKeystrokes: (count: number) => void;
     unlockAchievement: (id: string) => void;
     resetProgress: () => void;
+
+    // Data Export/Import
+    exportData: () => void;
+    importData: (jsonData: string) => boolean;
 
     // Getters
     isLessonCompleted: (lessonId: string) => boolean;
@@ -41,7 +59,47 @@ export const useProgressStore = create<ProgressStore>()(
         (set, get) => ({
             progress: initialProgress,
 
-            completeLesson: (lessonId: string, wpm: number, accuracy: number, score: number) => {
+            // Onboarding
+            hasSeenWelcome: false,
+            setHasSeenWelcome: (seen) => set({ hasSeenWelcome: seen }),
+
+            // Daily tracking
+            todayPracticeTime: 0,
+            todayLessonsCompleted: 0,
+            todayBestAccuracy: 0,
+            lastResetDate: null,
+
+            checkAndResetDaily: () => {
+                const today = new Date().toDateString();
+                const { lastResetDate } = get();
+                if (lastResetDate !== today) {
+                    set({
+                        todayPracticeTime: 0,
+                        todayLessonsCompleted: 0,
+                        todayBestAccuracy: 0,
+                        lastResetDate: today,
+                    });
+                }
+            },
+
+            addTodayPracticeTime: (seconds) => {
+                get().checkAndResetDaily();
+                set((state) => ({ todayPracticeTime: state.todayPracticeTime + seconds }));
+            },
+
+            incrementTodayLessons: () => {
+                get().checkAndResetDaily();
+                set((state) => ({ todayLessonsCompleted: state.todayLessonsCompleted + 1 }));
+            },
+
+            setTodayBestAccuracy: (accuracy) => {
+                get().checkAndResetDaily();
+                set((state) => ({
+                    todayBestAccuracy: Math.max(accuracy, state.todayBestAccuracy)
+                }));
+            },
+
+            completeLesson: (lessonId: string, wpm: number, accuracy: number, _score: number) => {
                 const { progress } = get();
                 const existingScore = progress.lessonScores[lessonId];
 
@@ -125,7 +183,56 @@ export const useProgressStore = create<ProgressStore>()(
             },
 
             resetProgress: () => {
-                set({ progress: initialProgress });
+                set({
+                    progress: initialProgress,
+                    hasSeenWelcome: false,
+                    todayPracticeTime: 0,
+                    todayLessonsCompleted: 0,
+                    todayBestAccuracy: 0,
+                    lastResetDate: null,
+                });
+            },
+
+            exportData: () => {
+                const state = get();
+                const data = {
+                    version: '1.0',
+                    exportDate: new Date().toISOString(),
+                    data: {
+                        progress: state.progress,
+                        hasSeenWelcome: state.hasSeenWelcome,
+                    },
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: 'application/json',
+                });
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `typemaster-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
+            importData: (jsonData: string): boolean => {
+                try {
+                    const data = JSON.parse(jsonData);
+
+                    if (data.version !== '1.0') {
+                        return false;
+                    }
+
+                    set({
+                        progress: data.data.progress,
+                        hasSeenWelcome: data.data.hasSeenWelcome,
+                    });
+
+                    return true;
+                } catch {
+                    return false;
+                }
             },
 
             isLessonCompleted: (lessonId: string) => {

@@ -31,6 +31,7 @@ export default function RootLayout({
         <AchievementToast />
         <Toaster
           position="bottom-right"
+          gutter={8}
           toastOptions={{
             className: 'bg-card text-foreground border',
             duration: 3000,

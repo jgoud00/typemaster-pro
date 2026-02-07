@@ -8,7 +8,6 @@
  */
 
 import { generateWeaknessFocusedText, analyzeWeaknesses, WeaknessReport } from './weakness-predictor';
-import { ngramAnalyzer } from './ngram-analyzer';
 
 export interface MasteryScore {
     key: string;
@@ -151,7 +150,7 @@ export function generateAdaptiveExercise(
     currentLevel: DifficultyLevel,
     masteredKeys: string[] = []
 ): AdaptiveExercise {
-    const { weakKeys, weakBigrams, suggestedFocus } = weaknessReport;
+    const { weakKeys, suggestedFocus } = weaknessReport;
 
     let text = '';
     let reason = '';
