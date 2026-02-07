@@ -37,12 +37,12 @@ export function TypingArea({ text, currentIndex, errorIndices, className }: Typi
         <div
             ref={containerRef}
             className={cn(
-                'relative p-6 bg-card rounded-xl border overflow-hidden',
-                'font-mono text-lg leading-relaxed tracking-wide',
+                'relative p-8 bg-card rounded-xl border overflow-hidden',
+                'font-mono text-2xl leading-loose tracking-wide',
                 className
             )}
         >
-            <div className="max-h-[200px] overflow-y-auto pr-4">
+            <div className="max-h-[300px] overflow-y-auto pr-4">
                 {text.split('').map((char, index) => {
                     const isTyped = index < currentIndex;
                     const isCurrent = index === currentIndex;
