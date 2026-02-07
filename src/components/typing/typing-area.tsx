@@ -37,56 +37,71 @@ export function TypingArea({ text, currentIndex, errorIndices, className }: Typi
         <div
             ref={containerRef}
             className={cn(
-                'relative p-8 bg-card rounded-xl border overflow-hidden',
-                'font-mono text-2xl leading-loose tracking-wide',
+                // Large rectangular box with prominent styling
+                'relative bg-card/80 backdrop-blur rounded-2xl border-2 border-border/50',
+                'shadow-lg shadow-black/5',
                 className
             )}
         >
-            <div className="max-h-[300px] overflow-y-auto pr-4">
-                {text.split('').map((char, index) => {
-                    const isTyped = index < currentIndex;
-                    const isCurrent = index === currentIndex;
-                    const isError = errorSet.has(index);
+            {/* Text content area - larger and more readable */}
+            <div
+                className={cn(
+                    'p-8 md:p-10',
+                    'min-h-[180px] max-h-[280px] overflow-y-auto',
+                    'font-mono text-xl md:text-2xl leading-relaxed tracking-wide',
+                    'selection:bg-primary/20'
+                )}
+            >
+                <div className="text-wrap wrap-break-word">
+                    {text.split('').map((char, index) => {
+                        const isTyped = index < currentIndex;
+                        const isCurrent = index === currentIndex;
+                        const isError = errorSet.has(index);
 
-                    return (
-                        <span
-                            key={index}
-                            ref={isCurrent ? cursorRef : undefined}
-                            className={cn(
-                                'relative inline',
-                                // Typed correctly
-                                isTyped && !isError && 'text-green-500',
-                                // Typed with error (but eventually corrected if we reach this point)
-                                isTyped && isError && 'text-green-500', // If we passed it, it was eventually correct
-                                // Current position - not yet typed but had errors
-                                isCurrent && isError && 'bg-red-500/20',
-                                // Not yet typed
-                                !isTyped && !isCurrent && 'text-muted-foreground/50',
-                            )}
-                        >
-                            {/* Cursor */}
-                            {isCurrent && (
-                                <motion.span
-                                    className="absolute left-0 top-0 w-0.5 h-full bg-primary"
-                                    animate={{ opacity: [1, 0, 1] }}
-                                    transition={{ duration: 1, repeat: Infinity }}
-                                />
-                            )}
+                        return (
+                            <span
+                                key={index}
+                                ref={isCurrent ? cursorRef : undefined}
+                                className={cn(
+                                    'relative inline',
+                                    'transition-colors duration-75',
+                                    // Typed correctly - bright green
+                                    isTyped && !isError && 'text-green-400',
+                                    // Typed with error (but eventually corrected)
+                                    isTyped && isError && 'text-green-400',
+                                    // Current position - highlighted
+                                    isCurrent && !isError && 'text-foreground',
+                                    // Current position with previous errors
+                                    isCurrent && isError && 'bg-red-500/20 text-foreground',
+                                    // Not yet typed - muted
+                                    !isTyped && !isCurrent && 'text-muted-foreground/60',
+                                )}
+                            >
+                                {/* Cursor - prominent blinking line */}
+                                {isCurrent && (
+                                    <motion.span
+                                        className="absolute left-0 top-[10%] w-[2px] h-[80%] bg-primary rounded-full"
+                                        animate={{ opacity: [1, 0.3, 1] }}
+                                        transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+                                    />
+                                )}
 
-                            {/* Character */}
-                            {char === ' ' ? '\u00A0' : char}
+                                {/* Character */}
+                                {char === ' ' ? '\u00A0' : char}
 
-                            {/* Error underline for current position with previous errors */}
-                            {isCurrent && isError && (
-                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500" />
-                            )}
-                        </span>
-                    );
-                })}
+                                {/* Error underline for current position */}
+                                {isCurrent && isError && (
+                                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 rounded-full" />
+                                )}
+                            </span>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Gradient fade at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-linear-to-t from-card to-transparent pointer-events-none" />
+            {/* Gradient fade at bottom for scroll indication */}
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-card/90 via-card/50 to-transparent pointer-events-none rounded-b-2xl" />
         </div>
     );
 }
+
