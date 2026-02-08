@@ -18,6 +18,12 @@ interface UseTypingEngineOptions {
     onComboMilestone?: (combo: number, level: number) => void;
 }
 
+// Consolidated completion state for race condition prevention
+interface CompletionState {
+    completed: boolean;
+    reason: 'text' | 'time' | null;
+}
+
 export function useTypingEngine({
     text,
     mode,
@@ -36,6 +42,7 @@ export function useTypingEngine({
         getAccuracy,
         getElapsedTime,
         getProgress,
+        totalCount,
     } = useTypingStore();
 
     const { recordKeystroke, clearSession } = useAnalyticsStore();
@@ -44,14 +51,18 @@ export function useTypingEngine({
     const { checkAchievements } = useAchievementStore();
 
     const previousComboLevel = useRef(0);
-    const hasCompleted = useRef(false);
-    const finishTestCalledRef = useRef(false);
+
+    // Single source of truth for completion state (fixes race condition)
+    const completionStateRef = useRef<CompletionState>({
+        completed: false,
+        reason: null,
+    });
 
     // Initialize
     useEffect(() => {
         setText(text);
         clearSession();
-        hasCompleted.current = false;
+        completionStateRef.current = { completed: false, reason: null };
         checkDailyStreak();
 
         return () => {
@@ -75,11 +86,11 @@ export function useTypingEngine({
 
                 const keystroke = storeHandleKeystroke(e.key);
                 if (keystroke) {
-                    // Record for analytics
-                    recordKeystroke(keystroke);
-
-                    // Record for ngram analysis
-                    ngramAnalyzer.recordKeystroke(e.key, keystroke.timestamp, keystroke.isCorrect);
+                    // Record for analytics (deferred to avoid blocking)
+                    queueMicrotask(() => {
+                        recordKeystroke(keystroke);
+                        ngramAnalyzer.recordKeystroke(e.key, keystroke.timestamp, keystroke.isCorrect);
+                    });
 
                     // Update game state
                     if (keystroke.isCorrect) {
@@ -104,33 +115,55 @@ export function useTypingEngine({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [storeHandleKeystroke, recordKeystroke, incrementCombo, breakCombo, addScore, getComboLevel, game.combo, onComboMilestone]);
 
-    // Time limit check
+    // Time limit check using requestAnimationFrame for precision (fixes 100ms polling latency)
     useEffect(() => {
         if (!timeLimitSeconds || !state.startTime || state.isComplete) return;
-        if (finishTestCalledRef.current) return;
+        if (completionStateRef.current.completed) return;
 
-        const interval = setInterval(() => {
-            if (getElapsedTime() >= timeLimitSeconds && !finishTestCalledRef.current) {
-                finishTestCalledRef.current = true;
-                finishTest();
+        let rafId: number;
+
+        const checkTimeLimit = () => {
+            // Early exit if already completed
+            if (completionStateRef.current.completed) return;
+
+            const elapsed = getElapsedTime();
+            if (elapsed >= timeLimitSeconds) {
+                completeSession('time');
+                return;
             }
-        }, 100);
 
-        return () => clearInterval(interval);
+            rafId = requestAnimationFrame(checkTimeLimit);
+        };
+
+        rafId = requestAnimationFrame(checkTimeLimit);
+
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.startTime, state.isComplete, timeLimitSeconds, getElapsedTime]);
 
-    // Completion handler
+    // Completion handler for text completion
     useEffect(() => {
-        if (state.isComplete && !hasCompleted.current && !finishTestCalledRef.current) {
-            hasCompleted.current = true;
-            finishTestCalledRef.current = true;
-            finishTest();
+        if (state.isComplete && !completionStateRef.current.completed) {
+            completeSession('text');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.isComplete]);
 
-    const finishTest = useCallback(() => {
+    // Single idempotent completion function (fixes race condition)
+    const completeSession = useCallback((reason: 'text' | 'time') => {
+        // Idempotency check - prevents duplicate completion
+        if (completionStateRef.current.completed) {
+            return;
+        }
+
+        // Mark as completed FIRST (atomic operation)
+        completionStateRef.current = {
+            completed: true,
+            reason,
+        };
+
         const wpm = getWpm();
         const accuracy = getAccuracy();
         const duration = getElapsedTime();
@@ -158,7 +191,7 @@ export function useTypingEngine({
         addRecord(record);
         updatePersonalBests(wpm, accuracy, maxCombo);
         addPracticeTime(duration);
-        addKeystrokes(state.keystrokes.length);
+        addKeystrokes(totalCount);
 
         // Check achievements after updating progress
         checkAchievements(progress, game, {
@@ -172,7 +205,7 @@ export function useTypingEngine({
     }, [
         getWpm, getAccuracy, getElapsedTime,
         game,
-        state.currentIndex, state.errorIndices.length, state.keystrokes.length,
+        state.currentIndex, state.errorIndices.length, totalCount,
         lessonId, mode, progress,
         completeLesson, addRecord, updatePersonalBests, addPracticeTime, addKeystrokes,
         checkAchievements,
@@ -182,8 +215,7 @@ export function useTypingEngine({
     const handleReset = useCallback(() => {
         reset();
         clearSession();
-        hasCompleted.current = false;
-        finishTestCalledRef.current = false;
+        completionStateRef.current = { completed: false, reason: null };
         previousComboLevel.current = 0;
     }, [reset, clearSession]);
 

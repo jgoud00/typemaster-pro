@@ -2,9 +2,11 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { keyboardLayout, fingerColors } from '@/lib/keyboard-data';
+import { keyboardLayout as qwertyLayout, fingerColors } from '@/lib/keyboard-data';
+import { getLayout, type KeyboardLayout } from '@/lib/keyboard-layouts';
 import { useAnalyticsStore } from '@/stores/analytics-store';
-import { KeyData } from '@/types';
+import { useSettingsStore } from '@/stores/settings-store';
+import { KeyData, Finger } from '@/types';
 
 interface VirtualKeyboardProps {
     activeKey: string | null;
@@ -12,12 +14,97 @@ interface VirtualKeyboardProps {
     className?: string;
 }
 
+// Map keyboard-layouts finger format to keyboard-data finger format
+function mapFinger(finger: 'pinky' | 'ring' | 'middle' | 'index', hand: 'left' | 'right'): Finger {
+    return `${hand}-${finger}` as Finger;
+}
+
+// Convert keyboard-layouts format to keyboard-data format for visual rendering
+function getLayoutKeyboardData(layoutName: 'qwerty' | 'dvorak' | 'colemak' | 'azerty'): KeyData[][] {
+    if (layoutName === 'qwerty') {
+        return qwertyLayout;
+    }
+
+    const layout: KeyboardLayout = getLayout(layoutName);
+
+    // Convert the layout rows to KeyData format
+    // We need to add special keys (Tab, Caps, Shift, etc.) that aren't in keyboard-layouts
+    const result: KeyData[][] = [
+        // Row 0: Number row with Backspace
+        [
+            ...layout.rows[0].map(k => ({
+                key: k.key,
+                shiftKey: k.shifted,
+                finger: mapFinger(k.finger, k.hand),
+                row: 0,
+            })),
+            { key: 'Backspace', finger: 'right-pinky' as Finger, row: 0, width: 2 },
+        ],
+        // Row 1: Top row with Tab
+        [
+            { key: 'Tab', finger: 'left-pinky' as Finger, row: 1, width: 1.5 },
+            ...layout.rows[1].map(k => ({
+                key: k.key,
+                shiftKey: k.shifted,
+                finger: mapFinger(k.finger, k.hand),
+                row: 1,
+            })),
+        ],
+        // Row 2: Home row with Caps and Enter
+        [
+            { key: 'CapsLock', finger: 'left-pinky' as Finger, row: 2, width: 1.75 },
+            ...layout.rows[2].map(k => ({
+                key: k.key,
+                shiftKey: k.shifted,
+                finger: mapFinger(k.finger, k.hand),
+                row: 2,
+            })),
+            { key: 'Enter', finger: 'right-pinky' as Finger, row: 2, width: 2.25 },
+        ],
+        // Row 3: Bottom row with Shifts
+        [
+            { key: 'Shift', finger: 'left-pinky' as Finger, row: 3, width: 2.25 },
+            ...layout.rows[3].map(k => ({
+                key: k.key,
+                shiftKey: k.shifted,
+                finger: mapFinger(k.finger, k.hand),
+                row: 3,
+            })),
+            { key: 'Shift', finger: 'right-pinky' as Finger, row: 3, width: 2.75 },
+        ],
+        // Row 4: Space bar row (same for all layouts)
+        [
+            { key: 'Ctrl', finger: 'left-pinky' as Finger, row: 4, width: 1.25 },
+            { key: 'Win', finger: 'left-pinky' as Finger, row: 4, width: 1.25 },
+            { key: 'Alt', finger: 'left-pinky' as Finger, row: 4, width: 1.25 },
+            { key: ' ', finger: 'thumb' as Finger, row: 4, width: 6.25 },
+            { key: 'Alt', finger: 'right-pinky' as Finger, row: 4, width: 1.25 },
+            { key: 'Win', finger: 'right-pinky' as Finger, row: 4, width: 1.25 },
+            { key: 'Menu', finger: 'right-pinky' as Finger, row: 4, width: 1.25 },
+            { key: 'Ctrl', finger: 'right-pinky' as Finger, row: 4, width: 1.25 },
+        ],
+    ];
+
+    return result;
+}
+
 export function VirtualKeyboard({ activeKey, showHeatmap = false, className }: VirtualKeyboardProps) {
     const { getKeyAccuracy } = useAnalyticsStore();
+    const { settings } = useSettingsStore();
+
+    // Get keyboard layout based on settings
+    const currentLayout = getLayoutKeyboardData(settings.keyboardLayout);
 
     return (
         <div className={cn('flex flex-col gap-1.5 p-4 rounded-xl bg-card/50 backdrop-blur', className)}>
-            {keyboardLayout.map((row, rowIndex) => (
+            {/* Layout indicator */}
+            {settings.keyboardLayout !== 'qwerty' && (
+                <div className="text-xs text-center text-muted-foreground mb-1">
+                    {settings.keyboardLayout.toUpperCase()} Layout
+                </div>
+            )}
+
+            {currentLayout.map((row, rowIndex) => (
                 <div key={rowIndex} className="flex justify-center gap-1.5">
                     {row.map((keyData, keyIndex) => (
                         <Key

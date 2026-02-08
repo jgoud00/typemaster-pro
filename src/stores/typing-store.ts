@@ -4,10 +4,17 @@ import { create } from 'zustand';
 import { TypingState, KeystrokeEvent, Finger } from '@/types';
 import { getKeyData } from '@/lib/keyboard-data';
 
+// Performance optimization: Max keystrokes to keep in memory for analytics
+const MAX_KEYSTROKES_BUFFER = 500;
+
 interface TypingStore {
     state: TypingState;
     activeKey: string | null;
     lastKeystrokeTime: number | null;
+    
+    // Performance counters (O(1) tracking instead of array iteration)
+    correctCount: number;
+    totalCount: number;
 
     // Actions
     setText: (text: string) => void;
@@ -38,17 +45,23 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
     state: initialState,
     activeKey: null,
     lastKeystrokeTime: null,
+    
+    // Initialize counters
+    correctCount: 0,
+    totalCount: 0,
 
     setText: (text: string) => {
         set({
             state: { ...initialState, text },
             activeKey: text.length > 0 ? text[0] : null,
             lastKeystrokeTime: null,
+            correctCount: 0,
+            totalCount: 0,
         });
     },
 
     handleKeystroke: (key: string): KeystrokeEvent | null => {
-        const { state, lastKeystrokeTime } = get();
+        const { state, lastKeystrokeTime, correctCount, totalCount } = get();
 
         if (state.isComplete || state.isPaused || state.text.length === 0) {
             return null;
@@ -82,6 +95,16 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
         const isComplete = newIndex >= state.text.length;
 
+        // Performance fix: Use circular buffer - drop oldest if over limit
+        // This prevents O(n) memory growth in long sessions
+        let newKeystrokes: KeystrokeEvent[];
+        if (state.keystrokes.length >= MAX_KEYSTROKES_BUFFER) {
+            // Drop oldest 100 entries when buffer is full (amortized O(1))
+            newKeystrokes = [...state.keystrokes.slice(100), keystroke];
+        } else {
+            newKeystrokes = [...state.keystrokes, keystroke];
+        }
+
         set({
             state: {
                 ...state,
@@ -89,11 +112,14 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
                 startTime: state.startTime ?? now,
                 endTime: isComplete ? now : null,
                 errorIndices: isCorrect ? state.errorIndices : [...state.errorIndices, state.currentIndex],
-                keystrokes: [...state.keystrokes, keystroke],
+                keystrokes: newKeystrokes,
                 isComplete,
             },
             activeKey: isComplete ? null : state.text[newIndex],
             lastKeystrokeTime: now,
+            // Update counters (O(1) operation)
+            correctCount: isCorrect ? correctCount + 1 : correctCount,
+            totalCount: totalCount + 1,
         });
 
         return keystroke;
@@ -105,6 +131,8 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
             state: { ...initialState, text: state.text },
             activeKey: state.text.length > 0 ? state.text[0] : null,
             lastKeystrokeTime: null,
+            correctCount: 0,
+            totalCount: 0,
         });
     },
 
@@ -117,25 +145,25 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
     },
 
     getWpm: () => {
-        const { state } = get();
+        const { state, correctCount } = get();
         if (!state.startTime) return 0;
 
         const endTime = state.endTime ?? Date.now();
         const elapsedMinutes = (endTime - state.startTime) / 60000;
         if (elapsedMinutes < 0.05) return 0; // Avoid division issues
 
-        const correctChars = state.keystrokes.filter(k => k.isCorrect).length;
-        const words = correctChars / 5;
+        // Use counter instead of array filter (O(1) vs O(n))
+        const words = correctCount / 5;
 
         return Math.round(words / elapsedMinutes);
     },
 
     getAccuracy: () => {
-        const { state } = get();
-        if (state.keystrokes.length === 0) return 100;
+        const { correctCount, totalCount } = get();
+        if (totalCount === 0) return 100;
 
-        const correctCount = state.keystrokes.filter(k => k.isCorrect).length;
-        return Math.round((correctCount / state.keystrokes.length) * 100);
+        // Use counters instead of array filter (O(1) vs O(n))
+        return Math.round((correctCount / totalCount) * 100);
     },
 
     getElapsedTime: () => {

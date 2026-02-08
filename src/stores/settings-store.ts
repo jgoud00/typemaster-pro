@@ -18,6 +18,12 @@ export interface SettingsState {
     smoothCaret: boolean;
     quickRestart: boolean;
     fontSize: 'small' | 'medium' | 'large';
+
+    // Keyboard Layout
+    keyboardLayout: 'qwerty' | 'dvorak' | 'colemak' | 'azerty';
+
+    // Smart Practice
+    focusModeEnabled: boolean;
 }
 
 interface SettingsStore {
@@ -43,6 +49,12 @@ const defaultSettings: SettingsState = {
     smoothCaret: true,
     quickRestart: true,
     fontSize: 'medium',
+
+    // Keyboard Layout
+    keyboardLayout: 'qwerty',
+
+    // Smart Practice
+    focusModeEnabled: false,
 };
 
 export const useSettingsStore = create<SettingsStore>()(

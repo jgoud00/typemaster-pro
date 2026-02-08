@@ -15,8 +15,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TypeMaster Pro - Learn Touch Typing",
-  description: "An AI-powered adaptive typing learning platform with intelligent weakness detection and gamification.",
+  title: "TypeMaster Pro - AI-Powered Typing Tutor",
+  description: "Master touch typing with adaptive AI-powered lessons, real-time weakness detection, and gamified learning. Track your progress and become a typing pro.",
+  keywords: ["typing", "touch typing", "typing tutor", "keyboard practice", "WPM", "typing speed"],
+  authors: [{ name: "TypeMaster Pro" }],
+  openGraph: {
+    title: "TypeMaster Pro - AI-Powered Typing Tutor",
+    description: "Master touch typing with adaptive AI lessons",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

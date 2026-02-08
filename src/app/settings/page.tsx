@@ -208,6 +208,55 @@ export default function SettingsPage() {
                     </Card>
                 </motion.div>
 
+                {/* Keyboard Layout Settings */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                >
+                    <Card className="p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Keyboard className="w-5 h-5 text-cyan-500" />
+                            <h2 className="text-xl font-semibold">Keyboard Layout & Focus</h2>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <div className="font-medium mb-3">Keyboard Layout</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {(['qwerty', 'dvorak', 'colemak', 'azerty'] as const).map((layout) => (
+                                        <Button
+                                            key={layout}
+                                            variant={settings.keyboardLayout === layout ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => updateSetting('keyboardLayout', layout)}
+                                            className="uppercase"
+                                        >
+                                            {layout}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    Virtual keyboard and finger hints will adapt to your layout
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Focus Mode</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Practice only your 3 weakest keys
+                                    </div>
+                                </div>
+                                <Switch
+                                    checked={settings.focusModeEnabled}
+                                    onCheckedChange={(checked) => updateSetting('focusModeEnabled', checked)}
+                                />
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
+
                 {/* Privacy & Data */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

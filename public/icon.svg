@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="keyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="glowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA"/>
+      <stop offset="100%" style="stop-color:#A78BFA"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGradient)"/>
+  
+  <!-- Glow effect behind key -->
+  <rect x="106" y="106" width="300" height="300" rx="40" fill="url(#glowGradient)" opacity="0.2" filter="url(#glow)"/>
+  
+  <!-- Main keyboard key shape -->
+  <rect x="126" y="126" width="260" height="260" rx="32" fill="url(#keyGradient)" filter="url(#glow)"/>
+  
+  <!-- Inner key highlight -->
+  <rect x="146" y="146" width="220" height="220" rx="24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+  
+  <!-- Letter T with lightning bolt integrated -->
+  <path d="M180 200 L332 200 L332 230 L271 230 L271 350 L241 350 L241 230 L180 230 Z" fill="white"/>
+  
+  <!-- Speed lines -->
+  <line x1="350" y1="180" x2="390" y2="160" stroke="url(#glowGradient)" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <line x1="355" y1="210" x2="400" y2="200" stroke="url(#glowGradient)" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <line x1="350" y1="240" x2="385" y2="235" stroke="url(#glowGradient)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  
+  <!-- Lightning accent -->
+  <path d="M370 280 L390 260 L380 280 L400 280 L375 310 L382 290 Z" fill="#FBBF24" filter="url(#glow)"/>
+</svg>
