@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Keyboard, Trophy, TrendingUp, Flame, Clock, Target,
-  ChevronRight, Star, Zap, Settings, Info, BookOpen, Play
+  ChevronRight, Star, Zap, Settings, Info, BookOpen, Play, X, Sparkles
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
+import { useDiagnosticStore } from '@/stores/diagnostic-store';
 import { cn } from '@/lib/utils';
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
 import { DailyGoals } from '@/components/goals/DailyGoals';
@@ -19,6 +21,8 @@ import { DailyGoals } from '@/components/goals/DailyGoals';
 export default function HomePage() {
   const { progress } = useProgressStore();
   const { game } = useGameStore();
+  const { hasTakenDiagnostic, recommendations, userLevel } = useDiagnosticStore();
+  const [showDiagnosticBanner, setShowDiagnosticBanner] = useState(true);
 
   const completedCount = progress.completedLessons.length;
   const totalLessons = lessons.length;
@@ -96,6 +100,57 @@ export default function HomePage() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Optional Diagnostic Invitation Banner - Non-blocking */}
+        <AnimatePresence>
+          {!hasTakenDiagnostic && showDiagnosticBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="bg-linear-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-500/20 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-purple-500/20 shrink-0">
+                      <Sparkles className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg mb-1">Get a Personalized Learning Path</h3>
+                      <p className="text-muted-foreground text-sm mb-3">
+                        Take a quick 60-second typing assessment and we&apos;ll tailor lessons to your skill level and weak spots.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <Link href="/diagnostic">
+                          <Button size="sm" className="gap-2">
+                            <Zap className="w-4 h-4" />
+                            Take Assessment
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowDiagnosticBanner(false)}
+                        >
+                          Maybe Later
+                        </Button>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowDiagnosticBanner(false)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Hero Section - Practice Modes (PRIMARY FOCUS) */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}

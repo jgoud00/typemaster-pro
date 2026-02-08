@@ -5,13 +5,13 @@ import { cn } from '@/lib/utils';
 import { Flame, Target, Clock, Zap } from 'lucide-react';
 
 interface TypingStatsProps {
-    wpm: number;
-    accuracy: number;
-    combo: number;
-    multiplier: number;
-    elapsedTime: number;
-    remainingTime?: number | null;
-    className?: string;
+    readonly wpm: number;
+    readonly accuracy: number;
+    readonly combo: number;
+    readonly multiplier: number;
+    readonly elapsedTime: number;
+    readonly remainingTime?: number | null;
+    readonly className?: string;
 }
 
 export function TypingStats({
@@ -62,10 +62,10 @@ export function TypingStats({
 }
 
 interface StatCardProps {
-    icon: React.ReactNode;
-    label: string;
-    value: string | number;
-    color: string;
+    readonly icon: React.ReactNode;
+    readonly label: string;
+    readonly value: string | number;
+    readonly color: string;
 }
 
 function StatCard({ icon, label, value, color }: StatCardProps) {
@@ -83,8 +83,8 @@ function StatCard({ icon, label, value, color }: StatCardProps) {
 }
 
 interface ComboDisplayProps {
-    combo: number;
-    multiplier: number;
+    readonly combo: number;
+    readonly multiplier: number;
 }
 
 function ComboDisplay({ combo, multiplier }: ComboDisplayProps) {

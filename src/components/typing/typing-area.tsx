@@ -8,13 +8,13 @@ import { WeaknessOverlay, CharacterDifficultyIndicator } from './WeaknessOverlay
 import { useErrorExplanation } from './ErrorExplanationToast';
 
 interface TypingAreaProps {
-    text: string;
-    currentIndex: number;
-    errorIndices: number[];
-    wpm?: number;
-    accuracy?: number;
-    combo?: number;
-    className?: string;
+    readonly text: string;
+    readonly currentIndex: number;
+    readonly errorIndices: number[];
+    readonly wpm?: number;
+    readonly accuracy?: number;
+    readonly combo?: number;
+    readonly className?: string;
 }
 
 export function TypingArea({

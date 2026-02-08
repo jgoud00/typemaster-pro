@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { warmupGenerator, type WarmupRoutine, type WarmupExercise } from '@/lib/algorithms/warmup-generator';
 import { useTypingEngine } from '@/hooks/use-typing-engine';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
 import { TypingArea } from '@/components/typing/typing-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';

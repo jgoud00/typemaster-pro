@@ -6,7 +6,6 @@
  */
 
 import { ultimateWeaknessDetector } from './ultimate-weakness-detector';
-import { transferLearningAnalyzer } from './transfer-learning';
 
 export interface WarmupExercise {
     id: string;

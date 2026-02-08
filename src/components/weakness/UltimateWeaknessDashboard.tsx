@@ -7,8 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
-    LineChart,
-    Line,
     BarChart,
     Bar,
     RadarChart,
@@ -244,8 +242,8 @@ export function UltimateWeaknessDashboard() {
                                         <div>
                                             <span className="text-xs text-muted-foreground">Avg Transfer:</span>
                                             <span className={`ml-2 font-semibold ${(insight.relatedKeys[0]?.transferScore || 0) > 60 ? 'text-green-500' :
-                                                    (insight.relatedKeys[0]?.transferScore || 0) > 30 ? 'text-yellow-500' :
-                                                        'text-muted-foreground'
+                                                (insight.relatedKeys[0]?.transferScore || 0) > 30 ? 'text-yellow-500' :
+                                                    'text-muted-foreground'
                                                 }`}>
                                                 {insight.relatedKeys[0]?.transferScore || 0}%
                                             </span>

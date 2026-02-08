@@ -7,14 +7,14 @@ import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface DailyGoal {
-    id: string;
-    title: string;
-    description: string;
-    target: number;
-    current: number;
-    icon: string;
-    points: number;
-    unit?: string;
+    readonly id: string;
+    readonly title: string;
+    readonly description: string;
+    readonly target: number;
+    readonly current: number;
+    readonly icon: string;
+    readonly points: number;
+    readonly unit?: string;
 }
 
 export function DailyGoals() {

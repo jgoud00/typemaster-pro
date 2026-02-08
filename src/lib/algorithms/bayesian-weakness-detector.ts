@@ -25,14 +25,14 @@ export interface WeaknessResult {
 
 export class BayesianWeaknessDetector {
     // Beta distribution prior parameters (uninformative prior)
-    private priorAlpha = 2;
-    private priorBeta = 2;
+    private readonly priorAlpha = 2;
+    private readonly priorBeta = 2;
 
     // Temporal decay: half-life of 7 days
-    private decayHalfLifeMs = 7 * 24 * 60 * 60 * 1000;
+    private readonly decayHalfLifeMs = 7 * 24 * 60 * 60 * 1000;
 
     // Minimum attempts before considering a key
-    private minAttempts = 5;
+    private readonly minAttempts = 5;
 
     /**
      * Analyze a single key using Bayesian inference
@@ -202,11 +202,32 @@ export class BayesianWeaknessDetector {
     private detectTrend(keyData: KeyPerformance): 'improving' | 'declining' | 'stable' {
         if (keyData.timestamps.length < 10) return 'stable';
 
-        const mid = Math.floor(keyData.timestamps.length / 2);
-        const correctRatio = keyData.correct / keyData.total;
+        const midPoint = Math.floor(keyData.timestamps.length / 2);
+        const now = Date.now();
 
-        // This is simplified - in production you'd track per-timestamp correctness
-        // For now, assume stable as default
+        // Calculate weighted accuracy for older half vs newer half
+        let olderCorrect = 0, olderTotal = 0;
+        let newerCorrect = 0, newerTotal = 0;
+
+        keyData.timestamps.forEach((ts, idx) => {
+            const weight = Math.exp(-(now - ts) * Math.LN2 / this.decayHalfLifeMs);
+            const isCorrect = idx < keyData.correct;
+
+            if (idx < midPoint) {
+                olderTotal += weight;
+                if (isCorrect) olderCorrect += weight;
+            } else {
+                newerTotal += weight;
+                if (isCorrect) newerCorrect += weight;
+            }
+        });
+
+        const olderAccuracy = olderTotal > 0 ? olderCorrect / olderTotal : 0;
+        const newerAccuracy = newerTotal > 0 ? newerCorrect / newerTotal : 0;
+        const diff = newerAccuracy - olderAccuracy;
+
+        if (diff > 0.1) return 'improving';
+        if (diff < -0.1) return 'declining';
         return 'stable';
     }
 

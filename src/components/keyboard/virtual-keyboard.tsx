@@ -9,9 +9,9 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { KeyData, Finger } from '@/types';
 
 interface VirtualKeyboardProps {
-    activeKey: string | null;
-    showHeatmap?: boolean;
-    className?: string;
+    readonly activeKey: string | null;
+    readonly showHeatmap?: boolean;
+    readonly className?: string;
 }
 
 // Map keyboard-layouts finger format to keyboard-data finger format
