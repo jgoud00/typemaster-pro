@@ -1,4 +1,4 @@
-// Enhanced types for TypeMaster Pro
+// Enhanced types for Aloo Type
 
 // ============= Finger & Keyboard =============
 export type Finger =

@@ -212,7 +212,7 @@ const advancedLessons: Lesson[] = [
             { id: 'a10-5', text: 'Remember: typing is a skill that improves with practice. Keep typing every day to maintain and improve your speed.', difficulty: 'intermediate' },
             { id: 'a10-6', text: 'const skills = ["speed", "accuracy", "endurance"]; skills.forEach(skill => console.log(`You have mastered: ${skill}`));', difficulty: 'advanced' },
             { id: 'a10-7', text: '"The expert in anything was once a beginner." You started with single keys and now you can type anything. That is true progress.', difficulty: 'advanced' },
-            { id: 'a10-8', text: 'You have completed TypeMaster Pro! Your journey from beginner to expert typist is complete. Now go forth and type with confidence, speed, and accuracy!', difficulty: 'advanced' },
+            { id: 'a10-8', text: 'You have completed Aloo Type! Your journey from beginner to expert typist is complete. Now go forth and type with confidence, speed, and accuracy!', difficulty: 'advanced' },
         ],
     },
 ];

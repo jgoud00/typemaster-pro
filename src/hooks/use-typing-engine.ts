@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useGameStore } from '@/stores/game-store';
@@ -58,6 +58,10 @@ export function useTypingEngine({
         reason: null,
     });
 
+    // Timer tick state to force re-renders for elapsed time display
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_timerTick, setTimerTick] = useState(0);
+
     // Initialize
     useEffect(() => {
         setText(text);
@@ -70,6 +74,18 @@ export function useTypingEngine({
             clearSession();
         };
     }, [text, setText, clearSession, reset, checkDailyStreak]);
+
+    // Timer update interval - triggers re-renders every second while typing is active
+    useEffect(() => {
+        // Only run interval when typing has started and not completed
+        if (!state.startTime || state.isComplete) return;
+
+        const intervalId = setInterval(() => {
+            setTimerTick(tick => tick + 1);
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, [state.startTime, state.isComplete]);
 
     // Handle keyboard events
     useEffect(() => {

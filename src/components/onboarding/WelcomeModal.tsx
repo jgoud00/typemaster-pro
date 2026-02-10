@@ -33,7 +33,7 @@ export function WelcomeModal() {
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="text-3xl text-center mb-4">
-                        Welcome to TypeMaster Pro! 👋
+                        Welcome to Aloo Type! 👋
                     </DialogTitle>
                 </DialogHeader>
 

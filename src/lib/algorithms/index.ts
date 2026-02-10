@@ -1,5 +1,5 @@
 /**
- * TypeMaster Pro - Advanced Algorithms
+ * Aloo Type - Advanced Algorithms
  * 
  * Research-grade adaptive learning system with:
  * - Bayesian weakness detection with confidence intervals

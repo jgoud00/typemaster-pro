@@ -21,14 +21,11 @@ import {
     Line,
     AreaChart,
     Area,
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Legend,
     ReferenceLine,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -100,7 +97,7 @@ export default function StatsPage() {
     const personalBestAccuracy = progress.personalBests?.accuracy || 0;
     const currentStreak = game.dailyStreak || 0;
 
-    // Generate mock chart data from records (in real app, this would come from stored history)
+    // Generate chart data from actual records
     const wpmData = progress.records?.slice(-30).map((record, i) => ({
         session: i + 1,
         wpm: record.wpm,
@@ -108,22 +105,13 @@ export default function StatsPage() {
         date: new Date(record.timestamp).toLocaleDateString(),
     })) || [];
 
-    // If no records, create sample progression data
-    const chartData = wpmData.length > 0 ? wpmData : [
-        { session: 1, wpm: 25, accuracy: 85, date: 'Start' },
-        { session: 2, wpm: 28, accuracy: 87, date: '' },
-        { session: 3, wpm: 30, accuracy: 88, date: '' },
-        { session: 4, wpm: 32, accuracy: 90, date: '' },
-        { session: 5, wpm: 35, accuracy: 91, date: 'Now' },
-    ];
+    // Use real data only - no fabricated fallback data
+    const chartData = wpmData;
+    const hasChartData = chartData.length > 0;
 
-    // Practice distribution data (mock - would track in real app)
-    const practiceDistribution = [
-        { mode: 'Lessons', hours: Math.round(totalTimeSeconds * 0.4 / 3600 * 10) / 10, fill: '#3b82f6' },
-        { mode: 'Free Practice', hours: Math.round(totalTimeSeconds * 0.25 / 3600 * 10) / 10, fill: '#22c55e' },
-        { mode: 'Speed Tests', hours: Math.round(totalTimeSeconds * 0.2 / 3600 * 10) / 10, fill: '#f59e0b' },
-        { mode: 'Speed Training', hours: Math.round(totalTimeSeconds * 0.15 / 3600 * 10) / 10, fill: '#8b5cf6' },
-    ];
+    // Practice data check - only show when there's actual data
+    const hasPracticeData = totalTimeSeconds > 0;
+
 
     // Get key stats for heatmap
     const getKeyStats = (key: string) => {
@@ -194,7 +182,7 @@ export default function StatsPage() {
             )}
 
             {/* Header */}
-            <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
@@ -344,48 +332,59 @@ export default function StatsPage() {
                                     <CardDescription>Your typing speed over recent sessions</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={chartData}>
-                                                <defs>
-                                                    <linearGradient id="wpmGradient" x1="0" y1="0" x2="1" y2="0">
-                                                        <stop offset="0%" stopColor="#3b82f6" />
-                                                        <stop offset="100%" stopColor="#22c55e" />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                                                <XAxis
-                                                    dataKey="session"
-                                                    tick={{ fontSize: 12 }}
-                                                    className="text-muted-foreground"
-                                                />
-                                                <YAxis
-                                                    domain={[0, 100]}
-                                                    tick={{ fontSize: 12 }}
-                                                    className="text-muted-foreground"
-                                                />
-                                                <Tooltip
-                                                    contentStyle={{
-                                                        backgroundColor: 'hsl(var(--card))',
-                                                        border: '1px solid hsl(var(--border))',
-                                                        borderRadius: '8px',
-                                                    }}
-                                                    formatter={(value) => [`${value} WPM`, 'Speed']}
-                                                />
-                                                <Line
-                                                    type="monotone"
-                                                    dataKey="wpm"
-                                                    stroke="url(#wpmGradient)"
-                                                    strokeWidth={3}
-                                                    dot={{ fill: '#3b82f6', strokeWidth: 2 }}
-                                                    activeDot={{ r: 6, fill: '#22c55e' }}
-                                                />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                    {hasChartData ? (
+                                        <div className="h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={chartData}>
+                                                    <defs>
+                                                        <linearGradient id="wpmGradient" x1="0" y1="0" x2="1" y2="0">
+                                                            <stop offset="0%" stopColor="#3b82f6" />
+                                                            <stop offset="100%" stopColor="#22c55e" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                                                    <XAxis
+                                                        dataKey="session"
+                                                        tick={{ fontSize: 12 }}
+                                                        className="text-muted-foreground"
+                                                    />
+                                                    <YAxis
+                                                        domain={[0, 100]}
+                                                        tick={{ fontSize: 12 }}
+                                                        className="text-muted-foreground"
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: 'hsl(var(--card))',
+                                                            border: '1px solid hsl(var(--border))',
+                                                            borderRadius: '8px',
+                                                        }}
+                                                        formatter={(value) => [`${value} WPM`, 'Speed']}
+                                                    />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="wpm"
+                                                        stroke="url(#wpmGradient)"
+                                                        strokeWidth={3}
+                                                        dot={{ fill: '#3b82f6', strokeWidth: 2 }}
+                                                        activeDot={{ r: 6, fill: '#22c55e' }}
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <div className="h-[300px] flex items-center justify-center">
+                                            <div className="text-center text-muted-foreground">
+                                                <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                <p className="text-lg font-medium">No data yet</p>
+                                                <p className="text-sm">Complete a practice session to see your progress</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>
+
 
                         {/* Accuracy Trends Chart */}
                         <TabsContent value="accuracy">
@@ -395,92 +394,106 @@ export default function StatsPage() {
                                     <CardDescription>Your typing accuracy over recent sessions</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={chartData}>
-                                                <defs>
-                                                    <linearGradient id="accuracyGradient" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
-                                                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0.1} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                                                <XAxis
-                                                    dataKey="session"
-                                                    tick={{ fontSize: 12 }}
-                                                    className="text-muted-foreground"
-                                                />
-                                                <YAxis
-                                                    domain={[60, 100]}
-                                                    tick={{ fontSize: 12 }}
-                                                    className="text-muted-foreground"
-                                                />
-                                                <Tooltip
-                                                    contentStyle={{
-                                                        backgroundColor: 'hsl(var(--card))',
-                                                        border: '1px solid hsl(var(--border))',
-                                                        borderRadius: '8px',
-                                                    }}
-                                                    formatter={(value) => [`${value}%`, 'Accuracy']}
-                                                />
-                                                <ReferenceLine
-                                                    y={95}
-                                                    stroke="#f59e0b"
-                                                    strokeDasharray="5 5"
-                                                    label={{ value: 'Target 95%', fill: '#f59e0b', fontSize: 12 }}
-                                                />
-                                                <Area
-                                                    type="monotone"
-                                                    dataKey="accuracy"
-                                                    stroke="#22c55e"
-                                                    strokeWidth={2}
-                                                    fill="url(#accuracyGradient)"
-                                                />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                    {hasChartData ? (
+                                        <div className="h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={chartData}>
+                                                    <defs>
+                                                        <linearGradient id="accuracyGradient" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
+                                                            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.1} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                                                    <XAxis
+                                                        dataKey="session"
+                                                        tick={{ fontSize: 12 }}
+                                                        className="text-muted-foreground"
+                                                    />
+                                                    <YAxis
+                                                        domain={[60, 100]}
+                                                        tick={{ fontSize: 12 }}
+                                                        className="text-muted-foreground"
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: 'hsl(var(--card))',
+                                                            border: '1px solid hsl(var(--border))',
+                                                            borderRadius: '8px',
+                                                        }}
+                                                        formatter={(value) => [`${value}%`, 'Accuracy']}
+                                                    />
+                                                    <ReferenceLine
+                                                        y={95}
+                                                        stroke="#f59e0b"
+                                                        strokeDasharray="5 5"
+                                                        label={{ value: 'Target 95%', fill: '#f59e0b', fontSize: 12 }}
+                                                    />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="accuracy"
+                                                        stroke="#22c55e"
+                                                        strokeWidth={2}
+                                                        fill="url(#accuracyGradient)"
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    ) : (
+                                        <div className="h-[300px] flex items-center justify-center">
+                                            <div className="text-center text-muted-foreground">
+                                                <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                <p className="text-lg font-medium">No data yet</p>
+                                                <p className="text-sm">Complete a practice session to see your accuracy trends</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>
 
-                        {/* Practice Distribution Chart */}
+                        {/* Practice Summary */}
                         <TabsContent value="distribution">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Practice Distribution</CardTitle>
-                                    <CardDescription>Time spent in each practice mode</CardDescription>
+                                    <CardTitle>Practice Summary</CardTitle>
+                                    <CardDescription>Your practice activity overview</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={practiceDistribution} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                                                <XAxis type="number" tick={{ fontSize: 12 }} />
-                                                <YAxis
-                                                    type="category"
-                                                    dataKey="mode"
-                                                    tick={{ fontSize: 12 }}
-                                                    width={100}
-                                                />
-                                                <Tooltip
-                                                    contentStyle={{
-                                                        backgroundColor: 'hsl(var(--card))',
-                                                        border: '1px solid hsl(var(--border))',
-                                                        borderRadius: '8px',
-                                                    }}
-                                                    formatter={(value) => [`${value} hours`, 'Time']}
-                                                />
-                                                <Bar
-                                                    dataKey="hours"
-                                                    radius={[0, 4, 4, 0]}
-                                                    fill="#3b82f6"
-                                                />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                    {hasPracticeData ? (
+                                        <div className="space-y-6">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="text-center p-4 rounded-lg bg-blue-500/10">
+                                                    <p className="text-2xl font-bold text-blue-400">{formatTime(totalTimeSeconds)}</p>
+                                                    <p className="text-sm text-muted-foreground">Total Practice</p>
+                                                </div>
+                                                <div className="text-center p-4 rounded-lg bg-green-500/10">
+                                                    <p className="text-2xl font-bold text-green-400">{progress.records?.length || 0}</p>
+                                                    <p className="text-sm text-muted-foreground">Sessions</p>
+                                                </div>
+                                                <div className="text-center p-4 rounded-lg bg-yellow-500/10">
+                                                    <p className="text-2xl font-bold text-yellow-400">{progress.completedLessons?.length || 0}</p>
+                                                    <p className="text-sm text-muted-foreground">Lessons Done</p>
+                                                </div>
+                                                <div className="text-center p-4 rounded-lg bg-purple-500/10">
+                                                    <p className="text-2xl font-bold text-purple-400">{formatNumber(totalKeystrokes)}</p>
+                                                    <p className="text-sm text-muted-foreground">Keystrokes</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="h-[200px] flex items-center justify-center">
+                                            <div className="text-center text-muted-foreground">
+                                                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                                <p className="text-lg font-medium">No practice data yet</p>
+                                                <p className="text-sm">Start practicing to see your activity summary</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>
+
                     </Tabs>
                 </section>
 

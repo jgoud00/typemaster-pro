@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Volume2, Monitor, Keyboard, Shield } from 'lucide-react';
+import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useProgressStore } from '@/stores/progress-store';
+import { downloadUserData, getStoredDataSummary, deleteAllUserData } from '@/lib/gdpr-export';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -18,6 +19,12 @@ export default function SettingsPage() {
     const { settings, updateSetting, resetSettings } = useSettingsStore();
     const { exportData, importData, resetProgress } = useProgressStore();
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [dataSummary, setDataSummary] = useState<{ key: string; size: number; description: string }[]>([]);
+
+    // Fetch data summary on client side only
+    useEffect(() => {
+        setDataSummary(getStoredDataSummary());
+    }, []);
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -46,7 +53,7 @@ export default function SettingsPage() {
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
             {/* Header */}
-            <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+            <header className="glass-header">
                 <div className="container mx-auto px-4 h-16 flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                         <ArrowLeft className="w-5 h-5" />
@@ -257,7 +264,7 @@ export default function SettingsPage() {
                     </Card>
                 </motion.div>
 
-                {/* Privacy & Data */}
+                {/* Privacy & Data (GDPR Compliant) */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -267,6 +274,9 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-3 mb-6">
                             <Shield className="w-5 h-5 text-orange-500" />
                             <h2 className="text-xl font-semibold">Privacy & Data</h2>
+                            <span className="ml-auto text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded">
+                                GDPR Compliant
+                            </span>
                         </div>
 
                         <div className="space-y-4">
@@ -280,12 +290,47 @@ export default function SettingsPage() {
                                 <Switch checked disabled />
                             </div>
 
+                            {/* Data Summary */}
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FileText className="w-4 h-4" />
+                                    <span className="font-medium text-sm">Your Data Summary</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                    {dataSummary.slice(0, 4).map((item) => (
+                                        <div key={item.key} className="flex justify-between">
+                                            <span>{item.description.slice(0, 35)}...</span>
+                                            <span>{(item.size / 1024).toFixed(1)} KB</span>
+                                        </div>
+                                    ))}
+                                    {dataSummary.length > 4 && (
+                                        <div className="text-muted-foreground/70">
+                                            +{dataSummary.length - 4} more categories
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* GDPR Full Export */}
+                            <Button
+                                variant="default"
+                                className="w-full gap-2"
+                                onClick={() => {
+                                    downloadUserData();
+                                    toast.success('Full data export downloaded!');
+                                }}
+                            >
+                                <Download className="w-4 h-4" />
+                                Download All My Data (GDPR)
+                            </Button>
+
+                            {/* Basic Progress Export */}
                             <Button
                                 variant="outline"
                                 className="w-full"
                                 onClick={() => exportData()}
                             >
-                                📥 Export Your Data
+                                📥 Export Progress Only
                             </Button>
 
                             <input
@@ -309,12 +354,15 @@ export default function SettingsPage() {
                                     className="w-full"
                                     onClick={() => setShowResetConfirm(true)}
                                 >
-                                    🗑️ Clear All Data
+                                    🗑️ Delete All My Data
                                 </Button>
                             ) : (
-                                <div className="space-y-2">
-                                    <p className="text-sm text-center text-destructive">
-                                        Are you sure? This cannot be undone!
+                                <div className="space-y-2 p-3 border border-destructive/50 rounded-lg">
+                                    <p className="text-sm text-center text-destructive font-medium">
+                                        ⚠️ This will permanently delete ALL your data!
+                                    </p>
+                                    <p className="text-xs text-center text-muted-foreground">
+                                        We recommend downloading your data first.
                                     </p>
                                     <div className="flex gap-2">
                                         <Button
@@ -327,9 +375,15 @@ export default function SettingsPage() {
                                         <Button
                                             variant="destructive"
                                             className="flex-1"
-                                            onClick={handleResetData}
+                                            onClick={() => {
+                                                deleteAllUserData();
+                                                resetProgress();
+                                                resetSettings();
+                                                setShowResetConfirm(false);
+                                                toast.success('All data has been deleted');
+                                            }}
                                         >
-                                            Yes, Clear All
+                                            Yes, Delete All
                                         </Button>
                                     </div>
                                 </div>

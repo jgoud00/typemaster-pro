@@ -10,7 +10,7 @@ interface ShareButtonsProps {
 
 export function ShareButtons({ url, title }: ShareButtonsProps) {
     const shareUrl = url || (typeof window !== 'undefined' ? window.location.origin : '');
-    const shareText = `${title}\n\nTry TypeMaster Pro: ${shareUrl}`;
+    const shareText = `${title}\n\nTry Aloo Type: ${shareUrl}`;
 
     const shareToTwitter = () => {
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;

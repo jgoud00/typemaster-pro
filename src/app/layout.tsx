@@ -15,12 +15,12 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TypeMaster Pro - AI-Powered Typing Tutor",
+  title: "Aloo Type - AI-Powered Typing Tutor",
   description: "Master touch typing with adaptive AI-powered lessons, real-time weakness detection, and gamified learning. Track your progress and become a typing pro.",
   keywords: ["typing", "touch typing", "typing tutor", "keyboard practice", "WPM", "typing speed"],
-  authors: [{ name: "TypeMaster Pro" }],
+  authors: [{ name: "Aloo Type" }],
   openGraph: {
-    title: "TypeMaster Pro - AI-Powered Typing Tutor",
+    title: "Aloo Type - AI-Powered Typing Tutor",
     description: "Master touch typing with adaptive AI lessons",
     type: "website",
   },

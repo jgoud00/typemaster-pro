@@ -82,7 +82,7 @@ export default function WarmupRoutinePage() {
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
             {/* Header */}
-            <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/')}>

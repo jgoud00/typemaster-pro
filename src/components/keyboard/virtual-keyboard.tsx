@@ -96,7 +96,8 @@ export function VirtualKeyboard({ activeKey, showHeatmap = false, className }: V
     const currentLayout = getLayoutKeyboardData(settings.keyboardLayout);
 
     return (
-        <div className={cn('flex flex-col gap-1.5 p-4 rounded-xl bg-card/50 backdrop-blur', className)}>
+        <div className={cn('flex flex-col gap-1.5 p-4 rounded-2xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-xl', className)}>
+
             {/* Layout indicator */}
             {settings.keyboardLayout !== 'qwerty' && (
                 <div className="text-xs text-center text-muted-foreground mb-1">

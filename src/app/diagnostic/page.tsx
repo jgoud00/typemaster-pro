@@ -44,23 +44,6 @@ export default function DiagnosticPage() {
         }
     }, [hasTakenDiagnostic, router]);
 
-    // Timer countdown
-    useEffect(() => {
-        if (phase !== 'test' || !startTime) return;
-
-        const interval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const remaining = Math.max(0, TEST_DURATION - elapsed);
-            setTimeRemaining(remaining);
-
-            if (remaining === 0) {
-                finishTest();
-            }
-        }, 100);
-
-        return () => clearInterval(interval);
-    }, [phase, startTime]);
-
     const startTest = useCallback(() => {
         setPhase('test');
         setStartTime(Date.now());
@@ -88,6 +71,23 @@ export default function DiagnosticPage() {
             router.push('/diagnostic/results');
         }, 2000);
     }, [keystrokes, startTime, setDiagnosticResult, router]);
+
+    // Timer countdown (depends on finishTest, so must come after)
+    useEffect(() => {
+        if (phase !== 'test' || !startTime) return;
+
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = Math.max(0, TEST_DURATION - elapsed);
+            setTimeRemaining(remaining);
+
+            if (remaining === 0) {
+                finishTest();
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [phase, startTime, finishTest]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
         if (phase !== 'test') return;

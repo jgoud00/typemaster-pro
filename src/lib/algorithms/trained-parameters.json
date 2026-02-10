@@ -1,0 +1,232 @@
+{
+  "dataSource": "Keystroke Dynamics Dataset - 100 participants",
+  "totalKeystrokes": 545894,
+  "participantCount": 99,
+  "priors": {
+    "alpha": 10,
+    "beta": 2.3435313733254124
+  },
+  "speedModel": {
+    "shape": 6.7088374341817945,
+    "rate": 0.06652357357823946,
+    "meanSpeed": 100.84902348625967,
+    "stdDev": 38.93570682658137
+  },
+  "hmmTransitions": {
+    "learning->learning": 0.18351129873354854,
+    "learning->proficient": 0.34293518748447976,
+    "learning->mastered": 0.4735535137819717,
+    "learning->regressing": 0,
+    "proficient->learning": 0.09288913013977473,
+    "proficient->proficient": 0.4790337902021984,
+    "proficient->mastered": 0.386212511874067,
+    "proficient->regressing": 0.04186456778395983,
+    "mastered->learning": 0.059724926207372984,
+    "mastered->proficient": 0.1777931294354079,
+    "mastered->mastered": 0.7077811970106136,
+    "mastered->regressing": 0.05470074734660554,
+    "regressing->learning": 0.08342420937840785,
+    "regressing->proficient": 0.17148309705561615,
+    "regressing->mastered": 0.4836423118865867,
+    "regressing->regressing": 0.26145038167938933
+  },
+  "ensembleWeights": {
+    "bayesian": 0.4,
+    "hmm": 0.3,
+    "temporal": 0.2,
+    "meta": 0.1
+  },
+  "keySpecificPriors": {
+    "2": {
+      "alpha": 2.7973497218375245,
+      "beta": 1,
+      "meanSpeed": 83
+    },
+    "w": {
+      "alpha": 10,
+      "beta": 3.1785999008031722,
+      "meanSpeed": 109
+    },
+    "shift": {
+      "alpha": 10,
+      "beta": 9.31476825607675,
+      "meanSpeed": 262
+    },
+    "e": {
+      "alpha": 10,
+      "beta": 10,
+      "meanSpeed": 106
+    },
+    "space": {
+      "alpha": 10,
+      "beta": 10,
+      "meanSpeed": 98
+    },
+    "b": {
+      "alpha": 4.419688057198369,
+      "beta": 1,
+      "meanSpeed": 90
+    },
+    "l": {
+      "alpha": 1.9720138420207254,
+      "beta": 1,
+      "meanSpeed": 91
+    },
+    "i": {
+      "alpha": 10,
+      "beta": 2.78589648183173,
+      "meanSpeed": 91
+    },
+    "v": {
+      "alpha": 10,
+      "beta": 2.237930205773999,
+      "meanSpeed": 101
+    },
+    "t": {
+      "alpha": 9.161981217205021,
+      "beta": 1.0237261970992753,
+      "meanSpeed": 96
+    },
+    "h": {
+      "alpha": 2.581190649774494,
+      "beta": 1,
+      "meanSpeed": 99
+    },
+    "a": {
+      "alpha": 6.443381538774643,
+      "beta": 1,
+      "meanSpeed": 121
+    },
+    "c": {
+      "alpha": 10,
+      "beta": 6.123718439227477,
+      "meanSpeed": 104
+    },
+    "n": {
+      "alpha": 2.375997489372513,
+      "beta": 1,
+      "meanSpeed": 92
+    },
+    "g": {
+      "alpha": 10,
+      "beta": 2.9889002583519773,
+      "meanSpeed": 96
+    },
+    "s": {
+      "alpha": 3.771615142469526,
+      "beta": 1,
+      "meanSpeed": 113
+    },
+    "r": {
+      "alpha": 10,
+      "beta": 8.87077807612577,
+      "meanSpeed": 106
+    },
+    "o": {
+      "alpha": 4.409783202267987,
+      "beta": 1,
+      "meanSpeed": 93
+    },
+    "u": {
+      "alpha": 10,
+      "beta": 7.910097189698497,
+      "meanSpeed": 93
+    },
+    "d": {
+      "alpha": 10,
+      "beta": 4.396086487650567,
+      "meanSpeed": 107
+    },
+    "f": {
+      "alpha": 3.046754843033401,
+      "beta": 1,
+      "meanSpeed": 101
+    },
+    "m": {
+      "alpha": 10,
+      "beta": 3.065653778768527,
+      "meanSpeed": 96
+    },
+    ".": {
+      "alpha": 10,
+      "beta": 8.986132721127122,
+      "meanSpeed": 92
+    },
+    "j": {
+      "alpha": 6.793325411568255,
+      "beta": 1,
+      "meanSpeed": 94
+    },
+    "k": {
+      "alpha": 10,
+      "beta": 1.6596502541976172,
+      "meanSpeed": 94
+    },
+    "backspace": {
+      "alpha": 10,
+      "beta": 10,
+      "meanSpeed": 86
+    },
+    "y": {
+      "alpha": 6.529475444091882,
+      "beta": 1,
+      "meanSpeed": 97
+    },
+    "p": {
+      "alpha": 1.9274471783410936,
+      "beta": 1,
+      "meanSpeed": 96
+    },
+    ":": {
+      "alpha": 3.5328320863814513,
+      "beta": 1,
+      "meanSpeed": 99
+    },
+    "z": {
+      "alpha": 6.013895008903789,
+      "beta": 1,
+      "meanSpeed": 109
+    },
+    "-": {
+      "alpha": 6.6259934153033395,
+      "beta": 1,
+      "meanSpeed": 89
+    },
+    "'": {
+      "alpha": 10,
+      "beta": 6.644738461502853,
+      "meanSpeed": 91
+    },
+    "?": {
+      "alpha": 2.553043759927981,
+      "beta": 1,
+      "meanSpeed": 96
+    },
+    "q": {
+      "alpha": 2.375997489372513,
+      "beta": 1,
+      "meanSpeed": 102
+    },
+    "x": {
+      "alpha": 2.399423064537377,
+      "beta": 1,
+      "meanSpeed": 110
+    },
+    "enter": {
+      "alpha": 2.797018839708279,
+      "beta": 1,
+      "meanSpeed": 93
+    },
+    ";": {
+      "alpha": 3.7303635494047183,
+      "beta": 1,
+      "meanSpeed": 94
+    }
+  },
+  "weaknessThresholds": {
+    "weak": 0.18473193473193472,
+    "moderate": 0.11038961038961038,
+    "proficient": 0.1016949152542373
+  },
+  "trainedAt": "2026-02-09"
+}

@@ -42,16 +42,17 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
+    <div className="min-h-screen">
       {/* Welcome Modal for first-time users */}
       <WelcomeModal />
 
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+      <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
+
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Keyboard className="w-8 h-8 text-primary" />
-            <h1 className="text-xl font-bold">TypeMaster Pro</h1>
+            <h1 className="text-xl font-bold">Aloo Type</h1>
           </div>
 
           <div className="flex items-center gap-4">
@@ -296,24 +297,30 @@ export default function HomePage() {
   );
 }
 
-// Stat Card Component
+// Stat Card Component (with Glassmorphism Hover)
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          {icon}
-          <div>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-lg font-bold">{value}</p>
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+    >
+      <Card className="transition-all duration-300 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] hover:bg-white/10 hover:backdrop-blur-2xl">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            {icon}
+            <div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-lg font-bold">{value}</p>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
-// Practice Mode Card Component (Enhanced)
+
+// Practice Mode Card Component (Enhanced with Glassmorphism Hover)
 function PracticeModeCard({ title, description, href, icon, color }: {
   title: string;
   description: string;
@@ -323,16 +330,30 @@ function PracticeModeCard({ title, description, href, icon, color }: {
 }) {
   return (
     <Link href={href}>
-      <Card className={cn(
-        'h-full transition-all hover:shadow-lg cursor-pointer bg-linear-to-br',
-        color || 'from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50'
-      )}>
-        <CardContent className="p-6">
-          <div className="text-4xl mb-4">{icon}</div>
-          <h3 className="font-bold text-lg mb-1">{title}</h3>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        whileHover={{
+          scale: 1.03,
+          y: -4,
+        }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      >
+        <Card className={cn(
+          'h-full cursor-pointer bg-linear-to-br backdrop-blur-xl',
+          'border-2 transition-all duration-300',
+          'hover:shadow-[0_0_30px_rgba(139,92,246,0.3)] hover:backdrop-blur-2xl',
+          'hover:bg-white/10',
+          color || 'from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50'
+        )}>
+          <CardContent className="p-6 relative overflow-hidden">
+            {/* Hover glow effect */}
+            <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 bg-linear-to-br from-white/5 to-transparent pointer-events-none" />
+            <div className="text-4xl mb-4">{icon}</div>
+            <h3 className="font-bold text-lg mb-1">{title}</h3>
+            <p className="text-sm text-muted-foreground">{description}</p>
+          </CardContent>
+        </Card>
+      </motion.div>
     </Link>
   );
 }

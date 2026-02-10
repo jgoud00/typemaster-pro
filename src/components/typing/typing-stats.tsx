@@ -70,8 +70,8 @@ interface StatCardProps {
 
 function StatCard({ icon, label, value, color }: StatCardProps) {
     return (
-        <div className="flex items-center gap-3 px-4 py-3 bg-card/50 rounded-lg border backdrop-blur">
-            <div className={cn('p-2 rounded-lg bg-background', color)}>
+        <div className="flex items-center gap-3 px-4 py-3 bg-white/3 rounded-lg border border-white/10 backdrop-blur-xl shadow-lg">
+            <div className={cn('p-2 rounded-lg bg-background/50 backdrop-blur', color)}>
                 {icon}
             </div>
             <div>
@@ -81,6 +81,7 @@ function StatCard({ icon, label, value, color }: StatCardProps) {
         </div>
     );
 }
+
 
 interface ComboDisplayProps {
     readonly combo: number;

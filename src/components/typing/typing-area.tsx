@@ -81,12 +81,13 @@ export function TypingArea({
             role="application"
             aria-label="Typing practice area"
             className={cn(
-                // Large rectangular box with prominent styling
-                'relative bg-card/80 backdrop-blur rounded-2xl border-2 border-border/50',
-                'shadow-lg shadow-black/5',
+                // Large rectangular box with glassmorphism
+                'relative bg-white/5 backdrop-blur-2xl rounded-2xl',
+                'border border-white/15 shadow-2xl shadow-black/20',
                 className
             )}
         >
+
             {/* Weakness Overlay - Predictive Warning */}
             <WeaknessOverlay
                 text={text}

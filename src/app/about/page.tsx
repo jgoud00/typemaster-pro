@@ -57,7 +57,7 @@ export default function AboutPage() {
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
             {/* Header */}
-            <header className="border-b bg-card/50 backdrop-blur sticky top-0 z-40">
+            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href="/">
@@ -66,7 +66,7 @@ export default function AboutPage() {
                             </Button>
                         </Link>
                         <Keyboard className="w-8 h-8 text-primary" />
-                        <h1 className="text-xl font-bold">About TypeMaster Pro</h1>
+                        <h1 className="text-xl font-bold">About Aloo Type</h1>
                     </div>
                 </div>
             </header>
@@ -84,7 +84,7 @@ export default function AboutPage() {
                     </div>
 
                     <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-linear-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-                        TypeMaster Pro
+                        Aloo Type
                     </h1>
 
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -111,7 +111,7 @@ export default function AboutPage() {
 
                             <div className="space-y-4 text-muted-foreground leading-relaxed">
                                 <p>
-                                    <strong className="text-foreground">TypeMaster Pro</strong> was born from a simple idea:
+                                    <strong className="text-foreground">Aloo Type</strong> was born from a simple idea:
                                     typing practice should be <em>fun</em>, not boring. Traditional typing tutors
                                     felt dry and uninspiring, so we decided to create something different.
                                 </p>
@@ -128,7 +128,7 @@ export default function AboutPage() {
                                 <p>
                                     Built over countless late nights with
                                     <Coffee className="w-4 h-4 inline mx-1 text-amber-500" />
-                                    coffee in hand, TypeMaster Pro represents the joy of creating something
+                                    coffee in hand, Aloo Type represents the joy of creating something
                                     useful while learning and experimenting with modern web technologies.
                                 </p>
                             </div>
@@ -221,7 +221,7 @@ export default function AboutPage() {
                             <h2 className="text-2xl font-bold mb-3">Made with Love</h2>
 
                             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                                TypeMaster Pro is a passion project. Every feature was crafted with care
+                                Aloo Type is a passion project. Every feature was crafted with care
                                 to help you become a better typist while enjoying the journey.
                             </p>
 
@@ -252,7 +252,7 @@ export default function AboutPage() {
                         Built with <Heart className="w-3 h-3 inline text-red-500 mx-1" />
                         using the power of Vibe Coding
                     </p>
-                    <p className="mt-1">© 2024 TypeMaster Pro. Happy Typing! 🎹</p>
+                    <p className="mt-1">© 2024 Aloo Type. Happy Typing! 🎹</p>
                 </motion.footer>
             </main>
         </div>
