@@ -260,7 +260,7 @@ function estimateHMMTransitions(data: KeystrokeData[], stats: Map<string, KeySta
     let learningToLearning = 0;
     let learningToProficient = 0;
     let learningToMastered = 0;
-    let learningToRegressing = 0;
+    const learningToRegressing = 0;
 
     let proficientToLearning = 0;
     let proficientToProficient = 0;

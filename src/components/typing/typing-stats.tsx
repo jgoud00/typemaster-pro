@@ -3,26 +3,40 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Flame, Target, Clock, Zap } from 'lucide-react';
-
-interface TypingStatsProps {
-    readonly wpm: number;
-    readonly accuracy: number;
-    readonly combo: number;
-    readonly multiplier: number;
-    readonly elapsedTime: number;
-    readonly remainingTime?: number | null;
-    readonly className?: string;
-}
+import { levenshteinDistance } from '@/lib/algorithms/levenshtein';
+import { useMemo } from 'react';
+import { useTypingStore } from '@/stores/typing-store';
+import { useGameStore } from '@/stores/game-store';
 
 export function TypingStats({
-    wpm,
-    accuracy,
-    combo,
-    multiplier,
-    elapsedTime,
+    targetWpm,
+    expectedText,
+    typedText,
     remainingTime,
     className,
-}: TypingStatsProps) {
+}: {
+    readonly targetWpm?: number;
+    readonly expectedText?: string;
+    readonly typedText?: string;
+    readonly remainingTime?: number | null;
+    readonly className?: string;
+}) {
+    const { getWpm, getAccuracy, getElapsedTime } = useTypingStore();
+    const { game } = useGameStore();
+
+    const wpm = getWpm();
+    const accuracy = getAccuracy();
+    const elapsedTime = getElapsedTime();
+    const combo = game.combo;
+    const multiplier = game.multiplier;
+
+    // Calculate Detailed Errors
+    const errorBreakdown = useMemo(() => {
+        if (!expectedText || !typedText) return { substitutions: 0, insertions: 0, deletions: 0 };
+        const result = levenshteinDistance(typedText, expectedText.slice(0, typedText.length)); // Compare what was typed vs expected up to that point
+        return result.breakdown;
+    }, [expectedText, typedText]);
+
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -47,16 +61,47 @@ export function TypingStats({
                 color={getAccuracyColor(accuracy)}
             />
 
+            {/* Pace (if target set) */}
+            {targetWpm && (
+                <StatCard
+                    icon={<Clock className="w-5 h-5" />}
+                    label="Pace"
+                    value={`${wpm >= targetWpm ? '+' : ''}${Math.round(wpm - targetWpm)}`}
+                    color={wpm >= targetWpm ? 'text-green-400' : 'text-red-400'}
+                />
+            )}
+
             {/* Combo */}
             <ComboDisplay combo={combo} multiplier={multiplier} />
 
             {/* Time */}
             <StatCard
                 icon={<Clock className="w-5 h-5" />}
-                label={remainingTime !== null ? 'Remaining' : 'Time'}
+                label={remainingTime !== null && remainingTime !== undefined ? 'Remaining' : 'Time'}
                 value={formatTime(remainingTime ?? elapsedTime)}
                 color="text-blue-400"
             />
+
+            {/* Error Breakdown */}
+            {(expectedText && typedText) && (
+                <div className="w-full flex justify-center gap-4 mt-2 text-xs text-muted-foreground bg-white/5 rounded-lg p-2 border border-white/5">
+                    <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500/50" />
+                        Sub: {errorBreakdown.substitutions}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-red-500/50" />
+                        Miss: {errorBreakdown.deletions}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-orange-500/50" />
+                        Extra: {errorBreakdown.insertions}
+                    </span>
+                    <span className="ml-2 opacity-50">
+                        (Edit Dist: {levenshteinDistance(typedText, expectedText.slice(0, typedText.length)).distance})
+                    </span>
+                </div>
+            )}
         </div>
     );
 }

@@ -63,7 +63,6 @@ export default function SettingsPage() {
             </header>
 
             <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-                {/* Sound Settings */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -71,50 +70,67 @@ export default function SettingsPage() {
                     <Card className="p-6">
                         <div className="flex items-center gap-3 mb-6">
                             <Volume2 className="w-5 h-5 text-blue-500" />
-                            <h2 className="text-xl font-semibold">Sound</h2>
+                            <h2 className="text-xl font-semibold">Sound & Immersion</h2>
                         </div>
 
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-medium">Keystroke Sounds</div>
+                                    <div className="font-medium">Master Volume</div>
                                     <div className="text-sm text-muted-foreground">
-                                        Play sound on each keypress
+                                        {settings.volume}%
                                     </div>
                                 </div>
-                                <Switch
-                                    checked={settings.keystrokeSounds}
-                                    onCheckedChange={(checked) => updateSetting('keystrokeSounds', checked)}
-                                />
+                                <div className="w-1/2">
+                                    <Slider
+                                        value={[settings.volume]}
+                                        max={100}
+                                        step={1}
+                                        onValueChange={(value) => updateSetting('volume', value[0])}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="font-medium mb-3">Sound Profile</div>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {(['mechanical', 'typewriter', 'digital', 'none'] as const).map((profile) => (
+                                        <Button
+                                            key={profile}
+                                            variant={settings.keyboardSound === profile ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => updateSetting('keyboardSound', profile)}
+                                            className="capitalize"
+                                        >
+                                            {profile}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-medium">Achievement Sounds</div>
+                                    <div className="font-medium">Events</div>
                                     <div className="text-sm text-muted-foreground">
-                                        Play sound when unlocking achievements
+                                        Toggle specific sounds
                                     </div>
                                 </div>
-                                <Switch
-                                    checked={settings.achievementSounds}
-                                    onCheckedChange={(checked) => updateSetting('achievementSounds', checked)}
-                                />
-                            </div>
-
-                            <div>
-                                <div className="font-medium mb-3">Volume: {settings.volume}%</div>
-                                <Slider
-                                    value={[settings.volume]}
-                                    max={100}
-                                    step={1}
-                                    onValueChange={(value) => updateSetting('volume', value[0])}
-                                />
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="ach-sounds"
+                                            checked={settings.achievementSounds}
+                                            onCheckedChange={(checked) => updateSetting('achievementSounds', checked)}
+                                        />
+                                        <label htmlFor="ach-sounds" className="text-sm">Achievements</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </Card>
                 </motion.div>
 
-                {/* Display Settings */}
+                {/* Display & Typing Settings */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -123,52 +139,27 @@ export default function SettingsPage() {
                     <Card className="p-6">
                         <div className="flex items-center gap-3 mb-6">
                             <Monitor className="w-5 h-5 text-green-500" />
-                            <h2 className="text-xl font-semibold">Display</h2>
+                            <h2 className="text-xl font-semibold">Visual Customization</h2>
                         </div>
 
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="font-medium">Show Virtual Keyboard</div>
-                                    <div className="text-sm text-muted-foreground">
-                                        Display keyboard helper during lessons
-                                    </div>
+                            <div>
+                                <div className="font-medium mb-3">Cursor Style</div>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {(['line', 'block', 'underline', 'bar'] as const).map((style) => (
+                                        <Button
+                                            key={style}
+                                            variant={settings.cursorStyle === style ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => updateSetting('cursorStyle', style)}
+                                            className="capitalize"
+                                        >
+                                            {style}
+                                        </Button>
+                                    ))}
                                 </div>
-                                <Switch
-                                    checked={settings.showVirtualKeyboard}
-                                    onCheckedChange={(checked) => updateSetting('showVirtualKeyboard', checked)}
-                                />
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="font-medium">Show Finger Hints</div>
-                                    <div className="text-sm text-muted-foreground">
-                                        Highlight which finger to use
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={settings.showFingerHints}
-                                    onCheckedChange={(checked) => updateSetting('showFingerHints', checked)}
-                                />
-                            </div>
-                        </div>
-                    </Card>
-                </motion.div>
-
-                {/* Typing Settings */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <Card className="p-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <Keyboard className="w-5 h-5 text-purple-500" />
-                            <h2 className="text-xl font-semibold">Typing</h2>
-                        </div>
-
-                        <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="font-medium">Smooth Caret</div>
@@ -184,19 +175,18 @@ export default function SettingsPage() {
 
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="font-medium">Quick Restart</div>
-                                    <div className="text-sm text-muted-foreground">
-                                        Press Tab to restart lesson
-                                    </div>
+                                    <div className="font-medium">Show Virtual Keyboard</div>
                                 </div>
                                 <Switch
-                                    checked={settings.quickRestart}
-                                    onCheckedChange={(checked) => updateSetting('quickRestart', checked)}
+                                    checked={settings.showVirtualKeyboard}
+                                    onCheckedChange={(checked) => updateSetting('showVirtualKeyboard', checked)}
                                 />
                             </div>
 
-                            <div>
-                                <div className="font-medium mb-3">Font Size</div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Font Size</div>
+                                </div>
                                 <div className="flex gap-2">
                                     {(['small', 'medium', 'large'] as const).map((size) => (
                                         <Button

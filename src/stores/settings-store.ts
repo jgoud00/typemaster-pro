@@ -24,7 +24,11 @@ export interface SettingsState {
 
     // Smart Practice
     focusModeEnabled: boolean;
-}
+
+    // Customization
+    keyboardSound: 'mechanical' | 'typewriter' | 'digital' | 'none';
+    cursorStyle: 'line' | 'block' | 'underline' | 'bar';
+};
 
 interface SettingsStore {
     settings: SettingsState;
@@ -55,6 +59,10 @@ const defaultSettings: SettingsState = {
 
     // Smart Practice
     focusModeEnabled: false,
+
+    // Customization
+    keyboardSound: 'mechanical',
+    cursorStyle: 'line',
 };
 
 export const useSettingsStore = create<SettingsStore>()(

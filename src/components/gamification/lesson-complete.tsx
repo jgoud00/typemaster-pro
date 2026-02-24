@@ -24,51 +24,25 @@ export function LessonComplete({
     onHome,
 }: LessonCompleteProps) {
     return (
-        <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-        >
-            <motion.div
-                className="w-full max-w-md mx-4 p-8 bg-card rounded-2xl border shadow-2xl"
-                initial={{ scale: 0.8, y: 50 }}
-                animate={{ scale: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="w-full max-w-md mx-4 p-8 bg-card rounded-2xl border shadow-2xl">
                 {/* Header */}
                 <div className="text-center mb-6">
-                    <motion.div
-                        animate={{ rotate: [0, -5, 5, 0] }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                    >
+                    <div>
                         <Trophy className="w-16 h-16 mx-auto text-yellow-500 mb-4" />
-                    </motion.div>
+                    </div>
                     <h2 className="text-2xl font-bold">Lesson Complete!</h2>
                     {isPersonalBest && (
-                        <motion.p
-                            className="text-green-500 font-medium mt-1"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5 }}
-                        >
+                        <p className="text-green-500 font-medium mt-1">
                             🎉 New Personal Best!
-                        </motion.p>
+                        </p>
                     )}
                 </div>
 
                 {/* Stars */}
                 <div className="flex justify-center gap-2 mb-6">
                     {[1, 2, 3].map((starNum) => (
-                        <motion.div
-                            key={starNum}
-                            initial={{ opacity: 0, scale: 0, rotate: -180 }}
-                            animate={{
-                                opacity: starNum <= stars ? 1 : 0.3,
-                                scale: 1,
-                                rotate: 0
-                            }}
-                            transition={{ delay: 0.2 * starNum, type: 'spring' }}
-                        >
+                        <div key={starNum}>
                             <Star
                                 className={cn(
                                     'w-12 h-12',
@@ -77,7 +51,7 @@ export function LessonComplete({
                                         : 'text-muted-foreground'
                                 )}
                             />
-                        </motion.div>
+                        </div>
                     ))}
                 </div>
 
@@ -108,14 +82,9 @@ export function LessonComplete({
                 {/* Score */}
                 <div className="text-center mb-8">
                     <div className="text-sm text-muted-foreground">Total Score</div>
-                    <motion.div
-                        className="text-4xl font-bold text-primary"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', delay: 0.8 }}
-                    >
+                    <div className="text-4xl font-bold text-primary">
                         {record.score.toLocaleString()}
-                    </motion.div>
+                    </div>
                 </div>
 
                 {/* Actions */}
@@ -133,8 +102,8 @@ export function LessonComplete({
                         </Button>
                     </div>
                 </div>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     );
 }
 

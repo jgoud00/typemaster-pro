@@ -10,11 +10,8 @@
  * - Personalized learning profiles
  */
 
-export {
-    BayesianWeaknessDetector,
-    weaknessDetector,
-    type WeaknessResult
-} from './bayesian-weakness-detector';
+// SYSTEM INTEGRATION: Use Ultimate Detector directly (Adapter removed)
+export { ultimateWeaknessDetector as weaknessDetector } from './ultimate-weakness-detector';
 
 export {
     AdvancedNgramAnalyzer,

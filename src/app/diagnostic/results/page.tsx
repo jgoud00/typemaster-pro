@@ -6,12 +6,12 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
     ArrowRight, TrendingUp, Target, AlertTriangle,
-    Lightbulb, Star, Zap, BookOpen, Trophy
+    Lightbulb, Star, Zap, BookOpen, Trophy, Printer
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { useDiagnosticStore, Interpretation, Recommendation } from '@/stores/diagnostic-store';
+import { RankBadge, Certificate } from '@/components/diagnostic/certificate';
 
 export default function DiagnosticResultsPage() {
     const router = useRouter();
@@ -34,45 +34,7 @@ export default function DiagnosticResultsPage() {
         return null;
     }
 
-    const getLevelInfo = () => {
-        switch (userLevel) {
-            case 'beginner':
-                return {
-                    title: 'Building Your Foundation',
-                    description: 'You\'re at the start of your typing journey. We\'ll focus on proper technique.',
-                    color: 'text-blue-500',
-                    bgColor: 'bg-blue-500/10',
-                    icon: BookOpen,
-                };
-            case 'intermediate':
-                return {
-                    title: 'Growing Your Skills',
-                    description: 'You have the basics down. Time to target your weak spots.',
-                    color: 'text-green-500',
-                    bgColor: 'bg-green-500/10',
-                    icon: TrendingUp,
-                };
-            case 'fast-sloppy':
-                return {
-                    title: 'Speed Meets Precision',
-                    description: 'You\'re fast, but accuracy is holding you back. Let\'s fix that.',
-                    color: 'text-orange-500',
-                    bgColor: 'bg-orange-500/10',
-                    icon: Zap,
-                };
-            case 'advanced':
-                return {
-                    title: 'Mastery Mode',
-                    description: 'You\'re already skilled. We\'ll push your limits.',
-                    color: 'text-purple-500',
-                    bgColor: 'bg-purple-500/10',
-                    icon: Trophy,
-                };
-        }
-    };
 
-    const levelInfo = getLevelInfo();
-    const LevelIcon = levelInfo.icon;
 
     const getInterpretationIcon = (type: Interpretation['type']) => {
         switch (type) {
@@ -142,30 +104,14 @@ export default function DiagnosticResultsPage() {
                     />
                 </motion.div>
 
-                {/* Level Classification */}
+                {/* Rank Badge */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="mb-8"
+                    className="mb-12 flex justify-center"
                 >
-                    <Card className={`${levelInfo.bgColor} border-2`}>
-                        <CardContent className="p-6">
-                            <div className="flex items-start gap-4">
-                                <div className={`p-3 rounded-xl ${levelInfo.bgColor}`}>
-                                    <LevelIcon className={`w-8 h-8 ${levelInfo.color}`} />
-                                </div>
-                                <div>
-                                    <h2 className={`text-2xl font-bold ${levelInfo.color}`}>
-                                        {levelInfo.title}
-                                    </h2>
-                                    <p className="text-muted-foreground mt-1">
-                                        {levelInfo.description}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <RankBadge level={userLevel} className="w-full max-w-md bg-card/50 backdrop-blur-sm" />
                 </motion.div>
 
                 {/* Interpretations */}
@@ -256,6 +202,31 @@ export default function DiagnosticResultsPage() {
                                 </motion.div>
                             );
                         })}
+                    </div>
+                </motion.div>
+
+                {/* Certificate Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    className="mb-12 text-center"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-semibold">Your Certificate</h3>
+                        <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
+                            <Printer className="w-4 h-4" />
+                            Print Certificate
+                        </Button>
+                    </div>
+
+                    <div className="overflow-hidden rounded-xl border bg-white shadow-xl transform scale-[0.8] md:scale-100 origin-top">
+                        <Certificate
+                            wpm={diagnosticResult.wpm}
+                            accuracy={diagnosticResult.accuracy}
+                            level={userLevel}
+                            date={new Date()}
+                        />
                     </div>
                 </motion.div>
 

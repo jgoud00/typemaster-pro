@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -15,13 +15,12 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
 import { TypingArea } from '@/components/typing/typing-area';
 import { TypingStats } from '@/components/typing/typing-stats';
-import { useTypingEngine } from '@/hooks/use-typing-engine';
+import { useTypingController } from '@/hooks/use-typing-controller';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
@@ -31,10 +30,10 @@ import { cn } from '@/lib/utils';
 import { ngramAnalyzer } from '@/lib/ngram-analyzer';
 import { analyzeWeaknesses } from '@/lib/weakness-predictor';
 import { generateDailyBriefing, Insight } from '@/lib/coach-insights';
+import { personalizationEngine } from '@/lib/algorithms/personalization-engine';
 import {
     generateAdaptiveExercise,
-    calculateDifficultyLevel,
-    DifficultyLevel
+    calculateDifficultyLevel
 } from '@/lib/adaptive-engine';
 import { PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
@@ -43,7 +42,7 @@ export default function SmartPracticePage() {
     const router = useRouter();
     const { progress } = useProgressStore();
     const { game } = useGameStore();
-    const { keyStats, getProblematicKeys } = useAnalyticsStore();
+    const { keyStats } = useAnalyticsStore();
     const { fireLessonComplete } = useConfetti();
     const { play } = useSound();
 
@@ -72,25 +71,67 @@ export default function SmartPracticePage() {
     // Calculate difficulty level
     const difficultyLevel = calculateDifficultyLevel(avgWpm, avgAccuracy);
 
-    // Generate daily briefing
-    const briefing = generateDailyBriefing(weaknessReport, ngramReport, {
-        recentWpm: avgWpm,
-        recentAccuracy: avgAccuracy,
-        totalPracticeTime: Math.floor(progress.totalPracticeTime / 60),
-        streakDays: game.dailyStreak,
-        improvementTrend: 'stable',
+    // Transform heuristic weakness report to Bayesian-compatible results
+    const weaknessResults = weaknessReport.weakKeys.map(key => {
+        const stats = perKeyErrors.get(key) || { attempts: 0, errors: 0 };
+        const accuracy = stats.attempts > 0 ? (stats.attempts - stats.errors) / stats.attempts : 1;
+
+        return {
+            key,
+            estimatedAccuracy: accuracy,
+            confidence: Math.min(1, stats.attempts / 20), // Simple confidence approximation
+            isWeak: true,
+            priority: (1 - accuracy) * 100,
+            recentTrend: 'stable' as const,
+            nextReviewDate: new Date(),
+        };
     });
 
-    // Generate new exercise
+    // Generate daily plan using the Personalization Engine
+    const dailyPlan = useMemo(() => personalizationEngine.generateDailyPlan(
+        weaknessResults,
+        avgWpm,
+        [] // No patterns for now
+    ), [weaknessResults, avgWpm]);
+
+    const briefing = {
+        greeting: "Ready to level up?",
+        motivationalQuote: dailyPlan.motivationalMessage,
+        todaysFocus: dailyPlan.sessions.length > 0
+            ? [dailyPlan.sessions[0].lesson.focusKeys.join(', ')]
+            : ['General Practice'],
+        insights: generateDailyBriefing(weaknessReport, ngramReport, {
+            recentWpm: avgWpm,
+            recentAccuracy: avgAccuracy,
+            totalPracticeTime: Math.floor(progress.totalPracticeTime / 60),
+            streakDays: game.dailyStreak,
+            improvementTrend: 'stable',
+        }).insights
+    };
+
+    // Generate new exercise from the daily plan's lesson
     const generateExercise = useCallback(() => {
-        const exercise = generateAdaptiveExercise(
-            weaknessReport,
-            difficultyLevel,
-            [] // masteredKeys would come from deeper analysis
-        );
-        setCurrentExercise(exercise);
+        if (dailyPlan.sessions.length > 0) {
+            const lesson = dailyPlan.sessions[0].lesson;
+            // Pick a random exercise from the customized lesson
+            const exercise = lesson.exercises[exercisesCompleted % lesson.exercises.length];
+
+            setCurrentExercise({
+                text: exercise.text,
+                focusKeys: lesson.focusKeys,
+                reason: lesson.description
+            });
+        } else {
+            // Fallback if no plan generated
+            const exercise = generateAdaptiveExercise(
+                weaknessReport,
+                difficultyLevel,
+                []
+            );
+            setCurrentExercise(exercise);
+        }
         setIsTyping(true);
-    }, [weaknessReport, difficultyLevel]);
+    }, [dailyPlan, exercisesCompleted, weaknessReport, difficultyLevel]);
 
     // Handle exercise completion
     const handleComplete = useCallback((record: PerformanceRecord) => {
@@ -118,19 +159,11 @@ export default function SmartPracticePage() {
                 id: 'smart-practice-result',
             });
         }
-    }, [play, fireLessonComplete]);
+    }, [play, fireLessonComplete, setExercisesCompleted, setSessionResults, setIsTyping]);
 
     const {
-        currentIndex,
-        errorIndices,
-        activeKey,
-        wpm,
-        accuracy,
-        combo,
-        multiplier,
-        elapsedTime,
         reset,
-    } = useTypingEngine({
+    } = useTypingController({
         text: currentExercise?.text || '',
         mode: 'free',
         onComplete: handleComplete,
@@ -182,31 +215,53 @@ export default function SmartPracticePage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                         >
-                            <Card className="bg-linear-to-r from-primary/10 to-purple-500/10 border-primary/20">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                                            <Brain className="w-6 h-6 text-primary" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h2 className="text-xl font-bold mb-2">{briefing.greeting}</h2>
+                            <Card className="bg-linear-to-r from-primary/10 to-purple-500/10 border-primary/20 overflow-hidden relative">
+                                {/* Background Decorative Elements */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-[50px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                                            {/* Today's Focus */}
-                                            <div className="mb-4">
-                                                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                                                    Today's Focus
-                                                </h3>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {briefing.todaysFocus.map((focus, i) => (
-                                                        <Badge key={i} variant="secondary">{focus}</Badge>
-                                                    ))}
+                                <CardContent className="p-6 relative z-10">
+                                    <div className="flex items-start gap-6">
+                                        {/* Coach Avatar / Icon */}
+                                        <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-primary to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                                            <Brain className="w-8 h-8 text-white" />
+                                        </div>
+
+                                        <div className="flex-1 space-y-4">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h2 className="text-2xl font-bold">{briefing.greeting}</h2>
+                                                    <p className="text-muted-foreground">{dailyPlan.motivationalMessage}</p>
+                                                </div>
+
+                                                {/* Streak Badge */}
+                                                <div className="flex flex-col items-end">
+                                                    <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-full border border-orange-500/20 font-bold">
+                                                        <TrendingUp className="w-4 h-4" />
+                                                        <span>{game.dailyStreak} Day Streak</span>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* Quote */}
-                                            <blockquote className="text-sm italic text-muted-foreground border-l-2 border-primary/50 pl-3">
-                                                "{briefing.motivationalQuote}"
-                                            </blockquote>
+                                            <div className="h-px bg-white/10 w-full" />
+
+                                            {/* Today's Focus */}
+                                            <div>
+                                                <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">
+                                                    Today&apos;s Training Focus
+                                                </h3>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {briefing.todaysFocus.map((focus, i) => (
+                                                        <Badge key={i} variant="secondary" className="text-sm py-1 px-3 bg-secondary/50 backdrop-blur-sm border-secondary-foreground/10">
+                                                            {focus}
+                                                        </Badge>
+                                                    ))}
+                                                    {difficultyLevel && (
+                                                        <Badge variant="outline" className="text-sm py-1 px-3 border-primary/30 text-primary">
+                                                            Intensity: {difficultyLevel.name}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -362,21 +417,12 @@ export default function SmartPracticePage() {
                         </Card>
 
                         {/* Typing UI */}
-                        <TypingStats
-                            wpm={wpm}
-                            accuracy={accuracy}
-                            combo={combo}
-                            multiplier={multiplier}
-                            elapsedTime={elapsedTime}
-                        />
+                        {/* Typing UI */}
+                        <TypingStats />
 
-                        <TypingArea
-                            text={currentExercise?.text || ''}
-                            currentIndex={currentIndex}
-                            errorIndices={errorIndices}
-                        />
+                        <TypingArea />
 
-                        <VirtualKeyboard activeKey={activeKey} />
+                        <VirtualKeyboard />
                     </>
                 )}
             </main>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { keyboardLayout as qwertyLayout, fingerColors } from '@/lib/keyboard-data';
@@ -7,9 +8,9 @@ import { getLayout, type KeyboardLayout } from '@/lib/keyboard-layouts';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { KeyData, Finger } from '@/types';
+import { useTypingStore } from '@/stores/typing-store';
 
 interface VirtualKeyboardProps {
-    readonly activeKey: string | null;
     readonly showHeatmap?: boolean;
     readonly className?: string;
 }
@@ -88,15 +89,19 @@ function getLayoutKeyboardData(layoutName: 'qwerty' | 'dvorak' | 'colemak' | 'az
     return result;
 }
 
-export function VirtualKeyboard({ activeKey, showHeatmap = false, className }: VirtualKeyboardProps) {
-    const { getKeyAccuracy } = useAnalyticsStore();
-    const { settings } = useSettingsStore();
+function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKeyboardProps) {
+    const getKeyAccuracy = useAnalyticsStore(s => s.getKeyAccuracy);
+    const settings = useSettingsStore(s => s.settings);
+    const activeKey = useTypingStore(s => s.activeKey);
 
     // Get keyboard layout based on settings
     const currentLayout = getLayoutKeyboardData(settings.keyboardLayout);
 
     return (
-        <div className={cn('flex flex-col gap-1.5 p-4 rounded-2xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-xl', className)}>
+        <div
+            className={cn('flex flex-col gap-1.5 p-4 rounded-2xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-xl', className)}
+            aria-hidden="true"
+        >
 
             {/* Layout indicator */}
             {settings.keyboardLayout !== 'qwerty' && (
@@ -108,7 +113,7 @@ export function VirtualKeyboard({ activeKey, showHeatmap = false, className }: V
             {currentLayout.map((row, rowIndex) => (
                 <div key={rowIndex} className="flex justify-center gap-1.5">
                     {row.map((keyData, keyIndex) => (
-                        <Key
+                        <MemoizedKey
                             key={`${rowIndex}-${keyIndex}`}
                             keyData={keyData}
                             isActive={isKeyActive(keyData, activeKey)}
@@ -135,6 +140,9 @@ export function VirtualKeyboard({ activeKey, showHeatmap = false, className }: V
     );
 }
 
+export const VirtualKeyboard = memo(VirtualKeyboardComponent);
+
+
 interface KeyProps {
     keyData: KeyData;
     isActive: boolean;
@@ -142,7 +150,7 @@ interface KeyProps {
     accuracy: number;
 }
 
-function Key({ keyData, isActive, showHeatmap, accuracy }: KeyProps) {
+const MemoizedKey = memo(function Key({ keyData, isActive, showHeatmap, accuracy }: KeyProps) {
     const { key, shiftKey, finger, width = 1 } = keyData;
     const colors = fingerColors[finger];
 
@@ -202,7 +210,14 @@ function Key({ keyData, isActive, showHeatmap, accuracy }: KeyProps) {
             )}
         </motion.div>
     );
-}
+}, (prev, next) => {
+    return (
+        prev.isActive === next.isActive &&
+        prev.accuracy === next.accuracy &&
+        prev.showHeatmap === next.showHeatmap &&
+        prev.keyData.key === next.keyData.key
+    );
+});
 
 function isKeyActive(keyData: KeyData, activeKey: string | null): boolean {
     if (!activeKey) return false;

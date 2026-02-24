@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,7 @@ import { Achievement } from '@/lib/achievements';
 import { useAchievementStore } from '@/stores/achievement-store';
 import { useConfetti } from '@/hooks/use-confetti';
 
-export function AchievementToast() {
+function AchievementToastComponent() {
     const { state, clearRecentUnlock } = useAchievementStore();
     const [visible, setVisible] = useState(false);
     const [achievement, setAchievement] = useState<Achievement | null>(null);
@@ -85,3 +85,4 @@ export function AchievementToast() {
         </AnimatePresence>
     );
 }
+export const AchievementToast = memo(AchievementToastComponent);

@@ -7,7 +7,7 @@ import {
   Keyboard, Trophy, TrendingUp, Flame, Clock, Target,
   ChevronRight, Star, Zap, Settings, Info, BookOpen, Play, X, Sparkles
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
@@ -17,11 +17,14 @@ import { useDiagnosticStore } from '@/stores/diagnostic-store';
 import { cn } from '@/lib/utils';
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
 import { DailyGoals } from '@/components/goals/DailyGoals';
+import { HeroBanner } from '@/components/dashboard/HeroBanner';
+import { SiteHeader } from '@/components/layout/SiteHeader';
+import { WeaknessHeatmap } from '@/components/WeaknessHeatmap';
 
 export default function HomePage() {
   const { progress } = useProgressStore();
   const { game } = useGameStore();
-  const { hasTakenDiagnostic, recommendations, userLevel } = useDiagnosticStore();
+  const { hasTakenDiagnostic } = useDiagnosticStore();
   const [showDiagnosticBanner, setShowDiagnosticBanner] = useState(true);
 
   const completedCount = progress.completedLessons.length;
@@ -45,71 +48,28 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Welcome Modal for first-time users */}
       <WelcomeModal />
+      <SiteHeader />
 
-      {/* Header */}
-      <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
+      <main className="container mx-auto px-4 py-8 space-y-12">
+        {/* Hero Banner (Primary Focus) */}
+        <HeroBanner
+          completedCount={completedCount}
+          totalLessons={totalLessons}
+          overallProgress={overallProgress}
+          nextLesson={nextLesson}
+          nextLessonCategory={nextLessonCategory}
+        />
 
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Keyboard className="w-8 h-8 text-primary" />
-            <h1 className="text-xl font-bold">Aloo Type</h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {game.dailyStreak > 0 && (
-              <div className="flex items-center gap-1 text-orange-500">
-                <Flame className="w-5 h-5" />
-                <span className="font-medium">{game.dailyStreak} day{game.dailyStreak > 1 ? 's' : ''}</span>
-              </div>
-            )}
-            <Link href="/lessons">
-              <Button variant="ghost" size="sm">
-                <BookOpen className="w-4 h-4 mr-2" />
-                Lessons
-              </Button>
-            </Link>
-            <Link href="/challenges">
-              <Button variant="ghost" size="sm">
-                <Trophy className="w-4 h-4 mr-2" />
-                Challenges
-              </Button>
-            </Link>
-            <Link href="/achievements">
-              <Button variant="ghost" size="sm">
-                <Star className="w-4 h-4 mr-2" />
-                Achievements
-              </Button>
-            </Link>
-            <Link href="/stats">
-              <Button variant="ghost" size="sm">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Stats
-              </Button>
-            </Link>
-            <Link href="/settings">
-              <Button variant="ghost" size="icon">
-                <Settings className="w-4 h-4" />
-              </Button>
-            </Link>
-            <Link href="/about">
-              <Button variant="ghost" size="icon">
-                <Info className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Optional Diagnostic Invitation Banner - Non-blocking */}
+        {/* Diagnostic Banner */}
         <AnimatePresence>
           {!hasTakenDiagnostic && showDiagnosticBanner && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
             >
-              <Card className="bg-linear-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-500/20 relative overflow-hidden">
+              <Card className="bg-linear-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-500/20 relative overflow-hidden mb-8">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
@@ -119,7 +79,7 @@ export default function HomePage() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-lg mb-1">Get a Personalized Learning Path</h3>
                       <p className="text-muted-foreground text-sm mb-3">
-                        Take a quick 60-second typing assessment and we&apos;ll tailor lessons to your skill level and weak spots.
+                        Take a quick 60-second assessment to tailor lessons to your skill level.
                       </p>
                       <div className="flex items-center gap-3">
                         <Link href="/diagnostic">
@@ -133,18 +93,10 @@ export default function HomePage() {
                           size="sm"
                           onClick={() => setShowDiagnosticBanner(false)}
                         >
-                          Maybe Later
+                          Dismiss
                         </Button>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowDiagnosticBanner(false)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -152,108 +104,62 @@ export default function HomePage() {
           )}
         </AnimatePresence>
 
-        {/* Hero Section - Practice Modes (PRIMARY FOCUS) */}
+        {/* Insight Section: Weakness Heatmap */}
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
         >
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold mb-2">Start Practicing</h2>
-            <p className="text-muted-foreground">Choose a practice mode and improve your typing skills</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <span className="text-2xl">🧠</span> AI Knowledge Graph
+            </h2>
+            <span className="text-sm text-muted-foreground">Real-time Mastery Tracking</span>
+          </div>
+          <WeaknessHeatmap />
+        </motion.section>
+
+        {/* Practice Modes */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">Practice Modes</h2>
+            <Link href="/practice" className="text-sm text-primary hover:underline">
+              View all modes
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             <PracticeModeCard
               title="Speed Test"
-              description="Test your typing speed with timed challenges"
+              description="Timed challenges"
               href="/practice?mode=speed-test"
               icon="⚡"
-              color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30 hover:border-yellow-500/50"
-            />
-            <PracticeModeCard
-              title="Free Practice"
-              description="Practice with random texts at your own pace"
-              href="/practice?mode=free"
-              icon="🎯"
-              color="from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-500/50"
+              color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
             />
             <PracticeModeCard
               title="Smart Practice"
-              description="AI-powered adaptive exercises for your weaknesses"
+              description="AI weakness targeting"
               href="/practice/smart"
               icon="🧠"
-              color="from-purple-500/20 to-pink-500/20 border-purple-500/30 hover:border-purple-500/50"
+              color="from-purple-500/20 to-pink-500/20 border-purple-500/30"
             />
             <PracticeModeCard
-              title="Speed Training"
-              description="Metronome and sprint modes to build speed"
+              title="Infinite Flow"
+              description="Zen mode typing"
+              href="/practice/infinite"
+              icon="∞"
+              color="from-indigo-500/20 to-violet-500/20 border-indigo-500/30"
+            />
+            <PracticeModeCard
+              title="Burst Mode"
+              description="High-intensity intervals"
               href="/practice/speed-training"
               icon="🚀"
-              color="from-green-500/20 to-emerald-500/20 border-green-500/30 hover:border-green-500/50"
+              color="from-red-500/20 to-orange-500/20 border-red-500/30"
             />
           </div>
-        </motion.section>
-
-        {/* Continue Learning Card (Compact) */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="bg-linear-to-r from-primary/10 to-purple-500/10 border-primary/20 overflow-hidden">
-            <CardContent className="p-0">
-              <div className="flex flex-col md:flex-row">
-                {/* Left: Progress Info */}
-                <div className="flex-1 p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold">Continue Learning</h3>
-                  </div>
-
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>{completedCount} of {totalLessons} lessons</span>
-                      <span className="font-medium">{Math.round(overallProgress)}%</span>
-                    </div>
-                    <Progress value={overallProgress} className="h-2" />
-                  </div>
-
-                  {nextLesson ? (
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{nextLessonCategory?.icon || '📚'}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{nextLesson.title}</p>
-                        <p className="text-sm text-muted-foreground truncate">{nextLesson.description}</p>
-                      </div>
-                      <Link href={`/lessons/${nextLesson.id}`}>
-                        <Button size="sm" className="gap-1">
-                          <Play className="w-3 h-3" />
-                          Start
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">🎉</div>
-                      <div className="flex-1">
-                        <p className="font-medium">All lessons completed!</p>
-                        <p className="text-sm text-muted-foreground">Keep practicing to improve your speed</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: View All CTA */}
-                <Link href="/lessons" className="md:w-48 flex">
-                  <div className="flex-1 flex items-center justify-center gap-2 p-6 bg-primary/5 hover:bg-primary/10 transition-colors border-t md:border-t-0 md:border-l border-primary/20">
-                    <span className="font-medium">View All Lessons</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </div>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.section>
+        </section>
 
         {/* Quick Stats */}
         <motion.section

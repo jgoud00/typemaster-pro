@@ -9,6 +9,7 @@
  */
 
 import { weaknessDetector, type WeaknessResult } from './bayesian-weakness-detector';
+import { advancedNgramAnalyzer } from './advanced-ngram-analyzer';
 
 export interface Skill {
     key: string;
@@ -83,6 +84,26 @@ export class AdaptiveCurriculum {
 
         // Generate exercises
         const exercises = this.generateExercises(targetKeys, difficulty);
+
+        // SYSTEM INTEGRATION: Data Fusion (N-gram + Curriculum)
+        // Check for specific bigram/trigram weaknesses to override generic drills
+        // Difficulty > 60 (High difficulty), Min Frequency > 3, Top 3
+        const criticalNgrams = advancedNgramAnalyzer.getDifficultNgrams(60, 3, 3);
+
+        if (criticalNgrams.length > 0) {
+            // Replace generic "Bigram Practice" with targeted "Pattern Focus"
+            const patternDrill = {
+                text: criticalNgrams.map(n => n.ngram).join(' ') + ' ' + criticalNgrams.map(n => n.ngram).join(' '), // Simple repetition
+                targetWPM: Math.round(this.calculateTargetWPM(difficulty) * 0.8),
+                targetAccuracy: 90,
+                hints: ['Focus on smooth transitions for: ' + criticalNgrams.map(n => n.ngram).join(', ')]
+            };
+
+            // Replace the second exercise (index 1) which is usually generic bigrams
+            if (exercises.length > 1) {
+                exercises[1] = patternDrill;
+            }
+        }
 
         // Predict improvement
         const expectedImprovement = this.predictImprovement(targetKeys);
@@ -159,7 +180,15 @@ export class AdaptiveCurriculum {
         this.skills.forEach((skill, key) => {
             if (skill.level >= zpdLower && skill.level <= zpdUpper) {
                 // Potential = learning rate * room for improvement
-                const potential = skill.learningRate * (100 - skill.level);
+                let potential = skill.learningRate * (100 - skill.level);
+
+                // OPTIMIZATION: Rescue Mode
+                // If a key is very weak (<70) but learning rate is stuck at minimum (<0.1),
+                // forcing potential to be high to prevent "Give-Up" scenario.
+                if (skill.level < 70 && skill.learningRate < 0.1) {
+                    potential += 50; // Artificial boost to ensure it gets picked
+                }
+
                 zpdKeys.push({ key, potential });
             }
         });

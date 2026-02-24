@@ -16,26 +16,23 @@ import {
     RotateCcw,
     AlertTriangle,
 } from 'lucide-react';
-import {
-    LineChart,
-    Line,
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    ReferenceLine,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+
+// Lazy load Recharts components
+const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceSection'), {
+    loading: () => <div className="h-[400px] w-full bg-muted/10 animate-pulse rounded-xl" />,
+    ssr: false, // Charts are client-only
+});
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
+import { KeyboardHeatmap } from '@/components/stats/KeyboardHeatmap';
+import { FingerFatigueDashboard } from '@/components/analytics/FingerFatigueDashboard';
 import { cn } from '@/lib/utils';
+import { mean, median, standardDeviation, consistencyScore } from '@/lib/algorithms/statistics';
 
 // Format large numbers with commas
 function formatNumber(num: number): string {
@@ -111,23 +108,6 @@ export default function StatsPage() {
 
     // Practice data check - only show when there's actual data
     const hasPracticeData = totalTimeSeconds > 0;
-
-
-    // Get key stats for heatmap
-    const getKeyStats = (key: string) => {
-        const stat = keyStats[key];
-        if (!stat || stat.totalAttempts < 5) {
-            return null;
-        }
-        const accuracy = ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100;
-        return {
-            key,
-            presses: stat.totalAttempts,
-            errors: stat.errors,
-            accuracy: Math.round(accuracy * 10) / 10,
-            hesitation: Math.round(stat.averageSpeed),
-        };
-    };
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
@@ -303,308 +283,104 @@ export default function StatsPage() {
                             </Card>
                         </motion.div>
                     </div>
+
+                    {/* Advanced Analytics Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        {/* Consistency Score */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                        >
+                            <Card className="bg-purple-500/10 border-purple-500/20 hover:border-purple-500/40 transition-colors">
+                                <CardContent className="p-6">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Consistency Score</p>
+                                            <div className="flex items-baseline gap-2 mt-1">
+                                                <p className="text-3xl font-bold">
+                                                    {wpmData.length > 5 ? consistencyScore(wpmData.map(d => d.wpm)) : 'N/A'}
+                                                </p>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Based on WPM variance (SD: {wpmData.length > 5 ? standardDeviation(wpmData.map(d => d.wpm)).toFixed(1) : 0})
+                                            </p>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-purple-500/20">
+                                            <Activity className="w-6 h-6 text-purple-500" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+
+                        {/* Recent Performance Median */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <Card className="bg-pink-500/10 border-pink-500/20 hover:border-pink-500/40 transition-colors">
+                                <CardContent className="p-6">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Median Performance</p>
+                                            <div className="flex items-baseline gap-2 mt-1">
+                                                <p className="text-3xl font-bold">
+                                                    {wpmData.length > 0 ? median(wpmData.map(d => d.wpm)).toFixed(0) : 0} <span className="text-sm font-normal text-muted-foreground">WPM</span>
+                                                </p>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Excludes outliers (Mean: {wpmData.length > 0 ? mean(wpmData.map(d => d.wpm)).toFixed(1) : 0})
+                                            </p>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-pink-500/20">
+                                            <BarChart3 className="w-6 h-6 text-pink-500" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    </div>
+                </section>
+
+                {/* Finger Fatigue & Health */}
+                <section>
+                    <FingerFatigueDashboard />
                 </section>
 
                 {/* Performance Charts */}
-                <section>
-                    <h2 className="text-lg font-semibold mb-4">Performance Trends</h2>
-                    <Tabs defaultValue="wpm" className="space-y-4">
-                        <TabsList>
-                            <TabsTrigger value="wpm" className="gap-2">
-                                <TrendingUp className="w-4 h-4" />
-                                WPM Progress
-                            </TabsTrigger>
-                            <TabsTrigger value="accuracy" className="gap-2">
-                                <Target className="w-4 h-4" />
-                                Accuracy
-                            </TabsTrigger>
-                            <TabsTrigger value="distribution" className="gap-2">
-                                <Activity className="w-4 h-4" />
-                                Practice Time
-                            </TabsTrigger>
-                        </TabsList>
-
-                        {/* WPM Progress Chart */}
-                        <TabsContent value="wpm">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>WPM Progress</CardTitle>
-                                    <CardDescription>Your typing speed over recent sessions</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {hasChartData ? (
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={chartData}>
-                                                    <defs>
-                                                        <linearGradient id="wpmGradient" x1="0" y1="0" x2="1" y2="0">
-                                                            <stop offset="0%" stopColor="#3b82f6" />
-                                                            <stop offset="100%" stopColor="#22c55e" />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                                                    <XAxis
-                                                        dataKey="session"
-                                                        tick={{ fontSize: 12 }}
-                                                        className="text-muted-foreground"
-                                                    />
-                                                    <YAxis
-                                                        domain={[0, 100]}
-                                                        tick={{ fontSize: 12 }}
-                                                        className="text-muted-foreground"
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: 'hsl(var(--card))',
-                                                            border: '1px solid hsl(var(--border))',
-                                                            borderRadius: '8px',
-                                                        }}
-                                                        formatter={(value) => [`${value} WPM`, 'Speed']}
-                                                    />
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey="wpm"
-                                                        stroke="url(#wpmGradient)"
-                                                        strokeWidth={3}
-                                                        dot={{ fill: '#3b82f6', strokeWidth: 2 }}
-                                                        activeDot={{ r: 6, fill: '#22c55e' }}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    ) : (
-                                        <div className="h-[300px] flex items-center justify-center">
-                                            <div className="text-center text-muted-foreground">
-                                                <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                                <p className="text-lg font-medium">No data yet</p>
-                                                <p className="text-sm">Complete a practice session to see your progress</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-
-                        {/* Accuracy Trends Chart */}
-                        <TabsContent value="accuracy">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Accuracy Trends</CardTitle>
-                                    <CardDescription>Your typing accuracy over recent sessions</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {hasChartData ? (
-                                        <div className="h-[300px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <AreaChart data={chartData}>
-                                                    <defs>
-                                                        <linearGradient id="accuracyGradient" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
-                                                            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.1} />
-                                                        </linearGradient>
-                                                    </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                                                    <XAxis
-                                                        dataKey="session"
-                                                        tick={{ fontSize: 12 }}
-                                                        className="text-muted-foreground"
-                                                    />
-                                                    <YAxis
-                                                        domain={[60, 100]}
-                                                        tick={{ fontSize: 12 }}
-                                                        className="text-muted-foreground"
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: 'hsl(var(--card))',
-                                                            border: '1px solid hsl(var(--border))',
-                                                            borderRadius: '8px',
-                                                        }}
-                                                        formatter={(value) => [`${value}%`, 'Accuracy']}
-                                                    />
-                                                    <ReferenceLine
-                                                        y={95}
-                                                        stroke="#f59e0b"
-                                                        strokeDasharray="5 5"
-                                                        label={{ value: 'Target 95%', fill: '#f59e0b', fontSize: 12 }}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="accuracy"
-                                                        stroke="#22c55e"
-                                                        strokeWidth={2}
-                                                        fill="url(#accuracyGradient)"
-                                                    />
-                                                </AreaChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    ) : (
-                                        <div className="h-[300px] flex items-center justify-center">
-                                            <div className="text-center text-muted-foreground">
-                                                <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                                <p className="text-lg font-medium">No data yet</p>
-                                                <p className="text-sm">Complete a practice session to see your accuracy trends</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        {/* Practice Summary */}
-                        <TabsContent value="distribution">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Practice Summary</CardTitle>
-                                    <CardDescription>Your practice activity overview</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {hasPracticeData ? (
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                <div className="text-center p-4 rounded-lg bg-blue-500/10">
-                                                    <p className="text-2xl font-bold text-blue-400">{formatTime(totalTimeSeconds)}</p>
-                                                    <p className="text-sm text-muted-foreground">Total Practice</p>
-                                                </div>
-                                                <div className="text-center p-4 rounded-lg bg-green-500/10">
-                                                    <p className="text-2xl font-bold text-green-400">{progress.records?.length || 0}</p>
-                                                    <p className="text-sm text-muted-foreground">Sessions</p>
-                                                </div>
-                                                <div className="text-center p-4 rounded-lg bg-yellow-500/10">
-                                                    <p className="text-2xl font-bold text-yellow-400">{progress.completedLessons?.length || 0}</p>
-                                                    <p className="text-sm text-muted-foreground">Lessons Done</p>
-                                                </div>
-                                                <div className="text-center p-4 rounded-lg bg-purple-500/10">
-                                                    <p className="text-2xl font-bold text-purple-400">{formatNumber(totalKeystrokes)}</p>
-                                                    <p className="text-sm text-muted-foreground">Keystrokes</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="h-[200px] flex items-center justify-center">
-                                            <div className="text-center text-muted-foreground">
-                                                <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                                <p className="text-lg font-medium">No practice data yet</p>
-                                                <p className="text-sm">Start practicing to see your activity summary</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                    </Tabs>
-                </section>
+                <PerformanceSection
+                    wpmData={wpmData}
+                    hasPracticeData={hasPracticeData}
+                    totalTimeSeconds={totalTimeSeconds}
+                    totalKeystrokes={totalKeystrokes}
+                    sessionsCount={progress.records?.length || 0}
+                    completedLessonsCount={progress.completedLessons?.length || 0}
+                />
 
                 {/* Keyboard Heatmap */}
                 <section>
                     <h2 className="text-lg font-semibold mb-4">Keyboard Accuracy Heatmap</h2>
-                    <Card>
+                    <Card className="overflow-hidden bg-black/20 border-white/10">
+                        <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
                         <CardHeader>
-                            <CardTitle>Per-Key Performance</CardTitle>
-                            <CardDescription>
-                                Hover over keys to see detailed statistics. Colors indicate accuracy level.
-                            </CardDescription>
-                            <div className="flex gap-4 mt-2">
-                                <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/50">
-                                    95%+ Mastered
-                                </Badge>
-                                <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/50">
-                                    85-95% Good
-                                </Badge>
-                                <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/50">
-                                    70-85% Needs Work
-                                </Badge>
-                                <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/50">
-                                    &lt;70% Problem
-                                </Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col items-center gap-2 py-4">
-                                {KEYBOARD_ROWS.map((row, rowIndex) => (
-                                    <div
-                                        key={rowIndex}
-                                        className="flex gap-1"
-                                        style={{ marginLeft: rowIndex * 20 }}
-                                    >
-                                        {row.map((key) => {
-                                            const stats = getKeyStats(key);
-                                            const accuracy = stats?.accuracy ?? null;
-                                            const colorClass = getAccuracyColor(accuracy);
-
-                                            return (
-                                                <motion.div
-                                                    key={key}
-                                                    className={cn(
-                                                        "relative w-12 h-12 rounded-lg border-2 flex items-center justify-center",
-                                                        "font-mono text-lg font-bold cursor-pointer transition-all",
-                                                        colorClass,
-                                                        hoveredKey === key && "scale-110 z-10 shadow-lg"
-                                                    )}
-                                                    onMouseEnter={() => setHoveredKey(key)}
-                                                    onMouseLeave={() => setHoveredKey(null)}
-                                                    whileHover={{ scale: 1.1 }}
-                                                >
-                                                    {key.toUpperCase()}
-
-                                                    {/* Tooltip on hover */}
-                                                    {hoveredKey === key && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 10 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            className="absolute -top-24 left-1/2 -translate-x-1/2 z-20
-                                         bg-popover border rounded-lg shadow-xl p-3 min-w-[140px]"
-                                                        >
-                                                            <div className="text-center space-y-1">
-                                                                <div className="text-xl font-bold">{key.toUpperCase()}</div>
-                                                                {stats ? (
-                                                                    <>
-                                                                        <div className="text-sm">
-                                                                            <span className="text-muted-foreground">Presses:</span>{' '}
-                                                                            {stats.presses}
-                                                                        </div>
-                                                                        <div className="text-sm">
-                                                                            <span className="text-muted-foreground">Errors:</span>{' '}
-                                                                            {stats.errors}
-                                                                        </div>
-                                                                        <div className="text-sm font-semibold">
-                                                                            <span className="text-muted-foreground">Accuracy:</span>{' '}
-                                                                            {stats.accuracy}%
-                                                                        </div>
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            Avg: {stats.hesitation}ms
-                                                                        </div>
-                                                                    </>
-                                                                ) : (
-                                                                    <div className="text-sm text-muted-foreground">
-                                                                        Not enough data
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {/* Arrow */}
-                                                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 
-                                            w-4 h-4 bg-popover border-b border-r 
-                                            rotate-45 -z-10" />
-                                                        </motion.div>
-                                                    )}
-                                                </motion.div>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
-
-                                {/* Spacebar */}
-                                <div className="flex gap-1 mt-1">
-                                    <div className={cn(
-                                        "w-64 h-12 rounded-lg border-2 flex items-center justify-center",
-                                        "font-mono text-sm text-muted-foreground bg-muted/50"
-                                    )}>
-                                        SPACE
-                                    </div>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <CardTitle>Per-Key Performance</CardTitle>
+                                    <CardDescription>
+                                        Visual representation of your typing accuracy.
+                                    </CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" /> Mastered</div>
+                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" /> Good</div>
+                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" /> Problem</div>
                                 </div>
                             </div>
+                        </CardHeader>
+                        <CardContent className="p-6 md:p-8 flex justify-center overflow-x-auto">
+                            <KeyboardHeatmap />
                         </CardContent>
                     </Card>
                 </section>
@@ -612,12 +388,23 @@ export default function StatsPage() {
                 {/* Problem Keys Summary */}
                 {Object.keys(keyStats).length > 0 && (
                     <section>
-                        <Card>
+                        <Card className="border-red-500/20 bg-red-500/5">
                             <CardHeader>
-                                <CardTitle>Keys to Focus On</CardTitle>
-                                <CardDescription>
-                                    These keys have the lowest accuracy and need more practice
-                                </CardDescription>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                                            Needs Improvement
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Keys with lowest accuracy (min. 5 attempts)
+                                        </CardDescription>
+                                    </div>
+                                    <Button size="sm" variant="outline" className="border-red-500/30 hover:bg-red-500/10 text-red-400" onClick={() => router.push('/practice/smart')}>
+                                        <Target className="w-4 h-4 mr-2" />
+                                        Train Weak Keys
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="flex flex-wrap gap-2">
@@ -635,7 +422,7 @@ export default function StatsPage() {
                                                 key={key}
                                                 variant="outline"
                                                 className={cn(
-                                                    "text-lg px-4 py-2",
+                                                    "text-base px-3 py-1.5",
                                                     getAccuracyColor(accuracy)
                                                 )}
                                             >
@@ -643,10 +430,11 @@ export default function StatsPage() {
                                             </Badge>
                                         ))
                                     }
-                                    {Object.keys(keyStats).length === 0 && (
-                                        <p className="text-muted-foreground">
-                                            Start practicing to see key analysis!
-                                        </p>
+                                    {Object.keys(keyStats).length > 0 && Object.entries(keyStats).filter(([, s]) => s.totalAttempts >= 5 && (((s.totalAttempts - s.errors) / s.totalAttempts) * 100) < 90).length === 0 && (
+                                        <div className="flex items-center gap-2 text-green-400">
+                                            <Trophy className="w-5 h-5" />
+                                            <span>No weak keys found! You are doing great.</span>
+                                        </div>
                                     )}
                                 </div>
                             </CardContent>

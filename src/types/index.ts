@@ -86,6 +86,7 @@ export interface TypingState {
   keystrokes: KeystrokeEvent[];
   isComplete: boolean;
   isPaused: boolean;
+  riskLevel: number; // 0-1 probability of error
 }
 
 // ============= Lessons =============

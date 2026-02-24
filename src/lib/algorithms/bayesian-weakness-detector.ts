@@ -6,11 +6,19 @@
  * Implements temporal decay so recent errors matter more.
  */
 
+interface KeyAttempt {
+    timestamp: number;
+    isCorrect: boolean;
+    latencyMs?: number;
+}
+
 interface KeyPerformance {
     key: string;
-    correct: number;
+    attempts: KeyAttempt[];
+    // Computed/Cached values
     total: number;
-    timestamps: number[];
+    correct: number;
+    peakAccuracy?: number; // OPTIMIZATION: Track peak performance
 }
 
 export interface WeaknessResult {
@@ -24,6 +32,11 @@ export interface WeaknessResult {
 }
 
 export class BayesianWeaknessDetector {
+    // Internal state
+    private keyStats = new Map<string, KeyPerformance>();
+    private readonly STORAGE_KEY = 'vibecode_bayesian_weakness_v2';
+    private saveTimeout: NodeJS.Timeout | null = null;
+
     // Beta distribution prior parameters (uninformative prior)
     private readonly priorAlpha = 2;
     private readonly priorBeta = 2;
@@ -34,12 +47,75 @@ export class BayesianWeaknessDetector {
     // Minimum attempts before considering a key
     private readonly minAttempts = 5;
 
+    // Max history per key to prevent unlimited growth
+    private readonly maxHistoryLimit = 1000;
+
+    constructor() {
+        if (typeof window !== 'undefined') {
+            this.hydrate();
+        }
+    }
+
+    /**
+     * Record a new keystroke
+     */
+    public recordKeystroke(key: string, isCorrect: boolean, latencyMs?: number): void {
+        const normalizedKey = key.toLowerCase();
+
+        let stats = this.keyStats.get(normalizedKey);
+        if (!stats) {
+            stats = {
+                key: normalizedKey,
+                attempts: [],
+                total: 0,
+                correct: 0
+            };
+            this.keyStats.set(normalizedKey, stats);
+        }
+
+        // Add new attempt
+        stats.attempts.push({
+            timestamp: Date.now(),
+            isCorrect,
+            latencyMs
+        });
+
+        // Update aggregates
+        stats.total++;
+        if (isCorrect) stats.correct++;
+
+        // Track Peak Accuracy (Running average of last 50)
+        if (stats.total > 20) {
+            const currentAcc = stats.correct / stats.total;
+            if (!stats.peakAccuracy || currentAcc > stats.peakAccuracy) {
+                stats.peakAccuracy = currentAcc;
+            }
+        }
+
+        // Prune history if too large
+        if (stats.attempts.length > this.maxHistoryLimit) {
+            const removed = stats.attempts.shift();
+            if (removed) {
+                stats.total--;
+                if (removed.isCorrect) stats.correct--;
+            }
+        }
+
+        // console.log('Internal Stats after record:', Array.from(this.keyStats.entries()));
+        this.persist();
+    }
+
     /**
      * Analyze a single key using Bayesian inference
      */
-    analyzeKey(keyData: KeyPerformance, userBaseline: number): WeaknessResult {
+    public analyzeKey(key: string, userBaseline: number = 0.85): WeaknessResult | null {
+        const stats = this.keyStats.get(key.toLowerCase());
+        if (!stats || stats.attempts.length < this.minAttempts) {
+            return null;
+        }
+
         // Apply temporal decay weighting
-        const weighted = this.applyTemporalDecay(keyData);
+        const weighted = this.applyTemporalDecay(stats);
 
         // Update Beta distribution with weighted observations
         const posterior = this.computePosterior(weighted.correct, weighted.total);
@@ -49,19 +125,19 @@ export class BayesianWeaknessDetector {
 
         // Key is weak if upper CI bound is below baseline - 10%
         const weaknessThreshold = userBaseline - 0.10;
-        const isWeak = ci.upper < weaknessThreshold && keyData.total >= this.minAttempts;
+        const isWeak = ci.upper < weaknessThreshold;
 
         // Calculate practice priority
         const priority = this.calculatePriority(posterior.mean, posterior.confidence, isWeak);
 
         // Detect trend from timestamps
-        const trend = this.detectTrend(keyData);
+        const trend = this.detectTrend(stats);
 
         // Schedule next review using SM-2 algorithm
-        const nextReview = this.scheduleReview(posterior.mean, keyData.total);
+        const nextReview = this.scheduleReview(posterior.mean, stats.total);
 
         return {
-            key: keyData.key,
+            key: stats.key,
             estimatedAccuracy: posterior.mean,
             confidence: posterior.confidence,
             isWeak,
@@ -72,27 +148,67 @@ export class BayesianWeaknessDetector {
     }
 
     /**
-     * Apply exponential decay to weight recent keystrokes more heavily
+     * Analyze all keys and return sorted by priority
      */
-    private applyTemporalDecay(keyData: KeyPerformance): { correct: number; total: number } {
-        if (keyData.timestamps.length === 0) {
-            return { correct: keyData.correct, total: keyData.total };
+    public analyzeAllKeys(): WeaknessResult[] {
+        const results: WeaknessResult[] = [];
+
+        // Calculate user baseline from all keys
+        let totalCorrect = 0;
+        let totalAttempts = 0;
+
+        this.keyStats.forEach(stats => {
+            totalCorrect += stats.correct;
+            totalAttempts += stats.total;
+        });
+
+        const userBaseline = totalAttempts > 0 ? totalCorrect / totalAttempts : 0.85;
+
+        // Analyze each key
+        this.keyStats.forEach((stats, key) => {
+            const result = this.analyzeKey(key, userBaseline);
+            if (result) {
+                results.push(result);
+            }
+        });
+
+        // Sort by priority (highest first)
+        return results.sort((a, b) => b.priority - a.priority);
+    }
+
+    /**
+     * Apply exponential decay to weight recent keystrokes more heavily
+     * OPTIMIZATION: Memory Floor
+     * Prevents "Temporal Amnesia" by ensuring we never forget more than 80% of peak mastery.
+     */
+    private applyTemporalDecay(stats: KeyPerformance): { correct: number; total: number } {
+        if (stats.attempts.length === 0) {
+            return { correct: 0, total: 0 };
         }
 
         const now = Date.now();
         let weightedCorrect = 0;
         let weightedTotal = 0;
+        const peakAccuracy = stats.peakAccuracy || 0;
 
-        // Assume timestamps are ordered and first `correct` timestamps are successes
-        keyData.timestamps.forEach((ts, idx) => {
-            const age = now - ts;
+        stats.attempts.forEach(attempt => {
+            const age = now - attempt.timestamp;
+            // Decay formula: weight = e^(-t/half_life * ln(2))
             const weight = Math.exp(-age * Math.LN2 / this.decayHalfLifeMs);
 
             weightedTotal += weight;
-            if (idx < keyData.correct) {
+            if (attempt.isCorrect) {
                 weightedCorrect += weight;
             }
         });
+
+        // MEMORY FLOOR LOGIC
+        // If user had high peak accuracy, inject a "ghost" weight to represent long-term memory
+        if (peakAccuracy > 0.9) {
+            const floorWeight = 2.0; // Equivalent to ~2 recent attempts
+            weightedTotal += floorWeight;
+            weightedCorrect += floorWeight * peakAccuracy;
+        }
 
         return { correct: weightedCorrect, total: weightedTotal };
     }
@@ -101,9 +217,9 @@ export class BayesianWeaknessDetector {
      * Compute posterior Beta distribution parameters
      */
     private computePosterior(successes: number, total: number) {
-        const failures = total - successes;
+        // Add prior (Laplace smoothing equivalent via Beta parameters)
         const alpha = this.priorAlpha + successes;
-        const beta = this.priorBeta + failures;
+        const beta = this.priorBeta + (total - successes);
 
         // Posterior mean = alpha / (alpha + beta)
         const mean = alpha / (alpha + beta);
@@ -111,7 +227,8 @@ export class BayesianWeaknessDetector {
         // Posterior variance
         const variance = (alpha * beta) / (Math.pow(alpha + beta, 2) * (alpha + beta + 1));
 
-        // Confidence: inverse of coefficient of variation
+        // Confidence: inverse of coefficient of variation (simplified)
+        // Higher N -> lower variance -> higher confidence
         const confidence = Math.min(1, 1 - Math.sqrt(variance) / mean);
 
         return { alpha, beta, mean, variance, confidence };
@@ -123,11 +240,11 @@ export class BayesianWeaknessDetector {
     private confidenceInterval(alpha: number, beta: number, level: number) {
         const tail = (1 - level) / 2;
 
-        // Normal approximation for Beta quantiles
         const mean = alpha / (alpha + beta);
         const variance = (alpha * beta) / (Math.pow(alpha + beta, 2) * (alpha + beta + 1));
         const stdDev = Math.sqrt(variance);
 
+        // Approximate z-score for the given level
         const z = this.normalQuantile(1 - tail);
 
         return {
@@ -143,25 +260,11 @@ export class BayesianWeaknessDetector {
         if (p <= 0) return -Infinity;
         if (p >= 1) return Infinity;
 
-        const a = [
-            -3.969683028665376e+01, 2.209460984245205e+02,
-            -2.759285104469687e+02, 1.383577518672690e+02,
-            -3.066479806614716e+01, 2.506628277459239e+00,
-        ];
-        const b = [
-            -5.447609879822406e+01, 1.615858368580409e+02,
-            -1.556989798598866e+02, 6.680131188771972e+01,
-            -1.328068155288572e+01,
-        ];
-        const c = [
-            -7.784894002430293e-03, -3.223964580411365e-01,
-            -2.400758277161838e+00, -2.549732539343734e+00,
-            4.374664141464968e+00, 2.938163982698783e+00,
-        ];
-        const d = [
-            7.784695709041462e-03, 3.224671290700398e-01,
-            2.445134137142996e+00, 3.754408661907416e+00,
-        ];
+        // Coefficients for approximation
+        const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+        const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+        const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+        const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
 
         const pLow = 0.02425;
         const pHigh = 1 - pLow;
@@ -188,42 +291,32 @@ export class BayesianWeaknessDetector {
      */
     private calculatePriority(accuracy: number, confidence: number, isWeak: boolean): number {
         if (!isWeak) return 0;
-
-        // Higher priority = lower accuracy + higher confidence
+        // Higher priority = lower accuracy + higher confidence (we are sure you are bad at this)
         const accuracyScore = (1 - accuracy) * 60;
         const confidenceScore = confidence * 40;
-
         return Math.round(Math.min(100, accuracyScore + confidenceScore));
     }
 
     /**
      * Detect learning trend from recent vs older performance
      */
-    private detectTrend(keyData: KeyPerformance): 'improving' | 'declining' | 'stable' {
-        if (keyData.timestamps.length < 10) return 'stable';
+    private detectTrend(stats: KeyPerformance): 'improving' | 'declining' | 'stable' {
+        if (stats.attempts.length < 10) return 'stable';
 
-        const midPoint = Math.floor(keyData.timestamps.length / 2);
-        const now = Date.now();
+        const midPoint = Math.floor(stats.attempts.length / 2);
 
-        // Calculate weighted accuracy for older half vs newer half
-        let olderCorrect = 0, olderTotal = 0;
-        let newerCorrect = 0, newerTotal = 0;
+        // Split attempts into older and newer halves
+        const older = stats.attempts.slice(0, midPoint);
+        const newer = stats.attempts.slice(midPoint);
 
-        keyData.timestamps.forEach((ts, idx) => {
-            const weight = Math.exp(-(now - ts) * Math.LN2 / this.decayHalfLifeMs);
-            const isCorrect = idx < keyData.correct;
+        const calcAccuracy = (attempts: KeyAttempt[]) => {
+            if (attempts.length === 0) return 0;
+            const correct = attempts.filter(a => a.isCorrect).length;
+            return correct / attempts.length;
+        };
 
-            if (idx < midPoint) {
-                olderTotal += weight;
-                if (isCorrect) olderCorrect += weight;
-            } else {
-                newerTotal += weight;
-                if (isCorrect) newerCorrect += weight;
-            }
-        });
-
-        const olderAccuracy = olderTotal > 0 ? olderCorrect / olderTotal : 0;
-        const newerAccuracy = newerTotal > 0 ? newerCorrect / newerTotal : 0;
+        const olderAccuracy = calcAccuracy(older);
+        const newerAccuracy = calcAccuracy(newer);
         const diff = newerAccuracy - olderAccuracy;
 
         if (diff > 0.1) return 'improving';
@@ -252,53 +345,71 @@ export class BayesianWeaknessDetector {
 
         const nextDate = new Date();
         nextDate.setDate(nextDate.getDate() + Math.min(interval, 30)); // Cap at 30 days
-
         return nextDate;
     }
 
     /**
-     * Analyze all keys and return sorted by priority
+     * Get keys due for review
      */
-    analyzeAllKeys(
-        keyStats: Map<string, KeyPerformance> | Record<string, KeyPerformance>
-    ): WeaknessResult[] {
-        const results: WeaknessResult[] = [];
-
-        // Calculate user baseline from all keys
-        let totalCorrect = 0;
-        let totalAttempts = 0;
-
-        const entries = keyStats instanceof Map
-            ? Array.from(keyStats.entries())
-            : Object.entries(keyStats);
-
-        entries.forEach(([, stats]) => {
-            totalCorrect += stats.correct;
-            totalAttempts += stats.total;
-        });
-
-        const userBaseline = totalAttempts > 0 ? totalCorrect / totalAttempts : 0.85;
-
-        // Analyze each key
-        entries.forEach(([key, stats]) => {
-            if (stats.total >= this.minAttempts) {
-                const result = this.analyzeKey({ ...stats, key }, userBaseline);
-                results.push(result);
-            }
-        });
-
-        // Sort by priority (highest first)
-        return results.sort((a, b) => b.priority - a.priority);
-    }
-
-    /**
-     * Get keys due for review based on spaced repetition schedule
-     */
-    getDueForReview(results: WeaknessResult[]): string[] {
+    public getDueForReview(results: WeaknessResult[]): string[] {
         const now = new Date();
         return results
             .filter(r => r.nextReviewDate <= now)
             .map(r => r.key);
+    }
+
+    // Persistence
+    private persist(): void {
+        try {
+            // Check for test environment where window might be undefined but localStorage is mocked
+            if (typeof window === 'undefined' && typeof localStorage === 'undefined') return;
+
+            // Debounce save to avoid main thread jank during typing
+            if (this.saveTimeout) {
+                clearTimeout(this.saveTimeout);
+            }
+
+            this.saveTimeout = setTimeout(() => {
+                try {
+                    const data = Array.from(this.keyStats.entries());
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+                    this.saveTimeout = null;
+                } catch (e) {
+                    console.error('Failed to save weakness data', e);
+                }
+            }, 2000); // 2 second delay
+
+        } catch (e) {
+            console.error('Failed to schedule save', e);
+        }
+    }
+
+    private hydrate(): void {
+        try {
+            if (typeof window === 'undefined' && typeof localStorage === 'undefined') return;
+
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                this.keyStats = new Map(data);
+
+                // Validate data structure (basic check)
+                const first = this.keyStats.values().next().value;
+                if (first && !Array.isArray(first.attempts)) {
+                    console.warn('Invalid legacy weakness data detected. Resetting.');
+                    this.keyStats.clear();
+                    this.persist();
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load weakness data', e);
+        }
+    }
+
+    // Debug/Admin
+    public reset(): void {
+        this.keyStats.clear();
+        this.persist();
     }
 }
 

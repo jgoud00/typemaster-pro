@@ -9,7 +9,7 @@
  */
 
 import { adaptiveCurriculum, type AdaptiveLesson } from './adaptive-curriculum';
-import { patternRecognizer, type Pattern } from './pattern-recognition';
+import { type Pattern } from './pattern-recognition';
 import { type WeaknessResult } from './bayesian-weakness-detector';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'reading';
@@ -348,6 +348,7 @@ export class PersonalizationEngine {
      */
     save(): void {
         try {
+            if (typeof window === 'undefined') return;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(this.profile));
         } catch (e) {
             console.warn('Failed to save user profile:', e);
@@ -359,6 +360,7 @@ export class PersonalizationEngine {
      */
     private load(): UserProfile | null {
         try {
+            if (typeof window === 'undefined') return null;
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const profile = JSON.parse(saved);

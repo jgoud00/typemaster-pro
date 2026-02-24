@@ -4,14 +4,14 @@ import { create } from 'zustand';
 import { TypingState, KeystrokeEvent, Finger } from '@/types';
 import { getKeyData } from '@/lib/keyboard-data';
 
-// Performance optimization: Max keystrokes to keep in memory for analytics
-const MAX_KEYSTROKES_BUFFER = 500;
+// Performance maximization: Limit history to constant size
+const MAX_KEYSTROKES_BUFFER = 1000;
 
 interface TypingStore {
     state: TypingState;
     activeKey: string | null;
     lastKeystrokeTime: number | null;
-    
+
     // Performance counters (O(1) tracking instead of array iteration)
     correctCount: number;
     totalCount: number;
@@ -22,6 +22,7 @@ interface TypingStore {
     reset: () => void;
     pause: () => void;
     resume: () => void;
+    setRiskLevel: (level: number) => void;
 
     // Computed
     getWpm: () => number;
@@ -39,13 +40,14 @@ const initialState: TypingState = {
     keystrokes: [],
     isComplete: false,
     isPaused: false,
+    riskLevel: 0,
 };
 
 export const useTypingStore = create<TypingStore>((set, get) => ({
     state: initialState,
     activeKey: null,
     lastKeystrokeTime: null,
-    
+
     // Initialize counters
     correctCount: 0,
     totalCount: 0,
@@ -55,9 +57,14 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
             state: { ...initialState, text },
             activeKey: text.length > 0 ? text[0] : null,
             lastKeystrokeTime: null,
-            correctCount: 0,
             totalCount: 0,
         });
+    },
+
+    setRiskLevel: (level: number) => {
+        set((s) => ({
+            state: { ...s.state, riskLevel: level }
+        }));
     },
 
     handleKeystroke: (key: string): KeystrokeEvent | null => {
@@ -149,9 +156,12 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         if (!state.startTime) return 0;
 
         const endTime = state.endTime ?? Date.now();
-        const elapsedMinutes = (endTime - state.startTime) / 60000;
-        if (elapsedMinutes < 0.05) return 0; // Avoid division issues
+        const elapsedSeconds = (endTime - state.startTime) / 1000;
 
+        // Guard: Minimum time and characters to prevent spikes
+        if (elapsedSeconds < 2 || correctCount < 5) return 0;
+
+        const elapsedMinutes = elapsedSeconds / 60;
         // Use counter instead of array filter (O(1) vs O(n))
         const words = correctCount / 5;
 

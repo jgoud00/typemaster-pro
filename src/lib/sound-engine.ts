@@ -20,6 +20,7 @@ interface SoundSettings {
     errorSounds: boolean;
     comboSounds: boolean;
     completionSounds: boolean;
+    keyboardSound: 'mechanical' | 'typewriter' | 'digital' | 'none';
 }
 
 const defaultSettings: SoundSettings = {
@@ -29,6 +30,7 @@ const defaultSettings: SoundSettings = {
     errorSounds: true,
     comboSounds: true,
     completionSounds: true,
+    keyboardSound: 'mechanical',
 };
 
 class SoundEngine {
@@ -135,7 +137,7 @@ class SoundEngine {
         }
     }
 
-    async play(type: SoundType): Promise<void> {
+    play(type: SoundType): void {
         if (!this.settings.enabled) return;
 
         // Check category settings
@@ -146,21 +148,39 @@ class SoundEngine {
 
         // Initialize on first play (requires user interaction)
         if (!this.initialized) {
-            await this.initialize();
+            this.initialize().catch(console.error);
         }
 
         const now = Tone.now();
+        const profile = this.settings.keyboardSound;
 
         switch (type) {
             case 'keystroke':
-                // Random pitch for variety
-                const pitches = ['C5', 'D5', 'E5', 'F5', 'G5'];
-                const pitch = pitches[Math.floor(Math.random() * pitches.length)];
-                this.keystrokeSynth?.triggerAttackRelease(pitch, '32n', now);
+                if (profile === 'none') return;
+
+                if (profile === 'typewriter') {
+                    // High-pitched "ping"
+                    this.keystrokeSynth?.triggerAttackRelease('C6', '32n', now, 0.5);
+                    // Add mechanical thud
+                    this.keystrokeSynth?.triggerAttackRelease('C2', '32n', now, 0.3);
+                } else if (profile === 'digital') {
+                    // Electronic blip
+                    this.keystrokeSynth?.triggerAttackRelease('E5', '64n', now);
+                } else {
+                    // Mechanical (Standard) - Thocky
+                    // Random pitch for variety
+                    const pitches = ['C3', 'D3', 'E3']; // Lower pitch for "thock"
+                    const pitch = pitches[Math.floor(Math.random() * pitches.length)];
+                    this.keystrokeSynth?.triggerAttackRelease(pitch, '16n', now);
+                }
                 break;
 
             case 'error':
-                this.errorSynth?.triggerAttackRelease('16n', now);
+                if (profile === 'digital') {
+                    this.errorSynth?.triggerAttackRelease('32n', now);
+                } else {
+                    this.errorSynth?.triggerAttackRelease('16n', now);
+                }
                 break;
 
             case 'combo-1':

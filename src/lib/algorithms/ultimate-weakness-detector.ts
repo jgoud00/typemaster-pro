@@ -15,7 +15,13 @@
  * Adaptivity: Updates beliefs in real-time
  */
 
-interface KeyState {
+interface KeyAttempt {
+    timestamp: number;
+    isCorrect: boolean;
+    delay: number;
+}
+
+export interface KeyState {
     // Accuracy modeling (Beta-Binomial)
     alphaPrior: number;      // Beta distribution alpha
     betaPrior: number;       // Beta distribution beta
@@ -31,9 +37,7 @@ interface KeyState {
     transitionProbs: Map<string, number>;
 
     // Temporal features
-    attempts: number[];      // Timestamped attempts
-    successes: number[];     // Timestamped successes
-    speeds: number[];        // Typing speed per attempt
+    attempts: KeyAttempt[];  // Comprehensive attempt history
 
     // Contextual factors
     timeOfDay: Map<number, number>;     // Hour -> success rate
@@ -61,9 +65,7 @@ interface SerializedKeyState {
     rateParam: number;
     hmmState: 'learning' | 'proficient' | 'mastered' | 'regressing';
     transitionProbs: [string, number][];
-    attempts: number[];
-    successes: number[];
-    speeds: number[];
+    attempts: KeyAttempt[];
     timeOfDay: [number, number][];
     sessionPosition: [number, number][];
     adjacentKeys: [string, number][];
@@ -81,8 +83,9 @@ export interface UltimateWeaknessResult {
     // Primary metrics
     accuracyEstimate: number;           // Point estimate
     accuracyCI: [number, number];       // 95% credible interval
-    speedEstimate: number;              // ms per keystroke
+    speedEstimate: number;              // ms per keystroke (Harmonic Mean - best for WPM)
     speedCI: [number, number];
+    averageDelay: number;               // ms per keystroke (Arithmetic Mean - best for "avg time")
 
     // State estimation
     currentState: 'learning' | 'proficient' | 'mastered' | 'regressing';
@@ -132,7 +135,7 @@ export class UltimateWeaknessDetector {
     // Speed model parameters (trained from 168K users)
     private speedModel = {
         shape: 8.45,      // Gamma shape (was 6.71)
-        rate: 0.149,      // Gamma rate (was 0.067)
+        rate: 1570,       // Gamma rate (sum of durations, was 0.149 sum of rates)
         meanWPM: 56.84,   // Average typing speed
         stdDev: 19.55     // WPM standard deviation
     };
@@ -159,6 +162,9 @@ export class UltimateWeaknessDetector {
     // Meta-learning: aggregate data across all users (optional)
     private static globalLearningCurves = new Map<string, number[]>();
 
+    // Optimization: Debounce save
+    private saveTimeout: NodeJS.Timeout | null = null;
+
     constructor() {
         this.load();
     }
@@ -168,18 +174,28 @@ export class UltimateWeaknessDetector {
      */
     private getKeyState(key: string): KeyState {
         if (!this.keyStates.has(key)) {
+            // OPTIMIZATION: Dynamic Priors (Capped Influence)
+            // Use global priors but cap effective weight to 20 samples to avoid "Expert Slump"
+            // This allows the user's actual data to overtake the prior more quickly.
+            // Original: alpha=50, beta=2.7 (~53 samples)
+            // New: Scale down while keeping ratio
+
+            const totalPrior = this.globalPriors.alpha + this.globalPriors.beta;
+            const capFactor = Math.min(1, 20 / totalPrior);
+
+            const cappedAlpha = this.globalPriors.alpha * capFactor;
+            const cappedBeta = this.globalPriors.beta * capFactor;
+
             this.keyStates.set(key, {
-                alphaPrior: this.globalPriors.alpha,
-                betaPrior: this.globalPriors.beta,
-                alphaPost: this.globalPriors.alpha,
-                betaPost: this.globalPriors.beta,
+                alphaPrior: cappedAlpha,
+                betaPrior: cappedBeta,
+                alphaPost: cappedAlpha,
+                betaPost: cappedBeta,
                 shapeParam: this.speedModel.shape,   // Trained from 168K users
                 rateParam: this.speedModel.rate,     // Mean ~57 WPM
                 hmmState: 'learning',
                 transitionProbs: this.initializeTransitionProbs(),
                 attempts: [],
-                successes: [],
-                speeds: [],
                 timeOfDay: new Map(),
                 sessionPosition: new Map(),
                 adjacentKeys: new Map(),
@@ -213,14 +229,18 @@ export class UltimateWeaknessDetector {
         // 1. Update Beta-Binomial for accuracy
         if (wasCorrect) {
             state.alphaPost++;
-            state.successes.push(context.timestamp);
         } else {
             state.betaPost++;
         }
-        state.attempts.push(context.timestamp);
+
+        // Record explicit attempt
+        state.attempts.push({
+            timestamp: context.timestamp,
+            isCorrect: wasCorrect,
+            delay: speed
+        });
 
         // 2. Update Gamma-Poisson for speed
-        state.speeds.push(speed);
         this.updateSpeedModel(state, speed);
 
         // 3. Update contextual factors
@@ -248,6 +268,9 @@ export class UltimateWeaknessDetector {
 
         // Keep arrays bounded
         this.pruneHistory(state);
+
+        // Schedule persistence
+        this.scheduleSave();
     }
 
     /**
@@ -260,8 +283,6 @@ export class UltimateWeaknessDetector {
         if (excessAttempts > 0) {
             // In-place removal from beginning (more memory efficient)
             state.attempts.splice(0, excessAttempts);
-            state.successes.splice(0, Math.min(excessAttempts, state.successes.length));
-            state.speeds.splice(0, Math.min(excessAttempts, state.speeds.length));
         }
     }
 
@@ -270,13 +291,11 @@ export class UltimateWeaknessDetector {
      */
     private updateSpeedModel(state: KeyState, newSpeed: number): void {
         // Gamma prior for rate parameter
-        // Poisson likelihood for count data (we model 1/speed as rate)
-
-        const rate = 1000 / newSpeed; // Convert ms to rate
+        // We model 1/speed (duration) as exponential, so we sum durations
 
         // Update Gamma parameters
         state.shapeParam = state.shapeParam + 1;
-        state.rateParam = state.rateParam + rate;
+        state.rateParam = state.rateParam + newSpeed; // Add duration (ms)
     }
 
     /**
@@ -385,7 +404,7 @@ export class UltimateWeaknessDetector {
         // Count state transitions in recent history
         // This is simplified - full implementation would track state history
 
-        const recentPerformance = state.successes.length / Math.max(1, state.attempts.length);
+        const recentPerformance = state.attempts.filter(a => a.isCorrect).length / Math.max(1, state.attempts.length);
 
         // Adjust probabilities based on observed performance
         if (recentPerformance > 0.9) {
@@ -432,9 +451,7 @@ export class UltimateWeaknessDetector {
 
         if (state.attempts.length >= windowSize) {
             const recentAttempts = state.attempts.slice(-windowSize);
-            const recentSuccesses = state.successes.filter(ts =>
-                ts >= recentAttempts[0]
-            ).length;
+            const recentSuccesses = recentAttempts.filter(a => a.isCorrect).length;
 
             const accuracy = recentSuccesses / windowSize;
             state.learningCurve.push(accuracy);
@@ -478,8 +495,8 @@ export class UltimateWeaknessDetector {
         const oneHour = 60 * 60 * 1000;
 
         // Count attempts in last hour
-        const recentAttempts = state.attempts.filter(ts =>
-            now - ts < oneHour
+        const recentAttempts = state.attempts.filter(a =>
+            now - a.timestamp < oneHour
         ).length;
 
         // Normalize to 0-1 (100 attempts/hour = 1.0 load)
@@ -547,6 +564,7 @@ export class UltimateWeaknessDetector {
             // Speed
             speedEstimate: speedEstimate.estimate,
             speedCI: speedEstimate.ci,
+            averageDelay: speedEstimate.arithmeticMean,
 
             // State
             currentState: state.hmmState,
@@ -635,26 +653,38 @@ export class UltimateWeaknessDetector {
     }
 
     /**
-     * Temporal pattern prediction
-     */
+ * Temporal pattern prediction using exponential decay
+ */
     private calculateTemporalPrediction(state: KeyState): number {
-        if (state.learningCurve.length < 5) {
-            return 0.5; // Default
+        // GUARD: Minimum sample size
+        if (state.attempts.length < 20) {
+            return 0.5; // Neutral baseline
         }
 
-        // Weighted average of recent performance (more recent = higher weight)
-        const weights = state.learningCurve.map((_, i) =>
-            Math.exp(i / state.learningCurve.length)
-        );
-        const totalWeight = weights.reduce((a, b) => a + b, 0);
-
-        const weightedSum = state.learningCurve.reduce((sum, acc, i) =>
-            sum + acc * weights[i], 0
-        );
-
-        return weightedSum / totalWeight;
+        return this.applyTemporalDecay(state.attempts);
     }
 
+    /**
+     * Apply temporal decay to weight recent attempts more heavily
+     * @param attempts Chronological list of attempts
+     */
+    private applyTemporalDecay(attempts: KeyAttempt[]): number {
+        const now = Date.now();
+        const HALF_LIFE = 1000 * 60 * 60; // 1 hour
+
+        let weightedCorrect = 0;
+        let weightedTotal = 0;
+
+        for (const attempt of attempts) {
+            const age = now - attempt.timestamp;
+            const weight = Math.exp(-age / HALF_LIFE);
+
+            weightedTotal += weight;
+            if (attempt.isCorrect) weightedCorrect += weight;
+        }
+
+        return weightedTotal > 0 ? weightedCorrect / weightedTotal : 0.5;
+    }
     /**
      * Meta-learning prediction using global data
      */
@@ -697,20 +727,30 @@ export class UltimateWeaknessDetector {
     private calculateSpeedEstimate(state: KeyState): {
         estimate: number;
         ci: [number, number];
+        arithmeticMean: number;
     } {
-        if (state.speeds.length === 0) {
-            return { estimate: 200, ci: [150, 250] };
+        if (state.attempts.length === 0) {
+            return { estimate: 200, ci: [150, 250], arithmeticMean: 200 };
         }
 
-        // Mean of Gamma distribution
-        const estimate = state.shapeParam / state.rateParam * 1000;
+        // Mean Duration = rateParam / shapeParam (Inverse Gamma mean approx)
+        const estimate = state.rateParam / state.shapeParam;
 
-        // Confidence interval (simplified)
-        const stdDev = Math.sqrt(state.shapeParam) / state.rateParam * 1000;
-        const lower = Math.max(0, estimate - 1.96 * stdDev);
-        const upper = estimate + 1.96 * stdDev;
+        // Confidence interval (simplified approximation for 1/lambda)
+        const meanLambda = state.shapeParam / state.rateParam;
+        const stdLambda = Math.sqrt(state.shapeParam) / state.rateParam;
 
-        return { estimate, ci: [lower, upper] };
+        const lowerLambda = Math.max(0.001, meanLambda - 1.96 * stdLambda);
+        const upperLambda = meanLambda + 1.96 * stdLambda;
+
+        const upper = 1 / lowerLambda;
+        const lower = 1 / upperLambda;
+
+        // Calculate Arithmetic Mean from raw data
+        const speeds = state.attempts.map(a => a.delay);
+        const arithmeticMean = speeds.reduce((a, b) => a + b, 0) / Math.max(1, speeds.length);
+
+        return { estimate, ci: [lower, upper], arithmeticMean };
     }
 
     /**
@@ -730,8 +770,9 @@ export class UltimateWeaknessDetector {
         score += variance * 200; // Scale to 0-20
 
         // Factor 3: Slow speed (20 points max)
-        const avgSpeed = state.speeds.length > 0
-            ? state.speeds.reduce((a, b) => a + b, 0) / state.speeds.length
+        const speeds = state.attempts.map(a => a.delay);
+        const avgSpeed = speeds.length > 0
+            ? speeds.reduce((a, b) => a + b, 0) / speeds.length
             : 200;
         const speedPenalty = Math.max(0, (avgSpeed - 200) / 10);
         score += Math.min(20, speedPenalty);
@@ -915,8 +956,9 @@ export class UltimateWeaknessDetector {
         }> = [];
 
         // Intervention 1: Slow down if speed is causing errors
-        const avgSpeed = state.speeds.length > 0
-            ? state.speeds.reduce((a, b) => a + b, 0) / state.speeds.length
+        const speeds = state.attempts.map(a => a.delay);
+        const avgSpeed = speeds.length > 0
+            ? speeds.reduce((a, b) => a + b, 0) / speeds.length
             : 200;
 
         if (avgSpeed < 150 && weaknessScore > 50) {
@@ -1185,8 +1227,24 @@ export class UltimateWeaknessDetector {
     /**
      * Save state to localStorage
      */
-    save(): void {
+    /**
+     * Schedule a save to localStorage (Debounced)
+     */
+    scheduleSave(): void {
+        if (this.saveTimeout) return;
+
+        this.saveTimeout = setTimeout(() => {
+            this.saveNow();
+            this.saveTimeout = null;
+        }, 5000); // 5 seconds debounce
+    }
+
+    /**
+     * Immediate save
+     */
+    saveNow(): void {
         try {
+            if (typeof window === 'undefined') return;
             const data = {
                 keyStates: Array.from(this.keyStates.entries()).map(([key, state]) => [
                     key,
@@ -1210,26 +1268,55 @@ export class UltimateWeaknessDetector {
     }
 
     /**
+     * Legacy save method alias for compatibility
+     */
+    save(): void {
+        this.scheduleSave();
+    }
+
+    /**
      * Load state from localStorage
      */
     load(): void {
         try {
+            if (typeof window === 'undefined') return;
             const saved = localStorage.getItem('ultimate-weakness-detector');
             if (saved) {
                 const data = JSON.parse(saved);
 
                 this.keyStates = new Map(
-                    data.keyStates.map(([key, state]: [string, SerializedKeyState]) => [
-                        key,
-                        {
-                            ...state,
-                            transitionProbs: new Map(state.transitionProbs),
-                            timeOfDay: new Map(state.timeOfDay),
-                            sessionPosition: new Map(state.sessionPosition),
-                            adjacentKeys: new Map(state.adjacentKeys),
-                            interventionEffects: new Map(state.interventionEffects),
-                        } as KeyState,
-                    ])
+                    data.keyStates.map(([key, state]: [string, any]) => {
+                        // MIGRATION: Convert legacy attempts (number[]) to KeyAttempt[]
+                        let migratedAttempts: KeyAttempt[] = [];
+                        if (Array.isArray(state.attempts) && state.attempts.length > 0) {
+                            if (typeof state.attempts[0] === 'number') {
+                                // Legacy format detected
+                                migratedAttempts = state.attempts.map((ts: number, i: number) => ({
+                                    timestamp: ts,
+                                    isCorrect: state.successes?.includes(ts) ?? true, // Best guess backup
+                                    delay: state.speeds?.[i] ?? 100
+                                }));
+                            } else {
+                                migratedAttempts = state.attempts;
+                            }
+                        }
+
+                        return [
+                            key,
+                            {
+                                ...state,
+                                transitionProbs: new Map(state.transitionProbs),
+                                timeOfDay: new Map(state.timeOfDay),
+                                sessionPosition: new Map(state.sessionPosition),
+                                adjacentKeys: new Map(state.adjacentKeys),
+                                interventionEffects: new Map(state.interventionEffects),
+                                attempts: migratedAttempts,
+                                // Strip legacy fields
+                                successes: undefined,
+                                speeds: undefined,
+                            } as KeyState,
+                        ];
+                    })
                 );
                 this.globalPriors = data.globalPriors;
                 this.ensembleWeights = data.ensembleWeights;
@@ -1237,6 +1324,18 @@ export class UltimateWeaknessDetector {
         } catch (e) {
             console.warn('Failed to load ultimate weakness detector:', e);
         }
+    }
+
+    /**
+     * Analyze all keys and return results
+     * Essential for Curriculum generation
+     */
+    analyzeAllKeys(): UltimateWeaknessResult[] {
+        const results: UltimateWeaknessResult[] = [];
+        for (const [key] of this.keyStates) {
+            results.push(this.analyze(key));
+        }
+        return results.sort((a, b) => b.practicePriority - a.practicePriority);
     }
 
     /**

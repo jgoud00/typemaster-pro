@@ -250,32 +250,32 @@ export function generateWeaknessFocusedText(
 
     // Common words containing each weak key
     const wordsByKey: Record<string, string[]> = {
-        'a': ['and', 'about', 'after', 'again', 'against', 'are', 'at', 'all'],
-        'b': ['be', 'been', 'before', 'but', 'by', 'back', 'because', 'both'],
-        'c': ['can', 'come', 'could', 'case', 'each', 'such', 'much', 'which'],
-        'd': ['did', 'do', 'down', 'and', 'day', 'find', 'good', 'made'],
-        'e': ['the', 'be', 'we', 'me', 'even', 'here', 'there', 'when'],
-        'f': ['for', 'from', 'find', 'first', 'after', 'before', 'off', 'if'],
-        'g': ['get', 'go', 'good', 'going', 'give', 'great', 'big', 'long'],
-        'h': ['he', 'his', 'have', 'has', 'her', 'how', 'here', 'she'],
-        'i': ['in', 'it', 'is', 'if', 'into', 'with', 'this', 'will'],
-        'j': ['just', 'job', 'join', 'major', 'project', 'subject', 'object'],
-        'k': ['know', 'keep', 'kind', 'like', 'work', 'make', 'back', 'look'],
-        'l': ['like', 'look', 'little', 'long', 'will', 'well', 'all', 'also'],
-        'm': ['me', 'my', 'more', 'make', 'many', 'may', 'some', 'time'],
-        'n': ['new', 'now', 'no', 'not', 'one', 'on', 'when', 'than'],
-        'o': ['of', 'on', 'one', 'or', 'over', 'own', 'into', 'also'],
-        'p': ['people', 'part', 'place', 'point', 'up', 'help', 'keep', 'up'],
-        'q': ['question', 'quick', 'quite', 'quality', 'quote', 'require'],
-        'r': ['or', 'are', 'for', 'her', 'more', 'from', 'great', 'work'],
-        's': ['so', 'some', 'she', 'see', 'say', 'same', 'side', 'set'],
-        't': ['the', 'to', 'that', 'this', 'than', 'time', 'take', 'two'],
-        'u': ['up', 'us', 'use', 'you', 'your', 'under', 'upon', 'must'],
-        'v': ['very', 'over', 'even', 'ever', 'have', 'give', 'every', 'never'],
-        'w': ['we', 'with', 'would', 'will', 'way', 'well', 'work', 'when'],
-        'x': ['next', 'example', 'exact', 'extra', 'text', 'box', 'six', 'fix'],
-        'y': ['you', 'your', 'yes', 'year', 'they', 'may', 'way', 'say'],
-        'z': ['zero', 'zone', 'size', 'realize', 'organize', 'amazing', 'frozen'],
+        'a': ['and', 'about', 'after', 'again', 'against', 'are', 'at', 'all', 'always', 'away', 'around', 'ask', 'another'],
+        'b': ['be', 'been', 'before', 'but', 'by', 'back', 'because', 'both', 'between', 'book', 'big', 'become', 'begin'],
+        'c': ['can', 'come', 'could', 'case', 'each', 'such', 'much', 'which', 'change', 'call', 'course', 'company'],
+        'd': ['did', 'do', 'down', 'and', 'day', 'find', 'good', 'made', 'different', 'does', 'during', 'done'],
+        'e': ['the', 'be', 'we', 'me', 'even', 'here', 'there', 'when', 'where', 'every', 'each', 'early', 'enough'],
+        'f': ['for', 'from', 'find', 'first', 'after', 'before', 'off', 'if', 'family', 'feel', 'few', 'friend', 'father'],
+        'g': ['get', 'go', 'good', 'going', 'give', 'great', 'big', 'long', 'group', 'give', 'game', 'government'],
+        'h': ['he', 'his', 'have', 'has', 'her', 'how', 'here', 'she', 'high', 'home', 'help', 'hand', 'house', 'happen'],
+        'i': ['in', 'it', 'is', 'if', 'into', 'with', 'this', 'will', 'important', 'interest', 'idea', 'information'],
+        'j': ['just', 'job', 'join', 'major', 'project', 'subject', 'object', 'enjoy', 'judge', 'jump', 'juice'],
+        'k': ['know', 'keep', 'kind', 'like', 'work', 'make', 'back', 'look', 'book', 'week', 'take', 'walk', 'think'],
+        'l': ['like', 'look', 'little', 'long', 'will', 'well', 'all', 'also', 'large', 'life', 'left', 'last', 'world'],
+        'm': ['me', 'my', 'more', 'make', 'many', 'may', 'some', 'time', 'man', 'most', 'move', 'mother', 'might', 'must'],
+        'n': ['new', 'now', 'no', 'not', 'one', 'on', 'when', 'than', 'need', 'never', 'next', 'name', 'know', 'night'],
+        'o': ['of', 'on', 'one', 'or', 'over', 'own', 'into', 'also', 'other', 'only', 'out', 'off', 'world', 'through'],
+        'p': ['people', 'part', 'place', 'point', 'up', 'help', 'keep', 'up', 'problem', 'put', 'program', 'play', 'public'],
+        'q': ['question', 'quick', 'quite', 'quality', 'quote', 'require', 'equal', 'request', 'quiet', 'quarter'],
+        'r': ['or', 'are', 'for', 'her', 'more', 'from', 'great', 'work', 'right', 'really', 'run', 'read', 'problem'],
+        's': ['so', 'some', 'she', 'see', 'say', 'same', 'side', 'set', 'system', 'such', 'school', 'state', 'still'],
+        't': ['the', 'to', 'that', 'this', 'than', 'time', 'take', 'two', 'through', 'there', 'their', 'then', 'think'],
+        'u': ['up', 'us', 'use', 'you', 'your', 'under', 'upon', 'must', 'under', 'use', 'just', 'put', 'should', 'through'],
+        'v': ['very', 'over', 'even', 'ever', 'have', 'give', 'every', 'never', 'leave', 'move', 'live', 'believe'],
+        'w': ['we', 'with', 'would', 'will', 'way', 'well', 'work', 'when', 'where', 'what', 'who', 'write', 'want'],
+        'x': ['next', 'example', 'exact', 'extra', 'text', 'box', 'six', 'fix', 'complex', 'context', 'expect'],
+        'y': ['you', 'your', 'yes', 'year', 'they', 'may', 'way', 'say', 'young', 'play', 'study', 'family', 'system'],
+        'z': ['zero', 'zone', 'size', 'realize', 'organize', 'amazing', 'frozen', 'crazy', 'lazy', 'prize', 'puzzle'],
     };
 
     // Collect words for weak keys
@@ -289,14 +289,24 @@ export function generateWeaknessFocusedText(
 
     if (words.length === 0) return '';
 
-    // Build text by randomly selecting words
+    // Build text by randomly selecting words, avoiding immediate repetition
     let text = '';
     let wordCount = 0;
-    while (text.length < length) {
-        const word = words[Math.floor(Math.random() * words.length)];
+    let lastWord = '';
+
+    while (text.length < length && wordCount < 50) {
+        let word = '';
+        let attempts = 0;
+
+        // Try to find a word that isn't the same as the last one
+        do {
+            word = words[Math.floor(Math.random() * words.length)];
+            attempts++;
+        } while (word === lastWord && words.length > 1 && attempts < 5);
+
         text += (text ? ' ' : '') + word;
+        lastWord = word;
         wordCount++;
-        if (wordCount > 50) break; // Safety limit
     }
 
     return text;

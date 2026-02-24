@@ -42,7 +42,7 @@ export class ErrorPredictionModel {
     private biasH2: number[] = [];
     private biasO = 0;
 
-    private readonly INPUT_SIZE = 10;
+    private readonly INPUT_SIZE = 11; // Was 10 (Split timeOfDay into sin/cos)
     private readonly HIDDEN1_SIZE = 8;
     private readonly HIDDEN2_SIZE = 4;
     private readonly LEARNING_RATE = 0.01;
@@ -81,7 +81,8 @@ export class ErrorPredictionModel {
 
         // Hidden2 → Output weights
         this.weightsHO = [];
-        const scale = Math.sqrt(2 / this.HIDDEN2_SIZE);
+        // Xavier/Glorot optimization for Sigmoid output
+        const scale = Math.sqrt(1 / this.HIDDEN2_SIZE); // Was sqrt(2/n)
         for (let i = 0; i < this.HIDDEN2_SIZE; i++) {
             this.weightsHO[i] = (Math.random() - 0.5) * 2 * scale;
         }
@@ -103,7 +104,12 @@ export class ErrorPredictionModel {
             this.encodeChar(context.previousChars[0] || ''),
             Math.min(1, context.currentWPM / 120),
             context.currentAccuracy / 100,
-            context.timeOfDay / 24,
+
+            // OPTIMIZATION: Cyclic Time Encoding
+            // Fixes "Midnight Bug" where 23:59 and 00:01 were seen as opposites.
+            Math.sin(2 * Math.PI * context.timeOfDay / 24), // -1 to 1
+            Math.cos(2 * Math.PI * context.timeOfDay / 24), // -1 to 1
+
             Math.min(1, context.sessionDuration / 60),
             this.calculateFatigue(context.sessionDuration, context.recentErrors),
             context.recentErrors / 10,
@@ -230,7 +236,8 @@ export class ErrorPredictionModel {
             'Previous Character',
             'Typing Speed',
             'Current Accuracy',
-            'Time of Day',
+            'Time (Cyclic Sin)',
+            'Time (Cyclic Cos)',
             'Session Duration',
             'Fatigue Level',
             'Recent Errors',
@@ -303,32 +310,46 @@ export class ErrorPredictionModel {
         prediction: number,
         label: number
     ): void {
+        // 1. Calculate Gradients (BEFORE updating weights)
+
         // Output gradient
         const outputGrad = prediction - label;
 
-        // Hidden2 → Output gradients
+        // Hidden2 Gradients
         const hidden2Grads: number[] = [];
         for (let j = 0; j < this.HIDDEN2_SIZE; j++) {
-            this.weightsHO[j] -= this.LEARNING_RATE * outputGrad * hidden2[j];
             hidden2Grads[j] = outputGrad * this.weightsHO[j] * (hidden2[j] > 0 ? 1 : 0);
         }
-        this.biasO -= this.LEARNING_RATE * outputGrad;
 
-        // Hidden1 → Hidden2 gradients
+        // Hidden1 Gradients
         const hidden1Grads: number[] = [];
         for (let i = 0; i < this.HIDDEN1_SIZE; i++) {
             let grad = 0;
             for (let j = 0; j < this.HIDDEN2_SIZE; j++) {
-                this.weightsHH[i][j] -= this.LEARNING_RATE * hidden2Grads[j] * hidden1[i];
                 grad += hidden2Grads[j] * this.weightsHH[i][j];
             }
             hidden1Grads[i] = grad * (hidden1[i] > 0 ? 1 : 0);
+        }
+
+        // 2. Update Weights and Biases
+
+        // Update Hidden2 → Output
+        for (let j = 0; j < this.HIDDEN2_SIZE; j++) {
+            this.weightsHO[j] -= this.LEARNING_RATE * outputGrad * hidden2[j];
+        }
+        this.biasO -= this.LEARNING_RATE * outputGrad;
+
+        // Update Hidden1 → Hidden2
+        for (let i = 0; i < this.HIDDEN1_SIZE; i++) {
+            for (let j = 0; j < this.HIDDEN2_SIZE; j++) {
+                this.weightsHH[i][j] -= this.LEARNING_RATE * hidden2Grads[j] * hidden1[i];
+            }
         }
         for (let j = 0; j < this.HIDDEN2_SIZE; j++) {
             this.biasH2[j] -= this.LEARNING_RATE * hidden2Grads[j];
         }
 
-        // Input → Hidden1 gradients
+        // Update Input → Hidden1
         for (let i = 0; i < this.INPUT_SIZE; i++) {
             for (let j = 0; j < this.HIDDEN1_SIZE; j++) {
                 this.weightsIH[i][j] -= this.LEARNING_RATE * hidden1Grads[j] * features[i];
@@ -356,6 +377,7 @@ export class ErrorPredictionModel {
      */
     save(): void {
         try {
+            if (typeof window === 'undefined') return;
             const data = {
                 weightsIH: this.weightsIH,
                 weightsHH: this.weightsHH,
@@ -375,6 +397,7 @@ export class ErrorPredictionModel {
      */
     load(): boolean {
         try {
+            if (typeof window === 'undefined') return false;
             const saved = localStorage.getItem(this.STORAGE_KEY);
             if (saved) {
                 const data = JSON.parse(saved);

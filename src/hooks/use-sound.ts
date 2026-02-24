@@ -23,7 +23,7 @@ export function useSound() {
     }, []);
 
     const play = useCallback((type: SoundType) => {
-        soundEngine.play(type);
+        // Sound disabled
     }, []);
 
     const updateSettings = useCallback((newSettings: Partial<SoundSettings>) => {

@@ -202,6 +202,14 @@ export class AdvancedNgramAnalyzer {
     }
 
     /**
+     * Get difficulty score for a specific ngram (0-100)
+     */
+    getNgramDifficulty(ngram: string): number {
+        const data = this.bigramData.get(ngram) || this.trigramData.get(ngram);
+        return data ? data.difficulty : 50; // Default to neutral
+    }
+
+    /**
      * Predict error probability for each position in text
      */
     predictErrors(text: string): Map<number, number> {
@@ -314,6 +322,7 @@ export class AdvancedNgramAnalyzer {
      */
     save(): void {
         try {
+            if (typeof window === 'undefined') return;
             const data = {
                 bigrams: Array.from(this.bigramData.entries()),
                 trigrams: Array.from(this.trigramData.entries()),
@@ -329,6 +338,7 @@ export class AdvancedNgramAnalyzer {
      */
     load(): void {
         try {
+            if (typeof window === 'undefined') return;
             const saved = localStorage.getItem(this.STORAGE_KEY);
             if (saved) {
                 const data = JSON.parse(saved);

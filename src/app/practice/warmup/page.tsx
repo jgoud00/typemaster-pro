@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { warmupGenerator, type WarmupRoutine, type WarmupExercise } from '@/lib/algorithms/warmup-generator';
-import { useTypingEngine } from '@/hooks/use-typing-engine';
+import { useTypingController } from '@/hooks/use-typing-controller';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
 import { TypingArea } from '@/components/typing/typing-area';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Play, RefreshCw, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTypingStore } from '@/stores/typing-store';
 
 export default function WarmupRoutinePage() {
     const router = useRouter();
@@ -45,13 +46,8 @@ export default function WarmupRoutinePage() {
     }, [currentExerciseIndex, routine]);
 
     const {
-        currentIndex,
-        errorIndices,
-        activeKey,
-        wpm,
-        accuracy,
         reset,
-    } = useTypingEngine({
+    } = useTypingController({
         text: currentExercise?.text || '',
         mode: 'free',
         onComplete: handleComplete,
@@ -195,7 +191,7 @@ export default function WarmupRoutinePage() {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-2xl font-bold">{wpm}</div>
+                                            <LiveWpm />
                                             <div className="text-xs text-muted-foreground">WPM</div>
                                         </div>
                                     </div>
@@ -212,13 +208,9 @@ export default function WarmupRoutinePage() {
                                 </CardContent>
                             </Card>
 
-                            <TypingArea
-                                text={currentExercise.text}
-                                currentIndex={currentIndex}
-                                errorIndices={errorIndices}
-                            />
+                            <TypingArea />
 
-                            <VirtualKeyboard activeKey={activeKey} />
+                            <VirtualKeyboard />
 
                             <div className="flex justify-center">
                                 <Button variant="outline" onClick={() => setIsTyping(false)}>
@@ -303,5 +295,17 @@ function ExerciseCard({ exercise, index, isCompleted, isCurrent, onStart }: Exer
                 </CardContent>
             </Card>
         </motion.div>
+    );
+}
+
+function LiveWpm() {
+    const getWpm = useTypingStore(s => s.getWpm);
+    // Subscribe to changes to trigger re-renders
+    const keystrokes = useTypingStore(s => s.state.keystrokes);
+
+    return (
+        <div className="text-3xl font-bold font-mono text-primary">
+            {getWpm()}
+        </div>
     );
 }

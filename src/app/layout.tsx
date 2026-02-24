@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,7 +36,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`} suppressHydrationWarning>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <AchievementToast />
         <Toaster
           position="bottom-right"

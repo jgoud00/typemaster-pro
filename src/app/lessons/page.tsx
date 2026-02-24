@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, ChevronRight, Star, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronDown, BookOpen } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { cn } from '@/lib/utils';
+import { LessonPath } from '@/components/lessons/lesson-journey';
 
 export default function LessonsPage() {
     const { progress } = useProgressStore();
@@ -153,63 +154,11 @@ export default function LessonsPage() {
                                                 transition={{ duration: 0.3 }}
                                             >
                                                 <CardContent className="pt-0 pb-4">
-                                                    <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                                        {categoryLessons.map((lesson, lessonIndex) => {
-                                                            const isCompleted = progress.completedLessons.includes(lesson.id);
-                                                            const score = progress.lessonScores[lesson.id];
-
-                                                            return (
-                                                                <Link key={lesson.id} href={`/lessons/${lesson.id}`}>
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, scale: 0.95 }}
-                                                                        animate={{ opacity: 1, scale: 1 }}
-                                                                        transition={{ delay: lessonIndex * 0.02 }}
-                                                                    >
-                                                                        <Card className={cn(
-                                                                            'h-full transition-all hover:shadow-md hover:border-primary/50 cursor-pointer',
-                                                                            isCompleted && 'bg-green-500/10 border-green-500/40'
-                                                                        )}>
-                                                                            <CardContent className="p-4">
-                                                                                <div className="flex items-start justify-between gap-2">
-                                                                                    <div className="flex-1 min-w-0">
-                                                                                        <p className="font-medium text-sm truncate">{lesson.title}</p>
-                                                                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                                                                            {lesson.description}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                                                                                </div>
-                                                                                <div className="flex items-center justify-between mt-3">
-                                                                                    <div className="flex items-center gap-0.5">
-                                                                                        {[1, 2, 3].map((star) => (
-                                                                                            <Star
-                                                                                                key={star}
-                                                                                                className={cn(
-                                                                                                    'w-3 h-3',
-                                                                                                    score && star <= score.stars
-                                                                                                        ? 'text-yellow-400 fill-yellow-400'
-                                                                                                        : 'text-muted-foreground/30'
-                                                                                                )}
-                                                                                            />
-                                                                                        ))}
-                                                                                    </div>
-                                                                                    {score ? (
-                                                                                        <span className="text-xs text-muted-foreground">
-                                                                                            {score.bestWpm} WPM
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <span className="text-xs text-muted-foreground/50">
-                                                                                            Not started
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </CardContent>
-                                                                        </Card>
-                                                                    </motion.div>
-                                                                </Link>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                    <LessonPath
+                                                        lessons={categoryLessons}
+                                                        completedLessonIds={progress.completedLessons}
+                                                        lessonScores={progress.lessonScores}
+                                                    />
                                                 </CardContent>
                                             </motion.div>
                                         )}

@@ -1,33 +1,40 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ultimateWeaknessDetector } from '@/lib/algorithms/ultimate-weakness-detector';
-import { WeaknessOverlay, CharacterDifficultyIndicator } from './WeaknessOverlay';
+import { WeaknessOverlay } from './WeaknessOverlay';
 import { useErrorExplanation } from './ErrorExplanationToast';
+import { useSettingsStore } from '@/stores/settings-store';
+import { TypingCharacter } from './typing-character';
+
+import { useTypingStore } from '@/stores/typing-store';
+import { useGameStore } from '@/stores/game-store';
 
 interface TypingAreaProps {
-    readonly text: string;
-    readonly currentIndex: number;
-    readonly errorIndices: number[];
-    readonly wpm?: number;
-    readonly accuracy?: number;
-    readonly combo?: number;
+    readonly ghostIndex?: number;
     readonly className?: string;
 }
 
-export function TypingArea({
-    text,
-    currentIndex,
-    errorIndices,
-    wpm = 0,
-    accuracy = 100,
-    combo = 0,
+function TypingAreaComponent({
+    ghostIndex,
     className
 }: TypingAreaProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const cursorRef = useRef<HTMLSpanElement>(null);
+    const { settings } = useSettingsStore();
+    const { cursorStyle } = settings;
+
+    // Connect to stores
+    const { state, getWpm, getAccuracy } = useTypingStore();
+    const { text, currentIndex, errorIndices } = state;
+    const { game } = useGameStore();
+    const { combo } = game;
+
+    // We can compute these or get them, but for aria-labels we might need them
+    const wpm = getWpm();
+    const accuracy = getAccuracy();
 
     // Auto-scroll to keep cursor visible
     useEffect(() => {
@@ -130,60 +137,23 @@ export function TypingArea({
                         const isCurrent = index === currentIndex;
                         const isError = errorSet.has(index);
                         const isNext = index === currentIndex + 1;
-
-                        // Get probability for this char
+                        const isGhost = ghostIndex !== undefined && index === Math.floor(ghostIndex);
                         const errorProb = errorProbabilities.get(char.toLowerCase()) || 0;
 
                         return (
-                            <span
+                            <TypingCharacter
                                 key={index}
-                                ref={isCurrent ? cursorRef : undefined}
-                                aria-current={isCurrent ? 'location' : undefined}
-                                aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
-                                className={cn(
-                                    'relative inline-block', // Changed to inline-block for transforms
-                                    'transition-colors duration-75',
-                                    // Typed correctly - bright green
-                                    isTyped && !isError && 'text-green-400',
-                                    // Typed with error - green but with underline for colorblind support
-                                    isTyped && isError && 'text-green-400 underline decoration-wavy decoration-amber-500',
-                                    // Current position - highlighted with border for colorblind support
-                                    isCurrent && !isError && 'text-foreground bg-primary/10 border-b-2 border-primary',
-                                    // Current position with previous errors
-                                    isCurrent && isError && 'bg-red-500/20 text-foreground underline decoration-wavy decoration-red-500',
-                                    // Not yet typed - muted
-                                    !isTyped && !isCurrent && 'text-muted-foreground/60',
-                                )}
-                            >
-                                {/* Cursor - prominent blinking line */}
-                                {isCurrent && (
-                                    <motion.span
-                                        className="absolute left-0 top-[10%] w-[2px] h-[80%] bg-primary rounded-full z-10"
-                                        animate={{ opacity: [1, 0.3, 1] }}
-                                        transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
-                                        aria-hidden="true"
-                                    />
-                                )}
-
-                                {/* Character */}
-                                {char === ' ' ? '\u00A0' : char}
-
-                                {/* Error underline for current position */}
-                                {isCurrent && isError && (
-                                    <span
-                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 rounded-full"
-                                        aria-hidden="true"
-                                    />
-                                )}
-
-                                {/* Predictive Difficulty Indicator */}
-                                {!isTyped && !isError && (
-                                    <CharacterDifficultyIndicator
-                                        probability={errorProb}
-                                        isNextChar={isCurrent || isNext}
-                                    />
-                                )}
-                            </span>
+                                char={char}
+                                isTyped={isTyped}
+                                isCurrent={isCurrent}
+                                isError={isError}
+                                isNext={isNext}
+                                isGhost={isGhost}
+                                errorProb={errorProb}
+                                cursorStyle={cursorStyle}
+                                smoothCaret={settings.smoothCaret}
+                                cursorRef={cursorRef}
+                            />
                         );
                     })}
                 </div>
@@ -197,3 +167,5 @@ export function TypingArea({
         </div>
     );
 }
+
+export const TypingArea = memo(TypingAreaComponent);

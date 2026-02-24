@@ -1,21 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
-interface Challenge {
-    id: string;
-    title: string;
-    description: string;
-    type: 'speed' | 'accuracy' | 'endurance';
-    target: number;
-    current: number;
-    reward: string;
-    difficulty: 'easy' | 'medium' | 'hard';
-    daysLeft: number;
-}
+import { useChallengeStore } from '@/stores/challenge-store';
 
 function getEndOfWeekDays(): number {
     const now = new Date();
@@ -25,42 +15,11 @@ function getEndOfWeekDays(): number {
 }
 
 export function WeeklyChallenges() {
-    // In a real app, these would come from a store
-    const challenges: Challenge[] = [
-        {
-            id: 'speed-demon',
-            title: '⚡ Speed Demon',
-            description: 'Achieve 60 WPM or higher in any test',
-            type: 'speed',
-            target: 60,
-            current: 0, // Would be tracked from store
-            reward: '200 points + Speed Demon badge',
-            difficulty: 'medium',
-            daysLeft: getEndOfWeekDays(),
-        },
-        {
-            id: 'perfect-streak',
-            title: '🎯 Perfect Streak',
-            description: 'Complete 5 lessons with 95%+ accuracy',
-            type: 'accuracy',
-            target: 5,
-            current: 0,
-            reward: '300 points + Perfectionist badge',
-            difficulty: 'hard',
-            daysLeft: getEndOfWeekDays(),
-        },
-        {
-            id: 'marathon',
-            title: '🏃 Marathon Typer',
-            description: 'Practice for 60 minutes this week',
-            type: 'endurance',
-            target: 60,
-            current: 0,
-            reward: '150 points + Dedicated badge',
-            difficulty: 'easy',
-            daysLeft: getEndOfWeekDays(),
-        },
-    ];
+    const { challenges, checkWeeklyReset } = useChallengeStore();
+
+    useEffect(() => {
+        checkWeeklyReset();
+    }, [checkWeeklyReset]);
 
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {
@@ -90,14 +49,16 @@ export function WeeklyChallenges() {
                         (challenge.current / challenge.target) * 100,
                         100
                     );
-                    const isComplete = challenge.current >= challenge.target;
+
+                    // Logic to display current/target differently based on type if needed
+                    // For now, simple fraction is fine
 
                     return (
                         <Card
                             key={challenge.id}
                             className={cn(
                                 "p-5 transition-all hover:shadow-lg",
-                                isComplete && "ring-2 ring-green-500/50 bg-green-500/5"
+                                challenge.isCompleted && "ring-2 ring-green-500/50 bg-green-500/5"
                             )}
                         >
                             <div className="flex items-start justify-between mb-3">
@@ -115,12 +76,12 @@ export function WeeklyChallenges() {
                                 <div className="flex justify-between text-sm">
                                     <span>Progress</span>
                                     <span className="font-medium">
-                                        {challenge.current}/{challenge.target}
+                                        {challenge.current}/{challenge.target} {challenge.type === 'endurance' ? 'mins' : ''}
                                     </span>
                                 </div>
                                 <Progress
                                     value={progressPercent}
-                                    className={cn("h-2", isComplete && "[&>div]:bg-green-500")}
+                                    className={cn("h-2", challenge.isCompleted && "[&>div]:bg-green-500")}
                                 />
                             </div>
 
@@ -129,7 +90,7 @@ export function WeeklyChallenges() {
                                 {challenge.reward}
                             </div>
 
-                            {isComplete && (
+                            {challenge.isCompleted && (
                                 <div className="mt-3 text-sm font-medium text-green-500 text-center">
                                     ✓ Challenge Complete!
                                 </div>

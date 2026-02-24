@@ -7,6 +7,7 @@ import { useGameStore } from '@/stores/game-store';
 import { useProgressStore } from '@/stores/progress-store';
 import { useAchievementStore } from '@/stores/achievement-store';
 import { ngramAnalyzer } from '@/lib/ngram-analyzer';
+import { weaknessDetector } from '@/lib/algorithms/bayesian-weakness-detector';
 import { PracticeMode, PerformanceRecord } from '@/types';
 
 interface UseTypingEngineOptions {
@@ -32,18 +33,16 @@ export function useTypingEngine({
     onComplete,
     onComboMilestone,
 }: UseTypingEngineOptions) {
-    const {
-        state,
-        activeKey,
-        setText,
-        handleKeystroke: storeHandleKeystroke,
-        reset,
-        getWpm,
-        getAccuracy,
-        getElapsedTime,
-        getProgress,
-        totalCount,
-    } = useTypingStore();
+    const state = useTypingStore(s => s.state);
+    const activeKey = useTypingStore(s => s.activeKey);
+    const setText = useTypingStore(s => s.setText);
+    const storeHandleKeystroke = useTypingStore(s => s.handleKeystroke);
+    const reset = useTypingStore(s => s.reset);
+    const getWpm = useTypingStore(s => s.getWpm);
+    const getAccuracy = useTypingStore(s => s.getAccuracy);
+    const getElapsedTime = useTypingStore(s => s.getElapsedTime);
+    const getProgress = useTypingStore(s => s.getProgress);
+    const totalCount = useTypingStore(s => s.totalCount);
 
     const { recordKeystroke, clearSession } = useAnalyticsStore();
     const { game, incrementCombo, breakCombo, addScore, getComboLevel, checkDailyStreak } = useGameStore();
@@ -96,6 +95,33 @@ export function useTypingEngine({
             if (e.key.startsWith('F') && e.key.length > 1) return;
             if (e.key === 'Backspace' || e.key === 'Delete') return;
 
+            // Safety: Ignore if user is typing in an input field
+            const activeElement = document.activeElement;
+            if (activeElement) {
+                const tagName = activeElement.tagName;
+                if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+                    return;
+                }
+                if (activeElement.getAttribute('role') === 'textbox') {
+                    return;
+                }
+            }
+
+            // Safety: Ignore if a modal is open
+            if (document.body.style.pointerEvents === 'none' || document.querySelector('[role="dialog"]')) {
+                return;
+            }
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            // Safety: Block typing if a Dialog/Modal is open (heuristic via role)
+            // Or if focus is not on body and not in the game container (implicit)
+            if (document.activeElement?.closest('[role="dialog"]')) {
+                return;
+            }
+
             // Handle printable characters
             if (e.key.length === 1) {
                 e.preventDefault();
@@ -106,6 +132,7 @@ export function useTypingEngine({
                     queueMicrotask(() => {
                         recordKeystroke(keystroke);
                         ngramAnalyzer.recordKeystroke(e.key, keystroke.timestamp, keystroke.isCorrect);
+                        weaknessDetector.recordKeystroke(e.key, keystroke.isCorrect, keystroke.hesitationMs);
                     });
 
                     // Update game state

@@ -10,32 +10,31 @@ import { TypingArea } from '@/components/typing/typing-area';
 import { TypingStats } from '@/components/typing/typing-stats';
 import { ComboPopup } from '@/components/gamification/combo-popup';
 import { LessonComplete } from '@/components/gamification/lesson-complete';
-import { useTypingEngine } from '@/hooks/use-typing-engine';
+import { useTypingController } from '@/hooks/use-typing-controller';
 import { useConfetti } from '@/hooks/use-confetti';
 import { getLessonById, getNextLesson } from '@/lib/lessons';
 import { PerformanceRecord } from '@/types';
 import { useProgressStore } from '@/stores/progress-store';
+import { useTypingStore } from '@/stores/typing-store';
 
 export default function LessonPage() {
+    // ... (params, router, lesson, nextLesson logic remains)
     const params = useParams();
     const router = useRouter();
     const lessonId = params.id as string;
-
     const lesson = getLessonById(lessonId);
     const nextLesson = lesson ? getNextLesson(lessonId) : undefined;
-
     const [exerciseIndex, setExerciseIndex] = useState(0);
     const [showHeatmap, setShowHeatmap] = useState(false);
     const [showComplete, setShowComplete] = useState(false);
     const [completedRecord, setCompletedRecord] = useState<PerformanceRecord | null>(null);
     const [comboPopup, setComboPopup] = useState({ show: false, combo: 0, level: 0 });
-
     const { progress } = useProgressStore();
     const { fireComboMilestone, fireLessonComplete, fireStars } = useConfetti();
-
     const currentExercise = lesson?.exercises[exerciseIndex];
     const text = currentExercise?.text || '';
 
+    // Callback for lesson completion
     const handleComplete = useCallback((record: PerformanceRecord) => {
         setCompletedRecord(record);
         setShowComplete(true);
@@ -52,6 +51,7 @@ export default function LessonPage() {
         }
     }, [fireLessonComplete, fireStars]);
 
+    // Callback for combo milestones
     const handleComboMilestone = useCallback((combo: number, level: number) => {
         setComboPopup({ show: true, combo, level });
         fireComboMilestone(level);
@@ -62,17 +62,9 @@ export default function LessonPage() {
     }, [fireComboMilestone]);
 
     const {
-        currentIndex,
-        errorIndices,
-        activeKey,
-        wpm,
-        accuracy,
-        combo,
-        multiplier,
-        elapsedTime,
-        hasStarted,
         reset,
-    } = useTypingEngine({
+        hasStarted
+    } = useTypingController({
         text,
         mode: 'lesson',
         lessonId,
@@ -160,24 +152,14 @@ export default function LessonPage() {
             {/* Main content */}
             <main className="container mx-auto px-4 py-8 space-y-6">
                 {/* Stats */}
-                <TypingStats
-                    wpm={wpm}
-                    accuracy={accuracy}
-                    combo={combo}
-                    multiplier={multiplier}
-                    elapsedTime={elapsedTime}
-                />
+                <TypingStats />
 
                 {/* Typing area */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <TypingArea
-                        text={text}
-                        currentIndex={currentIndex}
-                        errorIndices={errorIndices}
-                    />
+                    <TypingArea />
                 </motion.div>
 
                 {/* Instructions */}
@@ -199,7 +181,6 @@ export default function LessonPage() {
                     transition={{ delay: 0.2 }}
                 >
                     <VirtualKeyboard
-                        activeKey={activeKey}
                         showHeatmap={showHeatmap}
                     />
                 </motion.div>
