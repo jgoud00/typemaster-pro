@@ -38,7 +38,28 @@ interface ProgressStore {
     isLessonCompleted: (lessonId: string) => boolean;
     getLessonScore: (lessonId: string) => LessonScore | undefined;
     getRecentRecords: (count: number) => PerformanceRecord[];
+
+    // Sync
+    adoptRemoteState: (remote: UserProgress) => void;
 }
+
+const incrementClock = (progress: UserProgress): UserProgress => {
+    let deviceId = progress.deviceId;
+    if (!deviceId) {
+        deviceId = typeof crypto !== 'undefined' && crypto.randomUUID 
+            ? crypto.randomUUID() 
+            : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    }
+    const currentClock = progress.vectorClock?.[deviceId] || 0;
+    return {
+        ...progress,
+        deviceId,
+        vectorClock: {
+            ...(progress.vectorClock || {}),
+            [deviceId]: currentClock + 1
+        }
+    };
+};
 
 const initialProgress: UserProgress = {
     completedLessons: [],
@@ -52,6 +73,8 @@ const initialProgress: UserProgress = {
         combo: 0,
     },
     unlockedAchievements: [],
+    deviceId: '',
+    vectorClock: {},
 };
 
 export const useProgressStore = create<ProgressStore>()(
@@ -118,7 +141,7 @@ export const useProgressStore = create<ProgressStore>()(
                 };
 
                 set({
-                    progress: {
+                    progress: incrementClock({
                         ...progress,
                         completedLessons: progress.completedLessons.includes(lessonId)
                             ? progress.completedLessons
@@ -127,64 +150,71 @@ export const useProgressStore = create<ProgressStore>()(
                             ...progress.lessonScores,
                             [lessonId]: newScore,
                         },
-                    },
+                    }),
                 });
             },
 
             addRecord: (record: PerformanceRecord) => {
                 set(state => ({
-                    progress: {
+                    progress: incrementClock({
                         ...state.progress,
                         records: [...state.progress.records.slice(-99), record],
-                    },
+                    }),
                 }));
             },
 
             updatePersonalBests: (wpm: number, accuracy: number, combo: number) => {
                 set(state => ({
-                    progress: {
+                    progress: incrementClock({
                         ...state.progress,
                         personalBests: {
                             wpm: Math.max(wpm, state.progress.personalBests.wpm),
                             accuracy: Math.max(accuracy, state.progress.personalBests.accuracy),
                             combo: Math.max(combo, state.progress.personalBests.combo),
                         },
-                    },
+                    }),
                 }));
             },
 
             addPracticeTime: (seconds: number) => {
                 set(state => ({
-                    progress: {
+                    progress: incrementClock({
                         ...state.progress,
                         totalPracticeTime: state.progress.totalPracticeTime + seconds,
-                    },
+                    }),
                 }));
             },
 
             addKeystrokes: (count: number) => {
                 set(state => ({
-                    progress: {
+                    progress: incrementClock({
                         ...state.progress,
                         totalKeystrokes: state.progress.totalKeystrokes + count,
-                    },
+                    }),
                 }));
             },
 
             unlockAchievement: (id: string) => {
                 set(state => ({
-                    progress: {
+                    progress: incrementClock({
                         ...state.progress,
                         unlockedAchievements: state.progress.unlockedAchievements.includes(id)
                             ? state.progress.unlockedAchievements
                             : [...state.progress.unlockedAchievements, id],
-                    },
+                    }),
                 }));
             },
 
             resetProgress: () => {
+                const prevDeviceId = get().progress.deviceId;
+                const newProgress = incrementClock({
+                    ...initialProgress,
+                    deviceId: prevDeviceId,
+                    vectorClock: get().progress.vectorClock || {}
+                });
+                
                 set({
-                    progress: initialProgress,
+                    progress: newProgress,
                     hasSeenWelcome: false,
                     todayPracticeTime: 0,
                     todayLessonsCompleted: 0,
@@ -224,9 +254,27 @@ export const useProgressStore = create<ProgressStore>()(
                         return false;
                     }
 
+                    // Validate structure before applying
+                    const progress = data?.data?.progress;
+                    if (
+                        !progress ||
+                        !Array.isArray(progress.completedLessons) ||
+                        typeof progress.lessonScores !== 'object' ||
+                        !Array.isArray(progress.records) ||
+                        typeof progress.totalPracticeTime !== 'number' ||
+                        typeof progress.totalKeystrokes !== 'number' ||
+                        !progress.personalBests ||
+                        typeof progress.personalBests.wpm !== 'number' ||
+                        typeof progress.personalBests.accuracy !== 'number' ||
+                        typeof progress.personalBests.combo !== 'number' ||
+                        !Array.isArray(progress.unlockedAchievements)
+                    ) {
+                        return false;
+                    }
+
                     set({
                         progress: data.data.progress,
-                        hasSeenWelcome: data.data.hasSeenWelcome,
+                        hasSeenWelcome: data.data.hasSeenWelcome ?? false,
                     });
 
                     return true;
@@ -245,6 +293,10 @@ export const useProgressStore = create<ProgressStore>()(
 
             getRecentRecords: (count: number) => {
                 return get().progress.records.slice(-count).reverse();
+            },
+
+            adoptRemoteState: (remote: UserProgress) => {
+                set({ progress: remote });
             },
         }),
         {

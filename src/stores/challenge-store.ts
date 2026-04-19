@@ -108,14 +108,49 @@ export const useChallengeStore = create<ChallengeStore>()(
             },
 
             generateWeeklyChallenges: () => {
-                // In a real app, this would randomize challenges
-                // For now, reset to defaults
+                const challengePool: Omit<Challenge, 'current' | 'isCompleted'>[] = [
+                    // Speed challenges
+                    { id: 'speed-40', type: 'speed', title: 'Speed Runner', description: 'Reach 40 WPM in a lesson', target: 40, reward: '⚡', difficulty: 'easy' },
+                    { id: 'speed-60', type: 'speed', title: 'Swift Fingers', description: 'Reach 60 WPM in a lesson', target: 60, reward: '💨', difficulty: 'medium' },
+                    { id: 'speed-80', type: 'speed', title: 'Lightning Hands', description: 'Reach 80 WPM in a lesson', target: 80, reward: '🚀', difficulty: 'hard' },
+                    // Accuracy challenges
+                    { id: 'acc-3', type: 'accuracy', title: 'Precision Streak', description: 'Complete 3 lessons with 95%+ accuracy', target: 3, reward: '🎯', difficulty: 'easy' },
+                    { id: 'acc-5', type: 'accuracy', title: 'Perfection Path', description: 'Complete 5 lessons with 98%+ accuracy', target: 5, reward: '💎', difficulty: 'hard' },
+                    { id: 'acc-2', type: 'accuracy', title: 'Flawless Pair', description: 'Complete 2 lessons with 100% accuracy', target: 2, reward: '✨', difficulty: 'medium' },
+                    // Endurance challenges
+                    { id: 'endurance-15', type: 'endurance', title: 'Marathon Typist', description: 'Practice for 15 minutes', target: 15, reward: '🏃', difficulty: 'easy' },
+                    { id: 'endurance-30', type: 'endurance', title: 'Iron Fingers', description: 'Practice for 30 minutes', target: 30, reward: '💪', difficulty: 'medium' },
+                    { id: 'endurance-10', type: 'endurance', title: 'Quick Session', description: 'Practice for 10 minutes', target: 10, reward: '⏱️', difficulty: 'easy' },
+                    // More speed variety
+                    { id: 'speed-50', type: 'speed', title: 'Halfway Hustle', description: 'Reach 50 WPM in a lesson', target: 50, reward: '🔥', difficulty: 'medium' },
+                    { id: 'speed-70', type: 'speed', title: 'Velocity King', description: 'Reach 70 WPM in a lesson', target: 70, reward: '👑', difficulty: 'hard' },
+                ];
+
+                // Shuffle and pick one of each type + 1 bonus
+                const byType: Record<string, typeof challengePool> = {};
+                for (const c of challengePool) {
+                    if (!byType[c.type]) byType[c.type] = [];
+                    byType[c.type].push(c);
+                }
+
+                const selected: Challenge[] = [];
+                for (const type of Object.keys(byType)) {
+                    const pool = byType[type];
+                    const pick = pool[Math.floor(Math.random() * pool.length)];
+                    selected.push({ ...pick, current: 0, isCompleted: false });
+                }
+
+                // Add one more random challenge if we have fewer than 4
+                if (selected.length < 4) {
+                    const remaining = challengePool.filter(c => !selected.some(s => s.id === c.id));
+                    if (remaining.length > 0) {
+                        const bonus = remaining[Math.floor(Math.random() * remaining.length)];
+                        selected.push({ ...bonus, current: 0, isCompleted: false });
+                    }
+                }
+
                 set({
-                    challenges: DEFAULT_CHALLENGES.map(c => ({
-                        ...c,
-                        current: 0,
-                        isCompleted: false
-                    })),
+                    challenges: selected,
                     lastResetDate: new Date().toISOString()
                 });
             },

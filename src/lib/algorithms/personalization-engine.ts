@@ -10,7 +10,7 @@
 
 import { adaptiveCurriculum, type AdaptiveLesson } from './adaptive-curriculum';
 import { type Pattern } from './pattern-recognition';
-import { type WeaknessResult } from './bayesian-weakness-detector';
+import { type UltimateWeaknessResult } from './ultimate-weakness-detector';
 
 export type LearningStyle = 'visual' | 'auditory' | 'kinesthetic' | 'reading';
 export type PracticePreference = 'short' | 'medium' | 'long';
@@ -136,7 +136,7 @@ export class PersonalizationEngine {
      * Generate personalized daily practice plan
      */
     generateDailyPlan(
-        weaknessAnalysis: WeaknessResult[],
+        weaknessAnalysis: UltimateWeaknessResult[],
         currentWPM: number,
         patterns: Pattern[]
     ): DailyPlan {

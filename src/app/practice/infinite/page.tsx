@@ -45,7 +45,6 @@ Continuous integration is the practice of merging all developers' working copies
 export default function InfiniteModePage() {
     // ... (existing logic)
     const router = useRouter();
-    const { play } = useSound();
     const generator = useRef<MarkovChain | null>(null);
     const [isZen, setIsZen] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -68,12 +67,11 @@ export default function InfiniteModePage() {
 
     const handleComplete = useCallback(() => {
         if (!generator.current) return;
-        play('complete');
         const newFuture = generator.current.generate(randomInt(8, 15));
         const next = sentenceQueue[1] || newFuture;
         setSentenceQueue([next, newFuture]);
         setCurrentSentence(next);
-    }, [play, sentenceQueue]);
+    }, [sentenceQueue]);
 
     const {
         reset,

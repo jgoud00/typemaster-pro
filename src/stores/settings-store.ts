@@ -21,6 +21,7 @@ export interface SettingsState {
 
     // Keyboard Layout
     keyboardLayout: 'qwerty' | 'dvorak' | 'colemak' | 'azerty';
+    language: 'en' | 'es';
 
     // Smart Practice
     focusModeEnabled: boolean;
@@ -56,6 +57,7 @@ const defaultSettings: SettingsState = {
 
     // Keyboard Layout
     keyboardLayout: 'qwerty',
+    language: 'en',
 
     // Smart Practice
     focusModeEnabled: false,

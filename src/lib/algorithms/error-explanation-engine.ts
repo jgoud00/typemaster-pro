@@ -5,43 +5,8 @@
  * for WHY the error occurred, not just WHAT went wrong.
  */
 
-// Keyboard layout for adjacency detection
-const QWERTY_ROWS = [
-    ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='],
-    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'],
-    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"],
-    ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/'],
-];
-
-// Finger assignments for each key
-const FINGER_MAP: Record<string, { hand: 'left' | 'right'; finger: string }> = {
-    // Left hand
-    '`': { hand: 'left', finger: 'pinky' }, '1': { hand: 'left', finger: 'pinky' },
-    'q': { hand: 'left', finger: 'pinky' }, 'a': { hand: 'left', finger: 'pinky' },
-    'z': { hand: 'left', finger: 'pinky' },
-    '2': { hand: 'left', finger: 'ring' }, 'w': { hand: 'left', finger: 'ring' },
-    's': { hand: 'left', finger: 'ring' }, 'x': { hand: 'left', finger: 'ring' },
-    '3': { hand: 'left', finger: 'middle' }, 'e': { hand: 'left', finger: 'middle' },
-    'd': { hand: 'left', finger: 'middle' }, 'c': { hand: 'left', finger: 'middle' },
-    '4': { hand: 'left', finger: 'index' }, 'r': { hand: 'left', finger: 'index' },
-    'f': { hand: 'left', finger: 'index' }, 'v': { hand: 'left', finger: 'index' },
-    '5': { hand: 'left', finger: 'index' }, 't': { hand: 'left', finger: 'index' },
-    'g': { hand: 'left', finger: 'index' }, 'b': { hand: 'left', finger: 'index' },
-    // Right hand
-    '6': { hand: 'right', finger: 'index' }, 'y': { hand: 'right', finger: 'index' },
-    'h': { hand: 'right', finger: 'index' }, 'n': { hand: 'right', finger: 'index' },
-    '7': { hand: 'right', finger: 'index' }, 'u': { hand: 'right', finger: 'index' },
-    'j': { hand: 'right', finger: 'index' }, 'm': { hand: 'right', finger: 'index' },
-    '8': { hand: 'right', finger: 'middle' }, 'i': { hand: 'right', finger: 'middle' },
-    'k': { hand: 'right', finger: 'middle' }, ',': { hand: 'right', finger: 'middle' },
-    '9': { hand: 'right', finger: 'ring' }, 'o': { hand: 'right', finger: 'ring' },
-    'l': { hand: 'right', finger: 'ring' }, '.': { hand: 'right', finger: 'ring' },
-    '0': { hand: 'right', finger: 'pinky' }, 'p': { hand: 'right', finger: 'pinky' },
-    ';': { hand: 'right', finger: 'pinky' }, '/': { hand: 'right', finger: 'pinky' },
-    '-': { hand: 'right', finger: 'pinky' }, '[': { hand: 'right', finger: 'pinky' },
-    "'": { hand: 'right', finger: 'pinky' }, ']': { hand: 'right', finger: 'pinky' },
-    '=': { hand: 'right', finger: 'pinky' }, '\\': { hand: 'right', finger: 'pinky' },
-};
+import { getLayout, LayoutName } from '../keyboard-layouts';
+import { getKeyData } from '../keyboard-data';
 
 // Common transpositions
 const COMMON_TRANSPOSITIONS = [
@@ -80,6 +45,7 @@ export interface ErrorContext {
     timeSinceLastError: number; // ms
     currentWpm: number;
     sessionDuration: number; // minutes
+    layoutName?: LayoutName; // active layout
 }
 
 class ErrorExplanationEngine {
@@ -105,7 +71,7 @@ class ErrorExplanationEngine {
      * Analyze an error and return an explanation
      */
     analyzeError(context: ErrorContext): ErrorExplanation {
-        const { expected, actual, previousChars, recentErrors, sessionDuration, currentWpm } = context;
+        const { expected, actual, previousChars, recentErrors, sessionDuration, currentWpm, layoutName = 'qwerty' } = context;
 
         // Check for fatigue first (overrides other explanations)
         if (this.detectFatigue(recentErrors, sessionDuration)) {
@@ -133,9 +99,9 @@ class ErrorExplanationEngine {
         }
 
         // Check for adjacent key
-        if (this.areAdjacent(expected.toLowerCase(), actual.toLowerCase())) {
-            const fingerInfo = FINGER_MAP[expected.toLowerCase()];
-            const hand = fingerInfo?.hand || 'your';
+        if (this.areAdjacent(expected.toLowerCase(), actual.toLowerCase(), layoutName)) {
+            const fingerInfo = getKeyData(expected.toLowerCase(), layoutName)?.finger;
+            const hand = fingerInfo?.includes('left') ? 'left' : 'right';
             return {
                 type: 'adjacent',
                 title: 'Adjacent Key',
@@ -147,12 +113,12 @@ class ErrorExplanationEngine {
         }
 
         // Check for same-finger confusion
-        if (this.areSameFinger(expected.toLowerCase(), actual.toLowerCase())) {
-            const fingerInfo = FINGER_MAP[expected.toLowerCase()];
+        if (this.areSameFinger(expected.toLowerCase(), actual.toLowerCase(), layoutName)) {
+            const fingerInfo = getKeyData(expected.toLowerCase(), layoutName)?.finger;
             return {
                 type: 'same_finger',
                 title: 'Same Finger Confusion',
-                explanation: `Both "${expected}" and "${actual}" use the ${fingerInfo?.finger || 'same'} finger.`,
+                explanation: `Both "${expected}" and "${actual}" use the ${fingerInfo || 'same'} finger.`,
                 suggestion: 'Practice distinguishing vertical movements on this finger.',
                 icon: '☝️',
                 severity: 'medium',
@@ -185,9 +151,12 @@ class ErrorExplanationEngine {
     /**
      * Check if two keys are adjacent on the keyboard
      */
-    private areAdjacent(key1: string, key2: string): boolean {
-        for (let row = 0; row < QWERTY_ROWS.length; row++) {
-            const rowKeys = QWERTY_ROWS[row];
+    public areAdjacent(key1: string, key2: string, layoutName: LayoutName = 'qwerty'): boolean {
+        const layout = getLayout(layoutName);
+        const rows = layout.rows.map(row => row.map(k => k.key.toLowerCase()));
+        
+        for (let row = 0; row < rows.length; row++) {
+            const rowKeys = rows[row];
             const idx1 = rowKeys.indexOf(key1);
             const idx2 = rowKeys.indexOf(key2);
 
@@ -197,15 +166,15 @@ class ErrorExplanationEngine {
             }
 
             // Check adjacent rows
-            if (idx1 !== -1 && row < QWERTY_ROWS.length - 1) {
-                const nextRow = QWERTY_ROWS[row + 1];
+            if (idx1 !== -1 && row < rows.length - 1) {
+                const nextRow = rows[row + 1];
                 const nextIdx = nextRow.indexOf(key2);
                 if (nextIdx !== -1 && Math.abs(idx1 - nextIdx) <= 1) {
                     return true;
                 }
             }
             if (idx1 !== -1 && row > 0) {
-                const prevRow = QWERTY_ROWS[row - 1];
+                const prevRow = rows[row - 1];
                 const prevIdx = prevRow.indexOf(key2);
                 if (prevIdx !== -1 && Math.abs(idx1 - prevIdx) <= 1) {
                     return true;
@@ -218,10 +187,10 @@ class ErrorExplanationEngine {
     /**
      * Check if two keys use the same finger
      */
-    private areSameFinger(key1: string, key2: string): boolean {
-        const finger1 = FINGER_MAP[key1];
-        const finger2 = FINGER_MAP[key2];
-        return finger1 && finger2 && finger1.hand === finger2.hand && finger1.finger === finger2.finger;
+    private areSameFinger(key1: string, key2: string, layoutName: LayoutName = 'qwerty'): boolean {
+        const finger1 = getKeyData(key1, layoutName)?.finger;
+        const finger2 = getKeyData(key2, layoutName)?.finger;
+        return !!finger1 && !!finger2 && finger1 === finger2;
     }
 
     /**

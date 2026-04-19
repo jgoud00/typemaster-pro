@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ultimateWeaknessDetector, type UltimateWeaknessResult } from '@/lib/algorithms/ultimate-weakness-detector';
 import { transferLearningAnalyzer, type TransferInsight } from '@/lib/algorithms/transfer-learning';
 import { Card } from '@/components/ui/card';
@@ -22,21 +22,18 @@ import {
 } from 'recharts';
 
 export function UltimateWeaknessDashboard() {
-    const [analysis, setAnalysis] = useState<UltimateWeaknessResult[]>([]);
+    const analysis = useMemo(() => ultimateWeaknessDetector.analyzeAll(), []);
     const [transferInsights, setTransferInsights] = useState<TransferInsight[]>([]);
 
     useEffect(() => {
-        const results = ultimateWeaknessDetector.analyzeAll();
-        setAnalysis(results);
-
         // Get transfer insights for top 3 weak keys
-        if (results.length > 0) {
-            const insights = results.slice(0, 3).map(r =>
+        if (analysis.length > 0) {
+            const insights = analysis.slice(0, 3).map(r =>
                 transferLearningAnalyzer.getTransferInsights(r.key)
             );
             setTransferInsights(insights);
         }
-    }, []);
+    }, [analysis]);
 
     const topWeaknesses = analysis.slice(0, 5);
 

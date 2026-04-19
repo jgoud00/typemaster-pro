@@ -152,7 +152,8 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         reset,
         isPaused,
         hasStarted,
-        isComplete: controllerIsComplete
+        isComplete: controllerIsComplete,
+        predictedMistakeIndices,
     } = useTypingController({
         text,
         mode,
@@ -337,6 +338,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                             </div>
                             <TypingArea
                                 ghostIndex={ghostIndex}
+                                predictedMistakeIndices={predictedMistakeIndices}
                             />
                         </motion.div>
 
@@ -410,9 +412,10 @@ function PracticeContent() {
 }
 
 function getTextForMode(mode: PracticeMode, duration: number, customText?: string): string {
+    const sessionId = Math.random().toString(36).substring(7);
     switch (mode) {
         case 'speed-test':
-            return generateSpeedTestText(duration);
+            return generateSpeedTestText(duration, sessionId);
         case 'custom':
             return customText?.trim() || getRandomQuote();
         case 'free':

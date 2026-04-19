@@ -39,9 +39,17 @@ export interface BigramStat {
   averageTime: number;      // ms to complete bigram
 }
 
+export interface TrigramStat {
+  trigram: string;          // e.g., "the", "and"
+  totalAttempts: number;
+  errors: number;
+  averageTime: number;
+}
+
 export interface WeaknessProfile {
   keyStats: Record<string, KeyStat>;
   bigramStats: Record<string, BigramStat>;
+  trigramStats: Record<string, TrigramStat>;
   fingerAccuracy: Record<Finger, { correct: number; total: number }>;
   averageHesitation: number;
   problemKeys: string[];    // Keys with <85% accuracy
@@ -167,6 +175,8 @@ export interface UserProgress {
     combo: number;
   };
   unlockedAchievements: string[];
+  deviceId: string;
+  vectorClock: Record<string, number>;
 }
 
 // ============= Theme =============

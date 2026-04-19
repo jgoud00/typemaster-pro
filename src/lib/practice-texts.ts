@@ -1,92 +1,144 @@
-// Curated practice texts for various modes
+// Curated practice texts for various modes, vastly expanded to prevent repetition.
+import { useSettingsStore } from '@/stores/settings-store';
+import { enLocale } from './locales/en';
+import { esLocale } from './locales/es';
 
-export const commonWords = [
-    'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'I',
-    'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
-    'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she',
-    'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what',
-    'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me',
-];
-
-export const quotes = [
-    "The only way to do great work is to love what you do.",
-    "Innovation distinguishes between a leader and a follower.",
-    "Stay hungry, stay foolish.",
-    "Life is what happens when you're busy making other plans.",
-    "The future belongs to those who believe in the beauty of their dreams.",
-    "It does not matter how slowly you go as long as you do not stop.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "Believe you can and you're halfway there.",
-    "The only impossible journey is the one you never begin.",
-    "In the middle of difficulty lies opportunity.",
-    "What you get by achieving your goals is not as important as what you become.",
-    "The best time to plant a tree was 20 years ago. The second best time is now.",
-    "Your time is limited, don't waste it living someone else's life.",
-    "The way to get started is to quit talking and begin doing.",
-    "Don't be afraid to give up the good to go for the great.",
-];
-
-export const programmingSnippets = [
-    "function greet(name) { return `Hello, ${name}!`; }",
-    "const sum = (a, b) => a + b;",
-    "if (condition) { doSomething(); } else { doOther(); }",
-    "for (let i = 0; i < array.length; i++) { console.log(array[i]); }",
-    "const user = { name: 'John', age: 30, city: 'New York' };",
-    "async function fetchData() { const response = await fetch(url); return response.json(); }",
-    "try { riskyOperation(); } catch (error) { handleError(error); }",
-    "const [first, ...rest] = array;",
-    "export default function Component({ props }) { return <div>{props.children}</div>; }",
-    "useState, useEffect, useCallback, useMemo, useRef",
-];
-
-export const paragraphs = [
-    "Touch typing is the ability to use muscle memory to find keys without looking at the keyboard. The fingers rest on the home row keys and reach for other keys from there. This skill dramatically increases typing speed and reduces errors.",
-
-    "Programming requires not just knowledge of syntax, but also the ability to think logically and solve problems systematically. Good code is readable, maintainable, and efficient. Always write code as if the person who will maintain it is a violent psychopath who knows where you live.",
-
-    "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet and is commonly used for typing practice. It helps develop muscle memory for all keys on the keyboard.",
-
-    "Learning to type efficiently is one of the most valuable skills in the modern digital age. Whether you are writing emails, creating documents, or coding software, the ability to type quickly and accurately saves countless hours over a lifetime.",
-];
-
-// Generate random text from common words
-export function generateRandomText(wordCount: number): string {
-    const words: string[] = [];
-    for (let i = 0; i < wordCount; i++) {
-        words.push(commonWords[Math.floor(Math.random() * commonWords.length)]);
+function getLocale() {
+    if (typeof window !== 'undefined') {
+        const state = useSettingsStore.getState();
+        if (state?.settings?.language === 'es') {
+            return esLocale;
+        }
     }
-    // Capitalize first word and add period at end
+    return enLocale;
+}
+
+// --- Helper Generators ---
+
+// A simple determininstic pseudo-random number generator to support seed tracking
+export class PRNG {
+    private seed: number;
+
+    constructor(seed?: number) {
+        this.seed = seed ?? Math.floor(Math.random() * 2147483647);
+    }
+
+    // Returns a float between 0 and 1
+    next(): number {
+        this.seed = (this.seed * 16807) % 2147483647;
+        return (this.seed - 1) / 2147483646;
+    }
+
+    nextInt(min: number, max: number): number {
+        return Math.floor(this.next() * (max - min + 1)) + min;
+    }
+
+    choice<T>(array: T[]): T {
+        return array[Math.floor(this.next() * array.length)];
+    }
+
+    shuffle<T>(array: T[]): T[] {
+        const result = [...array];
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(this.next() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+    }
+}
+
+// Global instance for unseeded general calls, initialized with random seed
+let globalPrng = new PRNG();
+
+// Generate text emphasizing specific weak keys
+export function generateWeaknessTargetedText(weakKeys: string[], wordCount: number, prng: PRNG = globalPrng): string {
+    const words: string[] = [];
+    
+    // Combine word banks
+    const locale = getLocale();
+    const pool = [...locale.commonWords, ...locale.advancedWords];
+    
+    // Create a heavily weighted pool where words containing weak keys appear more often
+    const weightedPool: string[] = [];
+    
+    pool.forEach(word => {
+        // Base weight is 1
+        let weight = 1;
+        const lowerWord = word.toLowerCase();
+        
+        // Add weight for each weak key present
+        weakKeys.forEach(key => {
+            if (lowerWord.includes(key.toLowerCase())) {
+                // If it's a weak key, make this word 5x more likely to be picked per occurrence
+                weight += 5 * (lowerWord.split(key.toLowerCase()).length - 1);
+            }
+        });
+        
+        for (let i = 0; i < weight; i++) {
+            weightedPool.push(word);
+        }
+    });
+
+    for (let i = 0; i < wordCount; i++) {
+        words.push(prng.choice(weightedPool));
+    }
+    
+    // Format
     words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
     return words.join(' ') + '.';
 }
 
-// Get random quote
-export function getRandomQuote(): string {
-    return quotes[Math.floor(Math.random() * quotes.length)];
+export function generateRandomText(wordCount: number, prng: PRNG = globalPrng): string {
+    const words: string[] = [];
+    const locale = getLocale();
+    const pool = [...locale.commonWords, ...locale.advancedWords];
+    for (let i = 0; i < wordCount; i++) {
+        words.push(prng.choice(pool));
+    }
+    words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    return words.join(' ') + '.';
 }
 
-// Get random programming snippet
-export function getRandomSnippet(): string {
-    return programmingSnippets[Math.floor(Math.random() * programmingSnippets.length)];
+export function getRandomQuote(prng: PRNG = globalPrng): string {
+    return prng.choice(getLocale().quotes);
 }
 
-// Get random paragraph
-export function getRandomParagraph(): string {
-    return paragraphs[Math.floor(Math.random() * paragraphs.length)];
+export function getRandomSnippet(prng: PRNG = globalPrng): string {
+    return prng.choice(getLocale().programmingSnippets);
 }
 
-// Generate text for speed test based on duration
-export function generateSpeedTestText(durationSeconds: number): string {
-    // Estimate ~40 WPM average, 5 chars per word
-    const estimatedWords = Math.ceil((durationSeconds / 60) * 50); // 50 WPM max
+export function getRandomParagraph(prng: PRNG = globalPrng): string {
+    return prng.choice(getLocale().paragraphs);
+}
+
+export function getRandomShortSentence(prng: PRNG = globalPrng): string {
+    return prng.choice(getLocale().shortSentences);
+}
+
+// Speed tests should use guaranteed non-repeating chunks where possible
+export function generateSpeedTestText(durationSeconds: number, sessionId: string): string {
+    // Generate a crude numeric seed from a string
+    let numericalSeed = 0;
+    for(let i = 0; i < sessionId.length; i++) {
+        numericalSeed = (numericalSeed * 31 + sessionId.charCodeAt(i)) % 2147483647;
+    }
+    
+    const prng = new PRNG(numericalSeed + Date.now()); // Date.now ensures fresh pool per click
+
+    const estimatedWords = Math.ceil((durationSeconds / 60) * 50);
     const estimatedChars = estimatedWords * 6;
 
     let text = '';
+    
+    // We want paragraphs or quotes rather than random word salad for a true speed test
     while (text.length < estimatedChars) {
-        if (Math.random() > 0.3) {
-            text += getRandomQuote() + ' ';
+        const rand = prng.next();
+        if (rand > 0.6) {
+            text += getRandomQuote(prng) + ' ';
+        } else if (rand > 0.3) {
+            text += getRandomParagraph(prng) + ' ';
         } else {
-            text += generateRandomText(20) + ' ';
+            text += getRandomShortSentence(prng) + ' ';
         }
     }
 

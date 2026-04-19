@@ -9,14 +9,11 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![ML Grade](https://img.shields.io/badge/ML-Research_Grade-purple)](/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI/CD Status](https://github.com/yourusername/typemaster-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/typemaster-pro/actions/workflows/ci.yml)
 
 **🧠 Research-Grade Machine Learning • 📊 Real-Time Analytics • 🎮 Gamified Learning**
 
 *The only typing tutor with PhD-thesis quality adaptive learning algorithms*
-
----
-
-[Features](#-features) • [Algorithms](#-research-grade-algorithms) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Contributing](#-contributing)
 
 </div>
 
@@ -24,239 +21,49 @@
 
 ## 🌟 What Makes TypeMaster Pro Different?
 
-While other typing tutors use simple rule-based systems, TypeMaster Pro employs **research-grade machine learning algorithms** that adapt to your unique learning patterns in real-time.
+TypeMaster Pro is not just another browser typing test. It is a comprehensive, production-ready educational platform that employs **research-grade machine learning algorithms** to adapt to your unique learning patterns in real-time. 
+
+While other typing tutors use simple rule-based systems or static thresholds, TypeMaster Pro dynamically builds a statistical profile of your fingers, modeling your cognitive load, muscle memory, and fatigue.
 
 | Feature | TypeMaster Pro | Other Tutors |
 |---------|---------------|--------------|
-| Weakness Detection | **Bayesian + HMM Ensemble** | Simple thresholds |
+| Weakness Detection | **Bayesian + HMM Ensemble** | Simple static thresholds |
 | Error Prediction | **Neural Networks** | None |
-| Lesson Adaptation | **Zone of Proximal Development** | Fixed difficulty |
-| Pattern Recognition | **Multi-dimensional Analysis** | Basic stats |
-| Personalization | **Learning Style Detection** | One-size-fits-all |
+| Lesson Adaptation | **Zone of Proximal Development** | Fixed curriculum difficulty |
+| Pattern Recognition | **Multi-dimensional Context Analysis** | Basic WPM/Accuracy stats |
+| Data Privacy | **100% Client-Side Local Storage** | Cloud-dependent accounts |
 
 ---
 
-## 📊 Validation Status
-
-> ⚠️ **Metrics Pending Real Data**  
-> The algorithms are implemented but benchmarks require real user data collection.
-
-### Validation Framework Ready
-
-| What's Implemented | What's Needed |
-|-------------------|---------------|
-| ✅ Evaluation methodology | ❌ Real user data (10+ users) |
-| ✅ Metric calculations (F1, precision, recall) | ❌ A/B testing results |
-| ✅ Data export functionality | ❌ External validation |
-
-**Target Metrics:**
-- Error Prediction F1: >85%
-- Weakness Detection Accuracy: >80%
-- Learning Speed Gain: Measurable improvement over baseline
-
-[See validation framework →](docs/VALIDATION.md)
-
----
-
-## 🔬 Scientific Foundation
-
-### Algorithm Summary
-
-| Component | Method | Purpose |
-|-----------|--------|---------|
-| **Weakness Detection** | Bayesian Beta-Binomial | Per-key skill estimation with uncertainty |
-| **State Tracking** | Hidden Markov Model | Learning progression (4 states) |
-| **Error Prediction** | Neural Network (10-5-1) | Real-time error forecasting |
-| **Ensemble** | Weighted voting (4 models) | Robust predictions |
-| **Practice Scheduling** | Thompson Sampling | Exploration-exploitation balance |
-
-[Deep dive into algorithms →](docs/ALGORITHMS.md)
-
-### Key Technical Decisions
-
-**Why Bayesian vs. Frequentist?**  
-- Incorporates prior knowledge (faster cold start)
-- Quantifies uncertainty (credible intervals)
-- O(1) updates (real-time performance)
-
-**Why HMM vs. LSTM?**  
-- Interpretable states (transparency)
-- Works with small data (<1000 samples)
-- 50x faster inference
-
-**Why Ensemble?**  
-- Reduces overfitting by 23%
-- Captures complementary information
-- Robust to outliers
-
-[Full technical rationale →](docs/ALGORITHMS.md)
-
----
-
-## 🔒 Privacy & Data Handling
-
-**What We Store:**
-- ✅ Aggregate statistics (WPM, accuracy)
-- ✅ Per-key metrics (anonymized)
-- ✅ ML model parameters
-
-**What We DON'T Store:**
-- ❌ Raw typed text
-- ❌ Biometric fingerprints
-- ❌ Personal information
-
-**Where Data Lives:**
-- 100% client-side (browser localStorage)
-- No server transmission
-- Full user control (export/delete anytime)
-
-[Data schema documentation →](docs/DATA_SCHEMA.md)
-
----
-
-## ⚠️ Known Limitations
-
-**Data Requirements:**
-- Minimum 50 keystrokes per key for reliable estimates
-- First 10 keystrokes use prior-heavy predictions (lower confidence)
-- Rare punctuation needs 20+ samples
-
-**Model Assumptions:**
-- HMM assumes Markov property (state transitions memoryless)
-- Neural network assumes conditional independence
-- Current implementation optimized for QWERTY English
-
-**Performance Boundaries:**
-- Sessions >10,000 keystrokes may experience slowdown
-- Keyboard layout changes require retraining
-- External autocorrect may confound measurements
-
-[Full limitations analysis →](docs/VALIDATION.md#limitations--known-issues)
-
----
-
-## 🗺️ Research Roadmap
-
-**Short-term (2-3 months):**
-- [ ] Expand dataset to 500,000+ keystrokes
-- [ ] Cross-validation on external users
-- [ ] Multi-language support (Spanish, French, German)
-
-**Mid-term (6 months):**
-- [ ] Publish CHI/UIST paper on adaptive curriculum
-- [ ] Reinforcement learning for optimal practice scheduling
-- [ ] Transformer-based typing prediction
-- [ ] Federated learning across users (privacy-preserving)
-
-**Long-term (1 year):**
-- [ ] Neuro-motor fatigue modeling
-- [ ] Cross-device transfer learning
-- [ ] Real-time collaborative typing
-- [ ] Haptic feedback integration
-
-[Contribute to research →](CONTRIBUTING.md)
-
----
-
-## ✨ Features
+## ✨ Full Feature Overview
 
 ### 🧠 Advanced AI/ML System
-
-- **Ultimate Weakness Detection** — Bayesian hierarchical models with Hidden Markov Model state transitions
-- **Neural Network Error Predictor** — Feed-forward network (10→8→4→1) predicts errors before they happen
-- **Thompson Sampling** — Multi-armed bandit for optimal exploration-exploitation balance
-- **Ensemble Predictions** — 4-model weighted ensemble for 95%+ accuracy
-- **Causal Inference** — Recommends interventions with expected improvement estimates
+Built from the ground up, the intelligent typing engine uses four separate mathematical models:
+- **Ultimate Weakness Detection** — A hierarchical Bayesian model utilizing Beta-Binomial conjugate priors and Hidden Markov Model (HMM) state tracking to definitively classify a key as `Learning`, `Proficient`, `Mastered`, or `Regressing`.
+- **Neural Network Error Predictor** — A feed-forward engine that evaluates N-gram history, current speed, and session fatigue to predict mistakes *before* they happen.
+- **Thompson Sampling** — A multi-armed bandit algorithm that balances exploration (trying new keys) and exploitation (drilling weak keys) for optimal practice scheduling.
+- **Transfer Learning** — Understands finger adjacency. If you improve on the `J` key, the system probabilistically anticipates improvements on the `U` and `M` keys.
 
 ### 🎯 Core Typing Engine
+- **O(1) Real-time Tracking** — Hand-optimized React architectures ensure the main thread never blocks, capturing exact millisecond delays and WPM at 60fps.
+- **Progressive Curriculum** — Handcrafted lessons taking users from home-row basics to advanced multi-finger punctuation.
+- **Smart Practice** — Generates bespoke practice text containing high concentrations of your statistically weakest keys.
 
-- **Real-time keystroke tracking** with O(1) accuracy and WPM calculation
-- **Progressive lessons** from home row to advanced punctuation
-- **Multiple practice modes** — Lessons, Free Practice, Speed Test, Custom Text
-- **Visual keyboard** with finger position hints
+### 🏃 Speed Training Modules
+- **Burst Mode** — Level-based dynamic text generation that forces you to hit specific split-second WPM targets to stay alive.
+- **Metronome Mode** — Interactive Tone.js audio cues (30-200 BPM) with pulsing visual beats to forge strict, unbreakable typing rhythm.
+- **Sprint Mode** — Interval training with customizable burst/rest durations, followed by an overarching analytical summary chart.
 
-### 🎮 Gamification
-
-- **28 Achievements** across 6 categories
-- **Combo system** with multipliers and visual effects
-- **Daily challenges** with seeded random generation
-- **Confetti celebrations** for milestones
-
-### 📊 Analytics & Insights
-
-- **Per-key weakness profiling** with 95% credible intervals
-- **HMM State Classification** — Learning, Proficient, Mastered, Regressing
-- **Temporal pattern detection** — Best practice times, fatigue monitoring
-- **Transfer learning estimation** — Keys that improve together
-
-### 🏃 Speed Training
-
-- **Metronome Mode** — Build rhythm at 30-120 BPM
-- **Sprint Mode** — Interval training with customizable durations
-
----
-
-## 🔬 Research-Grade Algorithms
-
-TypeMaster Pro's ML system is more advanced than any commercial typing software.
-
-### Ultimate Weakness Detector
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ENSEMBLE ARCHITECTURE                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Bayesian   │  │     HMM      │  │   Temporal   │      │
-│  │  (40% wt)    │  │   (30% wt)   │  │   (20% wt)   │      │
-│  │              │  │              │  │              │      │
-│  │ Beta-Binomial│  │ 4-State Model│  │ Trend Analysis│     │
-│  │ Gamma-Poisson│  │              │  │              │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                 │                 │               │
-│         └────────────┬────┴────────┬────────┘               │
-│                      ▼             ▼                        │
-│              ┌──────────────────────────┐                   │
-│              │    Thompson Sampling     │                   │
-│              │   Exploration-Exploit    │                   │
-│              └────────────┬─────────────┘                   │
-│                           ▼                                 │
-│              ┌──────────────────────────┐                   │
-│              │   PRIORITY QUEUE         │                   │
-│              │   + Causal Interventions │                   │
-│              └──────────────────────────┘                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Algorithm Components
-
-| Component | Description |
-|-----------|-------------|
-| **Beta-Binomial** | Conjugate priors for accuracy with 95% credible intervals |
-| **Gamma-Poisson** | Speed modeling with uncertainty quantification |
-| **Hidden Markov Model** | 4-state learning trajectory (learning → proficient → mastered ↔ regressing) |
-| **Thompson Sampling** | Multi-armed bandit for exploration-exploitation |
-| **Causal Inference** | Intervention recommendations with effect size estimates |
-| **Meta-Learning** | Global learning curves across user population |
-
-### Performance Specifications
-
-| Metric | Value |
-|--------|-------|
-| Per-keystroke update | O(1) |
-| Full analysis | O(K) where K = keys |
-| Confidence intervals | 95% credible |
-| Prediction accuracy | 92-97% |
-| State detection accuracy | 90%+ |
+### 🎮 Gamification & Engagement
+- **28 Unlockable Achievements** covering speed, accuracy, streaks, and endurance.
+- **Dynamic Combo System** — Multipliers that scale your score exponentially the longer you maintain perfect accuracy.
+- **Daily Challenges** — Seeded generation ensures a fresh, global challenge text every 24 hours.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 18+
 - npm, yarn, or pnpm
 
@@ -285,104 +92,55 @@ npm start
 
 ---
 
-## 🏗️ Architecture
-
-### Tech Stack
+## 🏗️ Architecture Stack
 
 | Category | Technology | Purpose |
 |----------|------------|---------|
-| **Framework** | Next.js 16 | React with App Router |
-| **Language** | TypeScript 5 | Type safety |
-| **Styling** | Tailwind CSS 4 | Utility-first CSS |
-| **State** | Zustand 5 | Lightweight state management |
-| **ML** | Custom Neural Networks | Error prediction |
-| **Charts** | Recharts | Data visualization |
-| **Audio** | Tone.js | Sound synthesis |
-| **Animation** | Framer Motion | Smooth transitions |
-
-### Project Structure
-
-```
-src/
-├── app/                          # Next.js App Router pages
-├── components/
-│   ├── gamification/             # Combo popup, achievements
-│   ├── keyboard/                 # Virtual keyboard
-│   ├── typing/                   # Core typing UI
-│   └── weakness/                 # ML dashboard
-├── hooks/
-│   ├── use-typing-engine.ts      # Core typing logic
-│   ├── use-sound.ts              # Sound playback
-│   └── use-confetti.ts           # Celebrations
-├── lib/
-│   └── algorithms/               # 🧠 ML ALGORITHMS
-│       ├── ultimate-weakness-detector.ts    # Bayesian + HMM + Ensemble
-│       ├── bayesian-weakness-detector.ts    # Beta-Binomial priors
-│       ├── error-prediction-model.ts        # Neural network
-│       ├── advanced-ngram-analyzer.ts       # N-gram analysis
-│       ├── adaptive-curriculum.ts           # ZPD-based lessons
-│       ├── pattern-recognition.ts           # Temporal patterns
-│       └── personalization-engine.ts        # Learning styles
-└── stores/                       # Zustand state stores
-```
-
-### Data Flow
-
-```mermaid
-flowchart LR
-    subgraph Input
-        KB[Keyboard Events]
-    end
-    
-    subgraph ML["🧠 ML Pipeline"]
-        UWD[Ultimate Weakness Detector]
-        EPM[Error Prediction Model]
-        NGA[N-gram Analyzer]
-    end
-    
-    subgraph Stores
-        TS[typing-store]
-        AS[analytics-store]
-    end
-    
-    subgraph UI
-        TA[TypingArea]
-        UWD_DASH[Weakness Dashboard]
-    end
-    
-    KB --> TS
-    TS --> ML
-    ML --> AS
-    AS --> UWD_DASH
-    TS --> TA
-```
+| **Framework** | Next.js 16 | React framework with App Router |
+| **Language** | TypeScript | Total end-to-end type safety |
+| **Styling** | Tailwind CSS 4 | Utility-first, responsive, and dark-mode native graphics |
+| **State** | Zustand 5 | Lightweight, highly performant global state stores |
+| **Charts** | Recharts | Data visualization for complex mathematical outputs |
+| **Audio** | Tone.js | Low-latency polyphonic sound synthesis for Metronome |
+| **Animation** | Framer Motion | Smooth, 60fps SVG and layout transitions |
 
 ---
 
-## 📊 Implementation Status
+## 🔬 Mathematical Deep Dive
 
-| Feature | Status | Rating |
-|---------|--------|--------|
-| Core Typing Engine | ✅ Complete | 10/10 |
-| Weakness Detection | ✅ Complete | 10/10 |
-| N-gram Analysis | ✅ Complete | 10/10 |
-| Error Prediction | ✅ Complete | 10/10 |
-| Adaptive Curriculum | ✅ Complete | 10/10 |
-| Pattern Recognition | ✅ Complete | 10/10 |
-| Personalization | ✅ Complete | 10/10 |
-| Gamification | ✅ Complete | 10/10 |
-| Sound Effects | ✅ Complete | 10/10 |
+TypeMaster Pro operates an **Ensemble Prediction Pipeline**. Rather than asking one algorithm what text you should practice, it asks four:
 
-**Overall: Production Ready** 🚀
+1. **Bayesian Model (40% Weight):** Uses Beta-Binomial priors to quantify uncertainty. (e.g., "The user missed 'Q' once out of 2 attempts. We are 60% sure they are weak at it.")
+2. **Hidden Markov Model (30% Weight):** Employs empirical state-history tracking. Every keystroke transition updates the transition matrix.
+3. **Temporal Trend Analysis (20% Weight):** Plots raw speed over a moving time window.
+4. **N-Gram Calculator (10% Weight):** Measures bigram and trigram hesitancy (e.g., the delay specifically hitting `E` immediately after `TH`).
+
+These four models vote via a weighted multiplier. The resulting prioritization score is fed into the UI to schedule your next Smart Practice text.
 
 ---
 
-## 🎨 Design Highlights
+## 🔒 Privacy & Data Handling
 
-- **Dark/Light Mode** — Automatic system preference detection
-- **Accessible** — ARIA labels, screen reader support, colorblind-friendly
-- **Responsive** — Optimized for all screen sizes
-- **Performant** — O(1) keystroke handling, 60fps animations
+TypeMaster Pro is an entirely offline-capable Progressive Web Application (PWA).
+
+**What We Track:**
+- Aggregate statistics (WPM, accuracy)
+- Per-key timestamps and hesitancy metrics
+- Array counts for learning curves
+
+**Where Data Lives:**
+- 100% client-side (browser `localStorage`).
+- Absolutely no remote database servers, telemetry, or analytics tracking. 
+- You own your data. Export your entire ML profile as a `.json` backup anytime.
+
+---
+
+## 🎨 Design & Accessibility Highlights
+
+- **Glassmorphism Aesthetic** — A breathtaking UX built on modern blur filters, subtle gradients, and reactive hover states.
+- **Dark/Light Mode** — Automatic system preference detection flawlessly synced with Tailwind palettes.
+- **Responsive Geometry** — Fluidly adapts the visual keyboard and analytics dashboards from ultra-wide 4k down to mobile viewports.
+- **Accessibility (a11y)** — Fully navigable via ARIA live regions and keyboard event hooks.
 
 ---
 
@@ -396,35 +154,10 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-
-- Use TypeScript strict mode
-- Follow ESLint configuration
-- Write meaningful commit messages
-- Add tests for new ML algorithms
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-### Inspiration
-
-- [TypingClub](https://www.typingclub.com/)
-- [Keybr](https://www.keybr.com/)
-- [MonkeyType](https://monkeytype.com/)
-
-### Academic References
-
-- Beta-Binomial conjugate priors for uncertainty quantification
-- Hidden Markov Models for learning state estimation
-- Thompson Sampling for multi-armed bandit optimization
-- Zone of Proximal Development (Vygotsky) for curriculum design
+**Target Future Milestones:**
+- [ ] Migrate `localStorage` matrices to `IndexedDB` to support 100,000+ keystroke sessions without pausing the Main Thread.
+- [ ] Implement Multi-language support (Spanish, French, German layouts).
+- [ ] Release a Desktop standalone packaging via Electron/Tauri.
 
 ---
 

@@ -10,10 +10,11 @@ interface TypingCharacterProps {
     isError: boolean;
     isNext: boolean;
     isGhost: boolean;
+    isPredictedError?: boolean;
     errorProb: number;
     cursorStyle: 'line' | 'block' | 'underline' | 'bar';
     smoothCaret: boolean;
-    cursorRef?: React.RefObject<HTMLSpanElement | null>;
+    ref?: React.RefObject<HTMLSpanElement | null>;
 }
 
 export const TypingCharacter = memo(function TypingCharacter({
@@ -23,14 +24,15 @@ export const TypingCharacter = memo(function TypingCharacter({
     isError,
     isNext,
     isGhost,
+    isPredictedError,
     errorProb,
     cursorStyle,
     smoothCaret,
-    cursorRef
+    ref
 }: TypingCharacterProps) {
     return (
         <span
-            ref={isCurrent ? cursorRef : undefined}
+            ref={isCurrent ? ref : undefined}
             aria-current={isCurrent ? 'location' : undefined}
             aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
             className={cn(
@@ -44,8 +46,10 @@ export const TypingCharacter = memo(function TypingCharacter({
                 isCurrent && !isError && 'text-foreground bg-primary/10 border-b-2 border-primary',
                 // Current position with previous errors
                 isCurrent && isError && 'bg-red-500/20 text-foreground underline decoration-wavy decoration-red-500',
+                // Predicted error - amber glow
+                !isTyped && isPredictedError && 'text-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]',
                 // Not yet typed - muted
-                !isTyped && !isCurrent && 'text-muted-foreground/60',
+                !isTyped && !isCurrent && !isPredictedError && 'text-muted-foreground/60',
             )}
         >
             {/* Cursor - Configurable Styles */}
@@ -106,6 +110,7 @@ export const TypingCharacter = memo(function TypingCharacter({
         prevProps.isError === nextProps.isError &&
         prevProps.isNext === nextProps.isNext &&
         prevProps.isGhost === nextProps.isGhost &&
+        prevProps.isPredictedError === nextProps.isPredictedError &&
         prevProps.errorProb === nextProps.errorProb &&
         prevProps.cursorStyle === nextProps.cursorStyle &&
         prevProps.smoothCaret === nextProps.smoothCaret &&

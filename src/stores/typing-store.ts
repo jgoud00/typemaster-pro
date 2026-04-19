@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { TypingState, KeystrokeEvent, Finger } from '@/types';
 import { getKeyData } from '@/lib/keyboard-data';
+import { useSettingsStore } from './settings-store';
 
 // Performance maximization: Limit history to constant size
 const MAX_KEYSTROKES_BUFFER = 1000;
@@ -57,6 +58,7 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
             state: { ...initialState, text },
             activeKey: text.length > 0 ? text[0] : null,
             lastKeystrokeTime: null,
+            correctCount: 0,
             totalCount: 0,
         });
     },
@@ -84,8 +86,9 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
             ? now - lastKeystrokeTime
             : (state.startTime ? now - state.startTime : 0);
 
-        // Get finger for the expected key
-        const keyData = getKeyData(expected);
+        // Get finger for the expected key based on active layout
+        const layoutName = useSettingsStore.getState().settings.keyboardLayout;
+        const keyData = getKeyData(expected, layoutName);
         const finger: Finger = keyData?.finger ?? 'right-index';
 
         const keystroke: KeystrokeEvent = {
@@ -102,14 +105,10 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
         const isComplete = newIndex >= state.text.length;
 
-        // Performance fix: Use circular buffer - drop oldest if over limit
-        // This prevents O(n) memory growth in long sessions
-        let newKeystrokes: KeystrokeEvent[];
-        if (state.keystrokes.length >= MAX_KEYSTROKES_BUFFER) {
-            // Drop oldest 100 entries when buffer is full (amortized O(1))
-            newKeystrokes = [...state.keystrokes.slice(100), keystroke];
-        } else {
-            newKeystrokes = [...state.keystrokes, keystroke];
+        let newKeystrokes = state.keystrokes;
+        newKeystrokes.push(keystroke);
+        if (newKeystrokes.length > MAX_KEYSTROKES_BUFFER) {
+            newKeystrokes.shift();
         }
 
         set({
@@ -118,7 +117,7 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
                 currentIndex: newIndex,
                 startTime: state.startTime ?? now,
                 endTime: isComplete ? now : null,
-                errorIndices: isCorrect ? state.errorIndices : [...state.errorIndices, state.currentIndex],
+                errorIndices: isCorrect ? state.errorIndices : state.errorIndices.concat(state.currentIndex),
                 keystrokes: newKeystrokes,
                 isComplete,
             },

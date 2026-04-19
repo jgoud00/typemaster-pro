@@ -15,6 +15,14 @@ export default defineConfig({
             reporter: ['text', 'json', 'html'],
             include: ['src/lib/**/*.ts', 'src/stores/**/*.ts'],
             exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
+            thresholds: {
+                'src/lib/algorithms/**/*.ts': {
+                    lines: 60,
+                    functions: 60,
+                    statements: 60,
+                    branches: 60
+                }
+            }
         },
         testTimeout: 10000,
         mockReset: true,

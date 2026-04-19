@@ -10,8 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useProgressStore } from '@/stores/progress-store';
+import dynamic from 'next/dynamic';
 import { downloadUserData, getStoredDataSummary, deleteAllUserData } from '@/lib/gdpr-export';
 import toast from 'react-hot-toast';
+
+const WebRTCSync = dynamic(() => import('@/components/sync/WebRTCSync').then(mod => mod.WebRTCSync), { ssr: false });
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -238,6 +241,26 @@ export default function SettingsPage() {
                                 </p>
                             </div>
 
+                            <div className="pt-2">
+                                <div className="font-medium mb-3">Language (Corpus)</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {(['en', 'es'] as const).map((lang) => (
+                                        <Button
+                                            key={lang}
+                                            variant={settings.language === lang ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => updateSetting('language', lang)}
+                                            className="uppercase"
+                                        >
+                                            {lang === 'en' ? 'English' : 'Español'}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    Practice texts and algorithms will switch to the selected language
+                                </p>
+                            </div>
+
                             <div className="flex items-center justify-between">
                                 <div>
                                     <div className="font-medium">Focus Mode</div>
@@ -254,11 +277,20 @@ export default function SettingsPage() {
                     </Card>
                 </motion.div>
 
-                {/* Privacy & Data (GDPR Compliant) */}
+                {/* P2P Sync */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
+                >
+                    <WebRTCSync />
+                </motion.div>
+
+                {/* Privacy & Data (GDPR Compliant) */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
                 >
                     <Card className="p-6">
                         <div className="flex items-center gap-3 mb-6">

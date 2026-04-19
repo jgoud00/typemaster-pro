@@ -237,15 +237,23 @@ export default function DiagnosticPage() {
                         className="relative bg-card rounded-xl p-8 border text-xl leading-relaxed font-mono cursor-text"
                         onClick={() => inputRef.current?.focus()}
                     >
-                        {TEST_TEXT.split('').map((char, index) => {
+                        {(() => {
+                        // Pre-compute correctness per character position in O(K)
+                        const charCorrectness: (boolean | undefined)[] = [];
+                        let pos = 0;
+                        for (const ks of keystrokes) {
+                            if (!ks.isBackspace) {
+                                charCorrectness[pos] = ks.correct;
+                                pos++;
+                            }
+                        }
+
+                        return TEST_TEXT.split('').map((char, index) => {
                             let className = 'transition-colors duration-100 ';
 
                             if (index < currentIndex) {
                                 // Already typed
-                                const wasCorrect = keystrokes.find(
-                                    (ks, i) => !ks.isBackspace &&
-                                        keystrokes.slice(0, i + 1).filter(k => !k.isBackspace).length === index + 1
-                                )?.correct;
+                                const wasCorrect = charCorrectness[index];
 
                                 className += wasCorrect
                                     ? 'text-green-500'
@@ -263,7 +271,8 @@ export default function DiagnosticPage() {
                                     {char}
                                 </span>
                             );
-                        })}
+                        });
+                    })()}
 
                         {/* Hidden input for capturing keystrokes */}
                         <input

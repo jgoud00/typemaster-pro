@@ -1,4 +1,5 @@
 import { KeyData, Finger } from '@/types';
+import { getLayout, LayoutName, KeyboardKey } from './keyboard-layouts';
 
 // Finger color mapping for visual keyboard
 export const fingerColors: Record<Finger, { bg: string; border: string; text: string }> = {
@@ -93,8 +94,26 @@ export const keyboardLayout: KeyData[][] = [
     ],
 ];
 
-// Get key data by character
-export function getKeyData(char: string): KeyData | undefined {
+// Get key data by character with layout awareness
+export function getKeyData(char: string, layoutName: LayoutName = 'qwerty'): KeyData | undefined {
+    const layout = getLayout(layoutName);
+    
+    // Check main layout
+    for (let rowIndex = 0; rowIndex < layout.rows.length; rowIndex++) {
+        const row = layout.rows[rowIndex];
+        for (const key of row) {
+            if (key.key === char || key.shifted === char) {
+                return {
+                    key: key.key,
+                    shiftKey: key.shifted,
+                    finger: `${key.hand}-${key.finger}` as Finger,
+                    row: rowIndex,
+                };
+            }
+        }
+    }
+    
+    // Check QWERTY fallback for system keys (space, enter, etc)
     for (const row of keyboardLayout) {
         for (const key of row) {
             if (key.key === char || key.shiftKey === char) {
@@ -102,18 +121,26 @@ export function getKeyData(char: string): KeyData | undefined {
             }
         }
     }
+    
     return undefined;
 }
 
 // Check if shift is needed for a character
-export function needsShift(char: string): boolean {
-    for (const row of keyboardLayout) {
+export function needsShift(char: string, layoutName: LayoutName = 'qwerty'): boolean {
+    const layout = getLayout(layoutName);
+    for (const row of layout.rows) {
         for (const key of row) {
-            if (key.shiftKey === char) {
-                return true;
-            }
+            if (key.shifted === char) return true;
         }
     }
+    
+    // Fallback
+    for (const row of keyboardLayout) {
+        for (const key of row) {
+            if (key.shiftKey === char) return true;
+        }
+    }
+    
     return false;
 }
 

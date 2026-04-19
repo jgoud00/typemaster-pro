@@ -25,12 +25,12 @@ import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
-import { useSound } from '@/hooks/use-sound';
 import { cn } from '@/lib/utils';
 import { ngramAnalyzer } from '@/lib/ngram-analyzer';
 import { analyzeWeaknesses } from '@/lib/weakness-predictor';
 import { generateDailyBriefing, Insight } from '@/lib/coach-insights';
 import { personalizationEngine } from '@/lib/algorithms/personalization-engine';
+import { ultimateWeaknessDetector } from '@/lib/algorithms/ultimate-weakness-detector';
 import {
     generateAdaptiveExercise,
     calculateDifficultyLevel
@@ -39,12 +39,12 @@ import { PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function SmartPracticePage() {
+    if (typeof window === 'undefined') return null;
     const router = useRouter();
     const { progress } = useProgressStore();
     const { game } = useGameStore();
     const { keyStats } = useAnalyticsStore();
     const { fireLessonComplete } = useConfetti();
-    const { play } = useSound();
 
     const [isTyping, setIsTyping] = useState(false);
     const [currentExercise, setCurrentExercise] = useState<{ text: string; focusKeys: string[]; reason: string } | null>(null);
@@ -71,21 +71,8 @@ export default function SmartPracticePage() {
     // Calculate difficulty level
     const difficultyLevel = calculateDifficultyLevel(avgWpm, avgAccuracy);
 
-    // Transform heuristic weakness report to Bayesian-compatible results
-    const weaknessResults = weaknessReport.weakKeys.map(key => {
-        const stats = perKeyErrors.get(key) || { attempts: 0, errors: 0 };
-        const accuracy = stats.attempts > 0 ? (stats.attempts - stats.errors) / stats.attempts : 1;
-
-        return {
-            key,
-            estimatedAccuracy: accuracy,
-            confidence: Math.min(1, stats.attempts / 20), // Simple confidence approximation
-            isWeak: true,
-            priority: (1 - accuracy) * 100,
-            recentTrend: 'stable' as const,
-            nextReviewDate: new Date(),
-        };
-    });
+    // Use genuinely integrated ultimate weakness detector
+    const weaknessResults = useMemo(() => ultimateWeaknessDetector.analyzeAll(), []);
 
     // Generate daily plan using the Personalization Engine
     const dailyPlan = useMemo(() => personalizationEngine.generateDailyPlan(
@@ -145,7 +132,6 @@ export default function SmartPracticePage() {
         // Track ngrams
         ngramAnalyzer.save();
 
-        play('complete');
         toast.dismiss();
 
         if (record.accuracy >= 95) {
@@ -159,7 +145,7 @@ export default function SmartPracticePage() {
                 id: 'smart-practice-result',
             });
         }
-    }, [play, fireLessonComplete, setExercisesCompleted, setSessionResults, setIsTyping]);
+    }, [fireLessonComplete, setExercisesCompleted, setSessionResults, setIsTyping]);
 
     const {
         reset,

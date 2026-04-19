@@ -15,11 +15,17 @@ import {
     Activity,
     RotateCcw,
     AlertTriangle,
+    BrainCircuit,
+    Download,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PersonalRecordsDashboard } from '@/components/stats/PersonalRecordsDashboard';
+import { FatigueCurveGraph } from '@/components/analytics/FatigueCurveGraph';
+import { generateProgressPDF } from '@/lib/pdf-export';
+import { generateWeeklySummary } from '@/lib/algorithms/ai-summary-generator';
 
 // Lazy load Recharts components
 const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceSection'), {
@@ -29,8 +35,8 @@ const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceS
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
-import { KeyboardHeatmap } from '@/components/stats/KeyboardHeatmap';
-import { FingerFatigueDashboard } from '@/components/analytics/FingerFatigueDashboard';
+const KeyboardHeatmap = dynamic(() => import('@/components/stats/KeyboardHeatmap').then(mod => mod.KeyboardHeatmap), { ssr: false });
+const FingerFatigueDashboard = dynamic(() => import('@/components/analytics/FingerFatigueDashboard').then(mod => mod.FingerFatigueDashboard), { ssr: false });
 import { cn } from '@/lib/utils';
 import { mean, median, standardDeviation, consistencyScore } from '@/lib/algorithms/statistics';
 
@@ -173,180 +179,80 @@ export default function StatsPage() {
                             <h1 className="text-xl font-bold">Statistics</h1>
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/30"
-                        onClick={() => setShowResetModal(true)}
-                    >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Reset Stats
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="text-purple-500 hover:text-purple-600 bg-purple-500/10 hover:bg-purple-500/20"
+                            onClick={() => router.push('/stats/ai-visualizer')}
+                        >
+                            <BrainCircuit className="w-4 h-4 mr-2" />
+                            AI Mind Visualizer
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/30"
+                            onClick={() => setShowResetModal(true)}
+                        >
+                            <RotateCcw className="w-4 h-4 mr-2" />
+                            Reset Stats
+                        </Button>
+                        <Button
+                            onClick={() => generateProgressPDF()}
+                            variant="secondary"
+                            size="sm"
+                            className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export PDF
+                        </Button>
+                    </div>
                 </div>
             </header>
 
             <main className="container mx-auto px-4 py-8 space-y-8">
-                {/* Overview Cards */}
+                {/* AI Summary Card */}
                 <section>
-                    <h2 className="text-lg font-semibold mb-4">Overview</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Total Practice Time */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0 }}
-                        >
-                            <Card className="bg-blue-500/10 border-blue-500/20 hover:border-blue-500/40 transition-colors">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Practice Time</p>
-                                            <p className="text-3xl font-bold mt-1">{formatTime(totalTimeSeconds)}</p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-blue-500/20">
-                                            <Clock className="w-6 h-6 text-blue-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        {/* Total Keystrokes */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                        >
-                            <Card className="bg-green-500/10 border-green-500/20 hover:border-green-500/40 transition-colors">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Total Keystrokes</p>
-                                            <p className="text-3xl font-bold mt-1">{formatNumber(totalKeystrokes)}</p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-green-500/20">
-                                            <Keyboard className="w-6 h-6 text-green-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        {/* Personal Best WPM */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                        >
-                            <Card className="bg-yellow-500/10 border-yellow-500/20 hover:border-yellow-500/40 transition-colors">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Best WPM</p>
-                                            <p className="text-3xl font-bold mt-1">{personalBestWpm}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {personalBestAccuracy}% accuracy
-                                            </p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-yellow-500/20">
-                                            <Trophy className="w-6 h-6 text-yellow-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        {/* Current Streak */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                        >
-                            <Card className={cn(
-                                "border-orange-500/20 hover:border-orange-500/40 transition-colors",
-                                currentStreak > 3 ? "bg-orange-500/15" : "bg-orange-500/10"
-                            )}>
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Current Streak</p>
-                                            <p className="text-3xl font-bold mt-1">
-                                                {currentStreak} day{currentStreak !== 1 ? 's' : ''}
-                                                {currentStreak > 3 && ' 🔥'}
-                                            </p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-orange-500/20">
-                                            <Flame className="w-6 h-6 text-orange-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    </div>
-
-                    {/* Advanced Analytics Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        {/* Consistency Score */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.4 }}
-                        >
-                            <Card className="bg-purple-500/10 border-purple-500/20 hover:border-purple-500/40 transition-colors">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Consistency Score</p>
-                                            <div className="flex items-baseline gap-2 mt-1">
-                                                <p className="text-3xl font-bold">
-                                                    {wpmData.length > 5 ? consistencyScore(wpmData.map(d => d.wpm)) : 'N/A'}
-                                                </p>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                Based on WPM variance (SD: {wpmData.length > 5 ? standardDeviation(wpmData.map(d => d.wpm)).toFixed(1) : 0})
-                                            </p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-purple-500/20">
-                                            <Activity className="w-6 h-6 text-purple-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        {/* Recent Performance Median */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5 }}
-                        >
-                            <Card className="bg-pink-500/10 border-pink-500/20 hover:border-pink-500/40 transition-colors">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Median Performance</p>
-                                            <div className="flex items-baseline gap-2 mt-1">
-                                                <p className="text-3xl font-bold">
-                                                    {wpmData.length > 0 ? median(wpmData.map(d => d.wpm)).toFixed(0) : 0} <span className="text-sm font-normal text-muted-foreground">WPM</span>
-                                                </p>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                Excludes outliers (Mean: {wpmData.length > 0 ? mean(wpmData.map(d => d.wpm)).toFixed(1) : 0})
-                                            </p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-pink-500/20">
-                                            <BarChart3 className="w-6 h-6 text-pink-500" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    </div>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                        <Card className="bg-primary/5 border-primary/20 shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    <BrainCircuit className="w-5 h-5 text-primary" /> 
+                                    AI Weekly Analysis
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-lg leading-relaxed text-muted-foreground">
+                                    {generateWeeklySummary()}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 </section>
+                {/* Overview Dashboards */}
+                <section>
+                    <h2 className="text-lg font-semibold mb-4">Personal Best Records</h2>
+                    <PersonalRecordsDashboard />
+                </section>
+
+
 
                 {/* Finger Fatigue & Health */}
                 <section>
-                    <FingerFatigueDashboard />
+                    <h2 className="text-lg font-semibold mb-4">Real-time Performance Dynamics</h2>
+                    <div className="space-y-4">
+                        <Card className="bg-black/20 border-white/10">
+                            <CardHeader>
+                                <CardTitle>Session Fatigue Curve</CardTitle>
+                                <CardDescription>Tracking your WPM and Accuracy decay over the current typing session</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <FatigueCurveGraph />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </section>
 
                 {/* Performance Charts */}

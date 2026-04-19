@@ -272,7 +272,6 @@ export class ErrorPredictionModel {
      */
     train(examples: TrainingExample[], epochs = 50): void {
         if (examples.length < 10) {
-            console.log('Not enough examples to train (need 10+)');
             return;
         }
 
@@ -293,7 +292,7 @@ export class ErrorPredictionModel {
             }
 
             if (epoch % 10 === 0) {
-                console.log(`Epoch ${epoch}: Loss = ${(totalLoss / examples.length).toFixed(4)}`);
+                // Training progress tracked internally
             }
         }
 

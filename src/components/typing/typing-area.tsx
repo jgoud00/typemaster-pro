@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useEffect, useState, memo } from 'react';
+import { useRef, useEffect, useState, memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ultimateWeaknessDetector } from '@/lib/algorithms/ultimate-weakness-detector';
+import { useWeaknessDetectorWorker } from '@/hooks/use-weakness-detector-worker';
 import { WeaknessOverlay } from './WeaknessOverlay';
 import { useErrorExplanation } from './ErrorExplanationToast';
 import { useSettingsStore } from '@/stores/settings-store';
@@ -14,11 +14,13 @@ import { useGameStore } from '@/stores/game-store';
 
 interface TypingAreaProps {
     readonly ghostIndex?: number;
+    readonly predictedMistakeIndices?: number[];
     readonly className?: string;
 }
 
 function TypingAreaComponent({
     ghostIndex,
+    predictedMistakeIndices = [],
     className
 }: TypingAreaProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -27,14 +29,16 @@ function TypingAreaComponent({
     const { cursorStyle } = settings;
 
     // Connect to stores
-    const { state, getWpm, getAccuracy } = useTypingStore();
-    const { text, currentIndex, errorIndices } = state;
-    const { game } = useGameStore();
-    const { combo } = game;
-
-    // We can compute these or get them, but for aria-labels we might need them
+    // Connect to stores
+    const text = useTypingStore(s => s.state.text);
+    const currentIndex = useTypingStore(s => s.state.currentIndex);
+    const errorIndices = useTypingStore(s => s.state.errorIndices);
+    const getWpm = useTypingStore(s => s.getWpm);
+    const getAccuracy = useTypingStore(s => s.getAccuracy);
     const wpm = getWpm();
     const accuracy = getAccuracy();
+
+    const combo = useGameStore(s => s.game.combo);
 
     // Auto-scroll to keep cursor visible
     useEffect(() => {
@@ -53,15 +57,19 @@ function TypingAreaComponent({
     }, [currentIndex]);
 
     const [errorProbabilities, setErrorProbabilities] = useState<Map<string, number>>(new Map());
-    const { recordError } = useErrorExplanation();
+    const { analyzeAllKeys } = useWeaknessDetectorWorker();
 
-    // Update error probabilities when text changes
     useEffect(() => {
-        const probs = new Map<string, number>();
-        const analysis = ultimateWeaknessDetector.analyzeAll();
-        analysis.forEach(w => probs.set(w.key, w.accuracyEstimate < 0.8 ? (1 - w.accuracyEstimate) : 0));
-        setErrorProbabilities(probs);
-    }, [text]);
+        analyzeAllKeys()
+            .then((analysis: any[]) => {
+                const probs = new Map<string, number>();
+                analysis.forEach((w: any) => probs.set(w.key, w.accuracyEstimate < 0.8 ? (1 - w.accuracyEstimate) : 0));
+                setErrorProbabilities(probs);
+            })
+            .catch(console.error);
+    }, [text, analyzeAllKeys]);
+
+    const { recordError } = useErrorExplanation();
 
     // Record errors for explanation engine
     useEffect(() => {
@@ -79,8 +87,10 @@ function TypingAreaComponent({
         }
     }, [errorIndices, currentIndex, text]);
 
-    const errorSet = new Set(errorIndices);
+    const errorSet = useMemo(() => new Set(errorIndices), [errorIndices]);
+    const predictionSet = useMemo(() => new Set(predictedMistakeIndices), [predictedMistakeIndices]);
     const progress = text.length > 0 ? Math.round((currentIndex / text.length) * 100) : 0;
+    const charsArray = useMemo(() => text.split(''), [text]);
 
     return (
         <div
@@ -132,10 +142,11 @@ function TypingAreaComponent({
                 )}
             >
                 <div className="text-wrap wrap-break-word">
-                    {text.split('').map((char, index) => {
+                    {charsArray.map((char, index) => {
                         const isTyped = index < currentIndex;
                         const isCurrent = index === currentIndex;
                         const isError = errorSet.has(index);
+                        const isPredictedError = predictionSet.has(index);
                         const isNext = index === currentIndex + 1;
                         const isGhost = ghostIndex !== undefined && index === Math.floor(ghostIndex);
                         const errorProb = errorProbabilities.get(char.toLowerCase()) || 0;
@@ -147,12 +158,13 @@ function TypingAreaComponent({
                                 isTyped={isTyped}
                                 isCurrent={isCurrent}
                                 isError={isError}
+                                isPredictedError={isPredictedError}
                                 isNext={isNext}
                                 isGhost={isGhost}
                                 errorProb={errorProb}
                                 cursorStyle={cursorStyle}
                                 smoothCaret={settings.smoothCaret}
-                                cursorRef={cursorRef}
+                                ref={cursorRef}
                             />
                         );
                     })}

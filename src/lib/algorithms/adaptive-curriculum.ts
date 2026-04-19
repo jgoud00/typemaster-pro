@@ -8,8 +8,9 @@
  * - Spaced repetition scheduling
  */
 
-import { weaknessDetector, type WeaknessResult } from './bayesian-weakness-detector';
+import { ultimateWeaknessDetector, type UltimateWeaknessResult as WeaknessResult } from './ultimate-weakness-detector';
 import { advancedNgramAnalyzer } from './advanced-ngram-analyzer';
+import { useProgressStore } from '@/stores/progress-store';
 
 export interface Skill {
     key: string;
@@ -139,13 +140,14 @@ export class AdaptiveCurriculum {
             }
 
             // Update from Bayesian analysis
-            skill.level = result.estimatedAccuracy * 100;
-            skill.confidence = result.confidence;
+            skill.level = result.accuracyEstimate * 100;
+            // Provide a default confidence since Bayesian engine manages its own internal credibility
+            skill.confidence = 0.8;
 
-            // Adjust learning rate based on trend
-            if (result.recentTrend === 'improving') {
+            // Adjust learning rate based on state
+            if (result.currentState === 'proficient' || result.currentState === 'mastered') {
                 skill.learningRate = Math.min(0.5, skill.learningRate * 1.2);
-            } else if (result.recentTrend === 'declining') {
+            } else if (result.currentState === 'regressing') {
                 skill.learningRate = Math.max(0.05, skill.learningRate * 0.8);
             }
         });
@@ -432,3 +434,59 @@ export class AdaptiveCurriculum {
 
 // Singleton export
 export const adaptiveCurriculum = new AdaptiveCurriculum();
+
+// Additional adaptive targets export requested by features
+export function getAdaptiveTarget(): number {
+    const progress = useProgressStore.getState().progress;
+    const records = progress.records || [];
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    
+    const recentRecords = records.filter(r => r.timestamp >= oneWeekAgo);
+    if (recentRecords.length === 0) return 40; // Default baseline baseline
+    
+    const sorted = [...recentRecords].sort((a, b) => a.timestamp - b.timestamp);
+    const midPoint = sorted[Math.floor(sorted.length / 2)]?.timestamp || 0;
+
+    let totalWeight = 0;
+    let weightedSum = 0;
+    let totalAccuracy = 0;
+
+    for (const record of sorted) {
+        const weight = record.timestamp >= midPoint ? 2 : 1;
+        totalWeight += weight;
+        weightedSum += record.wpm * weight;
+        totalAccuracy += record.accuracy;
+    }
+
+    const avgWpm = weightedSum / totalWeight;
+    const avgAccuracy = totalAccuracy / sorted.length;
+
+    let target = avgWpm;
+    if (avgAccuracy > 95) {
+        target *= 1.05;
+    } else if (avgAccuracy < 85) {
+        target *= 0.95;
+    }
+
+    return Math.round(target);
+}
+
+export function getDifficultyTrend(): 'rising' | 'stable' | 'falling' {
+    const progress = useProgressStore.getState().progress;
+    const records = progress.records || [];
+    if (records.length < 2) return 'stable';
+    
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recentRecords = records.filter(r => r.timestamp >= oneWeekAgo).sort((a, b) => a.timestamp - b.timestamp);
+    if (recentRecords.length < 2) return 'stable';
+
+    const recentHalf = recentRecords.slice(Math.floor(recentRecords.length / 2));
+    const olderHalf = recentRecords.slice(0, Math.floor(recentRecords.length / 2));
+
+    const avgRecent = recentHalf.reduce((sum, r) => sum + r.wpm, 0) / (recentHalf.length || 1);
+    const avgOlder = olderHalf.reduce((sum, r) => sum + r.wpm, 0) / (olderHalf.length || 1);
+
+    if (avgRecent > avgOlder * 1.05) return 'rising';
+    if (avgRecent < avgOlder * 0.95) return 'falling';
+    return 'stable';
+}

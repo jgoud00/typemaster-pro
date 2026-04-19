@@ -24,7 +24,7 @@ export interface DiagnosticResult {
     backspaceDependence: number;    // ratio of backspaces to keystrokes
 
     // Per-key performance
-    keyPerformance: Map<string, { correct: number; errors: number; avgLatency: number }>;
+    keyPerformance: Record<string, { correct: number; errors: number; avgLatency: number }>;
 
     // Weak areas identified
     weakKeys: string[];

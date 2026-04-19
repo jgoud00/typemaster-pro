@@ -18,12 +18,14 @@ export function useSound() {
 
     useEffect(() => {
         soundEngine.loadSettings();
-        setSettings(soundEngine.getSettings());
-        setIsLoaded(true);
+        queueMicrotask(() => {
+            setSettings(soundEngine.getSettings());
+            setIsLoaded(true);
+        });
     }, []);
 
     const play = useCallback((type: SoundType) => {
-        // Sound disabled
+        soundEngine.play(type);
     }, []);
 
     const updateSettings = useCallback((newSettings: Partial<SoundSettings>) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { KeystrokeEvent, KeyStat, BigramStat, WeaknessProfile, Finger } from '@/types';
+import { KeystrokeEvent, KeyStat, BigramStat, TrigramStat, WeaknessProfile, Finger } from '@/types';
 
 interface AnalyticsStore {
     // Session analytics
@@ -10,6 +10,7 @@ interface AnalyticsStore {
     // Cumulative stats (for weakness detection)
     keyStats: Record<string, KeyStat>;
     bigramStats: Record<string, BigramStat>;
+    trigramStats: Record<string, TrigramStat>;
     fingerStats: Record<Finger, { correct: number; total: number }>;
 
     // Actions
@@ -39,6 +40,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
     sessionKeystrokes: [],
     keyStats: {},
     bigramStats: {},
+    trigramStats: {},
     fingerStats: { ...initialFingerStats },
 
     recordKeystroke: (keystroke: KeystrokeEvent) => {
@@ -81,6 +83,26 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
                 };
             }
 
+            // Update trigram stats
+            const trigramStats = { ...state.trigramStats };
+            if (newSessionKeystrokes.length >= 3) {
+                const lastThree = newSessionKeystrokes.slice(-3);
+                const trigram = lastThree[0].expected + lastThree[1].expected + lastThree[2].expected;
+                const existingTrigram = trigramStats[trigram] || {
+                    trigram,
+                    totalAttempts: 0,
+                    errors: 0,
+                    averageTime: 0,
+                };
+
+                trigramStats[trigram] = {
+                    trigram,
+                    totalAttempts: existingTrigram.totalAttempts + 1,
+                    errors: existingTrigram.errors + (keystroke.isCorrect ? 0 : 1),
+                    averageTime: (existingTrigram.averageTime * existingTrigram.totalAttempts + keystroke.hesitationMs) / (existingTrigram.totalAttempts + 1),
+                };
+            }
+
             // Update finger stats
             const fingerStats = { ...state.fingerStats };
             const finger = keystroke.finger;
@@ -93,6 +115,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
                 sessionKeystrokes: newSessionKeystrokes,
                 keyStats,
                 bigramStats,
+                trigramStats,
                 fingerStats,
             };
         });
@@ -126,6 +149,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
         return {
             keyStats: state.keyStats,
             bigramStats: state.bigramStats,
+            trigramStats: state.trigramStats,
             fingerAccuracy: state.fingerStats,
             averageHesitation: get().getAverageHesitation(),
             problemKeys,

@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeEach } from 'vitest';
 
@@ -52,6 +53,14 @@ Object.defineProperty(URL, 'createObjectURL', {
 Object.defineProperty(URL, 'revokeObjectURL', {
     value: vi.fn(),
 });
+
+// Mock idb-keyval
+vi.mock('idb-keyval', () => ({
+    get: vi.fn().mockResolvedValue(undefined),
+    set: vi.fn().mockResolvedValue(undefined),
+    del: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Reset localStorage before each test
 beforeEach(() => {

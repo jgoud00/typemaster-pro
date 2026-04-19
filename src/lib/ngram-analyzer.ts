@@ -7,6 +7,8 @@
  * character-triplet (trigram) level to identify problematic transitions.
  */
 
+import { loadFromDB, saveToDB, clearFromDB } from './storage/db';
+
 export interface NgramStats {
     ngram: string;           // The character sequence (e.g., "th", "ing")
     attempts: number;        // Total times this ngram was typed
@@ -213,31 +215,29 @@ class NgramAnalyzer {
     }
 
     /**
-     * Persist to localStorage
+     * Persist to IndexedDB asynchronously
      */
-    save(): void {
-        if (typeof localStorage === 'undefined') return;
-
-        const data = {
-            bigrams: Array.from(this.bigrams.entries()),
-            trigrams: Array.from(this.trigrams.entries()),
-        };
-
-        localStorage.setItem(NGRAM_STORAGE_KEY, JSON.stringify(data));
+    async save(): Promise<void> {
+        try {
+            const data = {
+                bigrams: Array.from(this.bigrams.entries()),
+                trigrams: Array.from(this.trigrams.entries()),
+            };
+            await saveToDB(NGRAM_STORAGE_KEY, data);
+        } catch (e) {
+            console.error('[Ngram] Failed to save:', e);
+        }
     }
 
     /**
-     * Load from localStorage
+     * Load from IndexedDB
      */
-    private load(): void {
-        if (typeof localStorage === 'undefined') return;
-
+    async load(): Promise<void> {
         try {
-            const saved = localStorage.getItem(NGRAM_STORAGE_KEY);
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.bigrams = new Map(data.bigrams || []);
-                this.trigrams = new Map(data.trigrams || []);
+            const data = await loadFromDB<any>(NGRAM_STORAGE_KEY);
+            if (data) {
+                if (data.bigrams) this.bigrams = new Map(data.bigrams);
+                if (data.trigrams) this.trigrams = new Map(data.trigrams);
             }
         } catch {
             // Start fresh on error
@@ -249,13 +249,11 @@ class NgramAnalyzer {
     /**
      * Clear all stored data
      */
-    clear(): void {
+    async clear(): Promise<void> {
         this.bigrams = new Map();
         this.trigrams = new Map();
         this.recentChars = [];
-        if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(NGRAM_STORAGE_KEY);
-        }
+        await clearFromDB(NGRAM_STORAGE_KEY);
     }
 
     /**

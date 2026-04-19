@@ -12,7 +12,7 @@ describe('ErrorPredictionModel', () => {
 
     it('should initialize with random weights', () => {
         expect((model as any).isInitialized).toBe(true);
-        expect((model as any).weightsIH.length).toBe(10); // Input size
+        expect((model as any).weightsIH.length).toBe(11); // Input size (11 after cyclic time encoding)
     });
 
     it('should predict error probability', () => {
@@ -42,11 +42,10 @@ describe('ErrorPredictionModel', () => {
             trainingData.push({ features, label });
         }
 
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
-
         model.train(trainingData, 50);
 
-        expect(consoleSpy).toHaveBeenCalled();
+        // train() calls save() at the end, which calls localStorage.setItem
+        expect(localStorage.setItem).toHaveBeenCalledWith('error-prediction-model', expect.any(String));
     });
 
     it('should save and load model', () => {

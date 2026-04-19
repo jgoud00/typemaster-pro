@@ -18,64 +18,15 @@ interface KeystrokeData {
     isBackspace: boolean;
 }
 
-interface FingerMap {
-    [key: string]: {
-        finger: string;
-        hand: 'left' | 'right';
-    };
-}
-
-// QWERTY finger mapping
-const FINGER_MAP: FingerMap = {
-    // Left hand
-    'q': { finger: 'pinky', hand: 'left' },
-    'a': { finger: 'pinky', hand: 'left' },
-    'z': { finger: 'pinky', hand: 'left' },
-    'w': { finger: 'ring', hand: 'left' },
-    's': { finger: 'ring', hand: 'left' },
-    'x': { finger: 'ring', hand: 'left' },
-    'e': { finger: 'middle', hand: 'left' },
-    'd': { finger: 'middle', hand: 'left' },
-    'c': { finger: 'middle', hand: 'left' },
-    'r': { finger: 'index', hand: 'left' },
-    'f': { finger: 'index', hand: 'left' },
-    'v': { finger: 'index', hand: 'left' },
-    't': { finger: 'index', hand: 'left' },
-    'g': { finger: 'index', hand: 'left' },
-    'b': { finger: 'index', hand: 'left' },
-
-    // Right hand
-    'y': { finger: 'index', hand: 'right' },
-    'h': { finger: 'index', hand: 'right' },
-    'n': { finger: 'index', hand: 'right' },
-    'u': { finger: 'index', hand: 'right' },
-    'j': { finger: 'index', hand: 'right' },
-    'm': { finger: 'index', hand: 'right' },
-    'i': { finger: 'middle', hand: 'right' },
-    'k': { finger: 'middle', hand: 'right' },
-    ',': { finger: 'middle', hand: 'right' },
-    'o': { finger: 'ring', hand: 'right' },
-    'l': { finger: 'ring', hand: 'right' },
-    '.': { finger: 'ring', hand: 'right' },
-    'p': { finger: 'pinky', hand: 'right' },
-    ';': { finger: 'pinky', hand: 'right' },
-    '/': { finger: 'pinky', hand: 'right' },
-};
-
-// Adjacent key pairs (for detecting adjacent key errors)
-const ADJACENT_PAIRS: string[][] = [
-    ['q', 'w'], ['w', 'e'], ['e', 'r'], ['r', 't'], ['t', 'y'], ['y', 'u'], ['u', 'i'], ['i', 'o'], ['o', 'p'],
-    ['a', 's'], ['s', 'd'], ['d', 'f'], ['f', 'g'], ['g', 'h'], ['h', 'j'], ['j', 'k'], ['k', 'l'],
-    ['z', 'x'], ['x', 'c'], ['c', 'v'], ['v', 'b'], ['b', 'n'], ['n', 'm'],
-    ['q', 'a'], ['a', 'z'], ['w', 's'], ['s', 'x'], ['e', 'd'], ['d', 'c'], ['r', 'f'], ['f', 'v'],
-    ['t', 'g'], ['g', 'b'], ['y', 'h'], ['h', 'n'], ['u', 'j'], ['j', 'm'], ['i', 'k'], ['o', 'l'],
-];
+import { errorExplanationEngine } from './error-explanation-engine';
+import { getKeyData } from '../keyboard-data';
+import { LayoutName } from '../keyboard-layouts';
 
 export class DiagnosticAnalyzer {
     /**
      * Analyze keystroke data from diagnostic test
      */
-    analyze(keystrokes: KeystrokeData[], durationMs: number): DiagnosticResult {
+    analyze(keystrokes: KeystrokeData[], durationMs: number, layoutName: LayoutName = 'qwerty'): DiagnosticResult {
         const totalKeystrokes = keystrokes.filter(k => !k.isBackspace).length;
         const correctKeystrokes = keystrokes.filter(k => k.correct && !k.isBackspace).length;
         const errors = totalKeystrokes - correctKeystrokes;
@@ -91,7 +42,7 @@ export class DiagnosticAnalyzer {
             : 0;
 
         // Analyze error types
-        const errorAnalysis = this.analyzeErrors(keystrokes);
+        const errorAnalysis = this.analyzeErrors(keystrokes, layoutName);
 
         // Analyze rhythm
         const rhythmAnalysis = this.analyzeRhythm(keystrokes);
@@ -103,7 +54,7 @@ export class DiagnosticAnalyzer {
         const weakKeys = this.identifyWeakKeys(keyPerformance);
 
         // Identify weak fingers
-        const weakFingers = this.identifyWeakFingers(keystrokes);
+        const weakFingers = this.identifyWeakFingers(keystrokes, layoutName);
 
         return {
             wpm,
@@ -126,7 +77,7 @@ export class DiagnosticAnalyzer {
         };
     }
 
-    private analyzeErrors(keystrokes: KeystrokeData[]) {
+    private analyzeErrors(keystrokes: KeystrokeData[], layoutName: LayoutName) {
         let adjacentKeyErrors = 0;
         let sameFingerErrors = 0;
         const weakHandErrors = { left: 0, right: 0 };
@@ -139,27 +90,25 @@ export class DiagnosticAnalyzer {
             const actual = ks.key.toLowerCase();
 
             // Check if adjacent key error
-            const isAdjacent = ADJACENT_PAIRS.some(pair =>
-                (pair[0] === expected && pair[1] === actual) ||
-                (pair[1] === expected && pair[0] === actual)
-            );
-            if (isAdjacent) adjacentKeyErrors++;
+            if (errorExplanationEngine.areAdjacent(expected, actual, layoutName)) {
+                adjacentKeyErrors++;
+            }
 
             // Check hand for error
-            const fingerInfo = FINGER_MAP[expected];
-            if (fingerInfo) {
-                weakHandErrors[fingerInfo.hand]++;
+            const fingerInfo = getKeyData(expected, layoutName)?.finger;
+            if (fingerInfo?.includes('left')) {
+                weakHandErrors.left++;
+            } else if (fingerInfo?.includes('right')) {
+                weakHandErrors.right++;
             }
 
             // Check same-finger error (consecutive keys with same finger)
             if (i > 0) {
                 const prevExpected = keystrokes[i - 1].expectedKey.toLowerCase();
-                const prevFinger = FINGER_MAP[prevExpected];
-                const currFinger = FINGER_MAP[expected];
+                const prevFinger = getKeyData(prevExpected, layoutName)?.finger;
+                const currFinger = getKeyData(expected, layoutName)?.finger;
 
-                if (prevFinger && currFinger &&
-                    prevFinger.finger === currFinger.finger &&
-                    prevFinger.hand === currFinger.hand) {
+                if (prevFinger && currFinger && prevFinger === currFinger) {
                     sameFingerErrors++;
                 }
             }
@@ -197,7 +146,7 @@ export class DiagnosticAnalyzer {
         return { averageLatency, latencyVariance, burstiness };
     }
 
-    private analyzeKeyPerformance(keystrokes: KeystrokeData[]) {
+    private analyzeKeyPerformance(keystrokes: KeystrokeData[]): Record<string, { correct: number; errors: number; avgLatency: number }> {
         const keyData = new Map<string, { correct: number; errors: number; latencies: number[] }>();
 
         for (let i = 0; i < keystrokes.length; i++) {
@@ -225,28 +174,28 @@ export class DiagnosticAnalyzer {
             }
         }
 
-        // Convert to final format
-        const keyPerformance = new Map<string, { correct: number; errors: number; avgLatency: number }>();
+        // Convert to Record for JSON serialization
+        const keyPerformance: Record<string, { correct: number; errors: number; avgLatency: number }> = {};
 
         keyData.forEach((data, key) => {
             const avgLatency = data.latencies.length > 0
                 ? data.latencies.reduce((a, b) => a + b, 0) / data.latencies.length
                 : 0;
 
-            keyPerformance.set(key, {
+            keyPerformance[key] = {
                 correct: data.correct,
                 errors: data.errors,
                 avgLatency,
-            });
+            };
         });
 
         return keyPerformance;
     }
 
-    private identifyWeakKeys(keyPerformance: Map<string, { correct: number; errors: number; avgLatency: number }>) {
+    private identifyWeakKeys(keyPerformance: Record<string, { correct: number; errors: number; avgLatency: number }>) {
         const weakKeys: string[] = [];
 
-        keyPerformance.forEach((data, key) => {
+        for (const [key, data] of Object.entries(keyPerformance)) {
             const total = data.correct + data.errors;
             if (total >= 3) { // Minimum attempts
                 const accuracy = data.correct / total;
@@ -254,12 +203,12 @@ export class DiagnosticAnalyzer {
                     weakKeys.push(key);
                 }
             }
-        });
+        }
 
         // Sort by worst performance
         weakKeys.sort((a, b) => {
-            const aData = keyPerformance.get(a)!;
-            const bData = keyPerformance.get(b)!;
+            const aData = keyPerformance[a];
+            const bData = keyPerformance[b];
             const aAcc = aData.correct / (aData.correct + aData.errors);
             const bAcc = bData.correct / (bData.correct + bData.errors);
             return aAcc - bAcc;
@@ -268,16 +217,14 @@ export class DiagnosticAnalyzer {
         return weakKeys;
     }
 
-    private identifyWeakFingers(keystrokes: KeystrokeData[]) {
+    private identifyWeakFingers(keystrokes: KeystrokeData[], layoutName: LayoutName) {
         const fingerErrors = new Map<string, { correct: number; errors: number }>();
 
         for (const ks of keystrokes) {
             if (ks.isBackspace) continue;
 
-            const fingerInfo = FINGER_MAP[ks.expectedKey.toLowerCase()];
-            if (!fingerInfo) continue;
-
-            const fingerKey = `${fingerInfo.hand}-${fingerInfo.finger}`;
+            const fingerKey = getKeyData(ks.expectedKey.toLowerCase(), layoutName)?.finger;
+            if (!fingerKey) continue;
 
             if (!fingerErrors.has(fingerKey)) {
                 fingerErrors.set(fingerKey, { correct: 0, errors: 0 });
