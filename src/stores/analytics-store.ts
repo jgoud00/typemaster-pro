@@ -106,6 +106,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
             // Update finger stats
             const fingerStats = { ...state.fingerStats };
             const finger = keystroke.finger;
+            fingerStats[finger] = fingerStats[finger] ?? { correct: 0, total: 0 };
             fingerStats[finger] = {
                 correct: fingerStats[finger].correct + (keystroke.isCorrect ? 1 : 0),
                 total: fingerStats[finger].total + 1,

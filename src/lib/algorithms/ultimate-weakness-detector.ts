@@ -260,6 +260,7 @@ export class UltimateWeaknessDetector {
             learningRate: this.calculateLearningRate(state),
             expectedPlateauDate: this.predictPlateauDate(state),
             transferLearningPotential: transferPotential,
+            fingerLoad: state.fingerLoad,
         };
     }
 

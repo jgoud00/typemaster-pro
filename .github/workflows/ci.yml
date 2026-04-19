@@ -26,9 +26,9 @@ jobs:
         with:
           node-version: '18'
       - run: npm ci
-      - name: Install Playwright
-        run: npx playwright install chromium
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
       - name: Build Next
         run: npx next build
-      - name: Run Playwright
+      - name: Run Playwright tests
         run: npx playwright test --project=chromium

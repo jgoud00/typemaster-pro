@@ -22,6 +22,14 @@ export function useSound() {
             setSettings(soundEngine.getSettings());
             setIsLoaded(true);
         });
+
+        // Cleanup audio on unmount
+        return () => {
+            import('tone').then(Tone => {
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+            });
+        };
     }, []);
 
     const play = useCallback((type: SoundType) => {

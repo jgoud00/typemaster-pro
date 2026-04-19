@@ -2,11 +2,12 @@
 
 import { useRef, useEffect, useState, memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useSettingsStore } from '@/stores/settings-store';
+import { HandOverlay } from '@/components/keyboard/HandOverlay';
 import { cn } from '@/lib/utils';
 import { useWeaknessDetectorWorker } from '@/hooks/use-weakness-detector-worker';
 import { WeaknessOverlay } from './WeaknessOverlay';
 import { useErrorExplanation } from './ErrorExplanationToast';
-import { useSettingsStore } from '@/stores/settings-store';
 import { TypingCharacter } from './typing-character';
 
 import { useTypingStore } from '@/stores/typing-store';
@@ -176,6 +177,12 @@ function TypingAreaComponent({
                 className="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-card/90 via-card/50 to-transparent pointer-events-none rounded-b-2xl"
                 aria-hidden="true"
             />
+            {/* Hand & Finger Fatigue Overlay */}
+            {settings.showKeyboardOverlay && (
+                <div className="mt-8">
+                    <HandOverlay />
+                </div>
+            )}
         </div>
     );
 }

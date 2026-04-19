@@ -96,4 +96,5 @@ export interface UltimateWeaknessResult {
     learningRate: number;
     expectedPlateauDate: Date | null;
     transferLearningPotential: Map<string, number>;
+    fingerLoad: number;
 }

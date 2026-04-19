@@ -147,7 +147,7 @@ export default function InfiniteModePage() {
                         {/* Preview of next sentence */}
                         <div className={`mt-8 pt-4 border-t border-white/5 opacity-50 blur-[0.5px] select-none pointer-events-none transition-all duration-500 ${isZen ? 'border-none opacity-20' : ''}`}>
                             <p className={`text-lg text-muted-foreground line-clamp-1 ${isZen ? 'text-center' : ''}`}>
-                                {sentenceQueue[1]}...
+                                {sentenceQueue[1] ?? ''}...
                             </p>
                         </div>
                     </div>

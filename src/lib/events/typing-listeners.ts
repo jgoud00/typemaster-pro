@@ -56,11 +56,11 @@ export function initializeTypingListeners() {
         if (!errorPredictorTimer) {
             errorPredictorTimer = setTimeout(() => {
                 errorPredictorTimer = null;
-                const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
-                idleCallback(() => {
-                    const typingState = useTypingStore.getState().state;
-                    const history = typingState.keystrokes.slice(-5).map(k => k.key);
-                    const upcomingChar = typingState.text[ctx.currentIndex + 1] || '';
+                    const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+                    idleCallback(() => {
+                        const typingState = useTypingStore.getState().state;
+                        const history = (typingState.keystrokes || []).slice(-5).map(k => k.key);
+                        const upcomingChar = (typingState.text || '')[ctx.currentIndex + 1] || '';
                     
                     const currentContext = {
                         currentChar: upcomingChar,
@@ -75,7 +75,9 @@ export function initializeTypingListeners() {
                     };
 
                     const prediction = errorPredictor.predict(currentContext);
-                    useTypingStore.getState().setRiskLevel(prediction.probability);
+                    if (prediction) {
+                        useTypingStore.getState().setRiskLevel(prediction.probability);
+                    }
                 });
             }, 500);
         }

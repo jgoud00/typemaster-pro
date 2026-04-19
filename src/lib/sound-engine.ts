@@ -228,6 +228,14 @@ class SoundEngine {
         this.errorSynth?.dispose();
         this.comboSynth?.dispose();
         this.completeSynth?.dispose();
+        
+        try {
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+        } catch (e) {
+            console.warn('Tone.Transport cleanup failed', e);
+        }
+        
         this.initialized = false;
     }
 }

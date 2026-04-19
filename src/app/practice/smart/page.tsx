@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -38,6 +38,8 @@ import {
 import { PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
+const DEFAULT_FALLBACK_TEXT = "The quick brown fox jumps over the lazy dog";
+
 export default function SmartPracticePage() {
     if (typeof window === 'undefined') return null;
     const router = useRouter();
@@ -47,6 +49,7 @@ export default function SmartPracticePage() {
     const { fireLessonComplete } = useConfetti();
 
     const [isTyping, setIsTyping] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [currentExercise, setCurrentExercise] = useState<{ text: string; focusKeys: string[]; reason: string } | null>(null);
     const [exercisesCompleted, setExercisesCompleted] = useState(0);
     const [sessionResults, setSessionResults] = useState<PerformanceRecord[]>([]);
@@ -71,30 +74,40 @@ export default function SmartPracticePage() {
     // Calculate difficulty level
     const difficultyLevel = calculateDifficultyLevel(avgWpm, avgAccuracy);
 
-    // Use genuinely integrated ultimate weakness detector
-    const weaknessResults = useMemo(() => ultimateWeaknessDetector.analyzeAll(), []);
-
     // Generate daily plan using the Personalization Engine
-    const dailyPlan = useMemo(() => personalizationEngine.generateDailyPlan(
-        weaknessResults,
-        avgWpm,
-        [] // No patterns for now
-    ), [weaknessResults, avgWpm]);
+    const [dailyPlan, setDailyPlan] = useState<any>(null);
 
-    const briefing = {
-        greeting: "Ready to level up?",
-        motivationalQuote: dailyPlan.motivationalMessage,
-        todaysFocus: dailyPlan.sessions.length > 0
-            ? [dailyPlan.sessions[0].lesson.focusKeys.join(', ')]
-            : ['General Practice'],
-        insights: generateDailyBriefing(weaknessReport, ngramReport, {
-            recentWpm: avgWpm,
-            recentAccuracy: avgAccuracy,
-            totalPracticeTime: Math.floor(progress.totalPracticeTime / 60),
-            streakDays: game.dailyStreak,
-            improvementTrend: 'stable',
-        }).insights
-    };
+    useEffect(() => {
+        const t = setTimeout(() => {
+            const weaknessResults = ultimateWeaknessDetector.analyzeAll();
+            const plan = personalizationEngine.generateDailyPlan(
+                weaknessResults,
+                avgWpm,
+                []
+            );
+            setDailyPlan(plan);
+            setIsLoading(false);
+        }, 100);
+        return () => clearTimeout(t);
+    }, [avgWpm]);
+
+    const briefing = useMemo(() => {
+        if (!dailyPlan) return null;
+        return {
+            greeting: "Ready to level up?",
+            motivationalQuote: dailyPlan.motivationalMessage,
+            todaysFocus: dailyPlan.sessions?.length > 0
+                ? [dailyPlan.sessions[0].lesson.focusKeys.join(', ')]
+                : ['General Practice'],
+            insights: generateDailyBriefing(weaknessReport, ngramReport, {
+                recentWpm: avgWpm,
+                recentAccuracy: avgAccuracy,
+                totalPracticeTime: Math.floor(progress.totalPracticeTime / 60),
+                streakDays: game.dailyStreak,
+                improvementTrend: 'stable',
+            }).insights
+        };
+    }, [dailyPlan, weaknessReport, ngramReport, avgWpm, avgAccuracy, progress.totalPracticeTime, game.dailyStreak]);
 
     // Generate new exercise from the daily plan's lesson
     const generateExercise = useCallback(() => {
@@ -104,7 +117,7 @@ export default function SmartPracticePage() {
             const exercise = lesson.exercises[exercisesCompleted % lesson.exercises.length];
 
             setCurrentExercise({
-                text: exercise.text,
+                text: exercise.text || DEFAULT_FALLBACK_TEXT,
                 focusKeys: lesson.focusKeys,
                 reason: lesson.description
             });
@@ -171,6 +184,19 @@ export default function SmartPracticePage() {
     const sessionAvgAcc = sessionResults.length > 0
         ? (sessionResults.reduce((sum, r) => sum + r.accuracy, 0) / sessionResults.length).toFixed(1)
         : '0';
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+                    <p className="text-muted-foreground animate-pulse">Analyzing your typing DNA...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!dailyPlan || !briefing) return null;
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">

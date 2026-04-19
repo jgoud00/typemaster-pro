@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { AchievementToast } from "@/components/gamification/achievement-toast";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PWARegistry } from "@/components/pwa-registry";
+import { LogRocketInitializer } from "@/components/monitoring/logrocket-initializer";
 import "./globals.css";
 
 const inter = Inter({
@@ -46,6 +47,7 @@ export default function RootLayout({
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
+        <LogRocketInitializer />
         <AchievementToast />
         <Toaster
           position="bottom-right"
@@ -56,6 +58,20 @@ export default function RootLayout({
           }}
         />
         <PWARegistry />
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.addEventListener('error', (e) => {
+                  console.error('RUNTIME ERROR:', e.message, e.filename, e.lineno);
+                });
+                window.addEventListener('unhandledrejection', (e) => {
+                  console.error('UNHANDLED PROMISE:', e.reason);
+                });
+              `,
+            }}
+          />
+        )}
       </body>
     </html>
   );

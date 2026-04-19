@@ -26,6 +26,7 @@ import { PersonalRecordsDashboard } from '@/components/stats/PersonalRecordsDash
 import { FatigueCurveGraph } from '@/components/analytics/FatigueCurveGraph';
 import { generateProgressPDF } from '@/lib/pdf-export';
 import { generateWeeklySummary } from '@/lib/algorithms/ai-summary-generator';
+import { FingerHeatmap } from '@/components/keyboard/FingerHeatmap';
 
 // Lazy load Recharts components
 const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceSection'), {
@@ -241,12 +242,16 @@ export default function StatsPage() {
 
                 {/* Finger Fatigue & Health */}
                 <section>
-                    <h2 className="text-lg font-semibold mb-4">Real-time Performance Dynamics</h2>
-                    <div className="space-y-4">
-                        <Card className="bg-black/20 border-white/10">
+                    <h2 className="text-lg font-semibold mb-4">Physiological & Biometric Insights</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <FingerHeatmap />
+                        <Card className="bg-black/20 border-white/10 shadow-2xl">
                             <CardHeader>
-                                <CardTitle>Session Fatigue Curve</CardTitle>
-                                <CardDescription>Tracking your WPM and Accuracy decay over the current typing session</CardDescription>
+                                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-primary" />
+                                    Session Fatigue Curve
+                                </CardTitle>
+                                <CardDescription>Tracking WPM and Accuracy decay over time</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <FatigueCurveGraph />

@@ -13,6 +13,7 @@ export interface SettingsState {
     theme: 'light' | 'dark' | 'system';
     showVirtualKeyboard: boolean;
     showFingerHints: boolean;
+    showKeyboardOverlay: boolean;
 
     // Typing
     smoothCaret: boolean;
@@ -49,6 +50,7 @@ const defaultSettings: SettingsState = {
     theme: 'dark',
     showVirtualKeyboard: true,
     showFingerHints: true,
+    showKeyboardOverlay: true,
 
     // Typing
     smoothCaret: true,
