@@ -1,10 +1,10 @@
+import '@/lib/logrocket-setup';
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { AchievementToast } from "@/components/gamification/achievement-toast";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PWARegistry } from "@/components/pwa-registry";
-import { LogRocketInitializer } from "@/components/monitoring/logrocket-initializer";
 import "./globals.css";
 
 const inter = Inter({
@@ -47,7 +47,6 @@ export default function RootLayout({
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
-        <LogRocketInitializer />
         <AchievementToast />
         <Toaster
           position="bottom-right"
