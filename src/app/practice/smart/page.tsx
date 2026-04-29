@@ -41,12 +41,14 @@ import toast from 'react-hot-toast';
 const DEFAULT_FALLBACK_TEXT = "The quick brown fox jumps over the lazy dog";
 
 export default function SmartPracticePage() {
-    if (typeof window === 'undefined') return null;
     const router = useRouter();
     const { progress } = useProgressStore();
     const { game } = useGameStore();
     const { keyStats } = useAnalyticsStore();
     const { fireLessonComplete } = useConfetti();
+
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => setIsMounted(true), []);
 
     const [isTyping, setIsTyping] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -56,13 +58,16 @@ export default function SmartPracticePage() {
     const completionHandledRef = useRef(false);
 
     // Calculate per-key errors from analytics store
-    const perKeyErrors = new Map<string, { attempts: number; errors: number }>();
-    Object.entries(keyStats).forEach(([key, stat]) => {
-        perKeyErrors.set(key, {
-            attempts: stat.totalAttempts,
-            errors: stat.errors
+    const perKeyErrors = useMemo(() => {
+        const errors = new Map<string, { attempts: number; errors: number }>();
+        Object.entries(keyStats).forEach(([key, stat]) => {
+            errors.set(key, {
+                attempts: stat.totalAttempts,
+                errors: stat.errors
+            });
         });
-    });
+        return errors;
+    }, [keyStats]);
 
     const avgWpm = progress.personalBests.wpm || 30;
     const avgAccuracy = progress.personalBests.accuracy || 85;
@@ -184,6 +189,8 @@ export default function SmartPracticePage() {
     const sessionAvgAcc = sessionResults.length > 0
         ? (sessionResults.reduce((sum, r) => sum + r.accuracy, 0) / sessionResults.length).toFixed(1)
         : '0';
+
+    if (!isMounted) return null;
 
     if (isLoading) {
         return (

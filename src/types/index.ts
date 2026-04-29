@@ -94,6 +94,8 @@ export interface TypingState {
   keystrokes: KeystrokeEvent[];
   isComplete: boolean;
   isPaused: boolean;
+  pausedMs: number;
+  pauseStart: number | null;
   riskLevel: number; // 0-1 probability of error
 }
 
@@ -153,6 +155,10 @@ export interface PerformanceRecord {
   maxCombo: number;
   score: number;
   timestamp: number;
+  // Anti-cheat integrity
+  cheatScore?: number;       // 0 = clean, 100 = certain cheat
+  valid?: boolean;           // true if cheatScore < threshold
+  integrityHash?: string;    // FNV-1a hash for tamper detection
 }
 
 export interface LessonScore {
@@ -177,6 +183,7 @@ export interface UserProgress {
   unlockedAchievements: string[];
   deviceId: string;
   vectorClock: Record<string, number>;
+  integrityHash?: string;
 }
 
 // ============= Theme =============

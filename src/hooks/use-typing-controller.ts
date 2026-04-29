@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { predictNextChars } from '@/lib/algorithms/next-word-predictor';
 import { useWeaknessDetectorWorker } from '@/hooks/use-weakness-detector-worker';
 import { useTypingStore } from '@/stores/typing-store';
+import { useGameStore } from '@/stores/game-store';
 import { typingBus } from '@/lib/events/typing-bus';
 import { initializeTypingListeners } from '@/lib/events/typing-listeners';
+import { antiCheatCollector, analyzeSession } from '@/lib/anti-cheat';
 import { PracticeMode, PerformanceRecord } from '@/types';
 
 // Run once safely
@@ -61,14 +63,62 @@ export function useTypingController({
         return () => typingBus.off('COMBO_ACHIEVED', handler);
     }, [onComboMilestone]);
 
-    // Initialize
+    // Initialize — only reset store when text is a genuinely new session
+    const prevTextRef = useRef('');
     useEffect(() => {
-        setText(text);
-        completionStateRef.current = { completed: false, reason: null };
+        // If new text starts with old text, it's an append — update store text without resetting progress
+        if (prevTextRef.current && text.startsWith(prevTextRef.current) && text !== prevTextRef.current) {
+            // Just update the text in store without resetting state
+            const store = useTypingStore.getState();
+            useTypingStore.setState({
+                state: { ...store.state, text },
+                activeKey: store.state.currentIndex < text.length ? text[store.state.currentIndex] : null,
+            });
+        } else {
+            setText(text);
+            completionStateRef.current = { completed: false, reason: null };
+        }
+        prevTextRef.current = text;
         return () => {
             reset();
         };
     }, [text, setText, reset]);
+
+    // Anti-cheat: Block paste, drop, and autofill
+    useEffect(() => {
+        const blockPaste = (e: ClipboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            antiCheatCollector.recordPasteAttempt();
+        };
+        const blockDrop = (e: DragEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            antiCheatCollector.recordDropAttempt();
+        };
+        window.addEventListener('paste', blockPaste);
+        window.addEventListener('drop', blockDrop);
+        return () => {
+            window.removeEventListener('paste', blockPaste);
+            window.removeEventListener('drop', blockDrop);
+        };
+    }, []);
+
+    // Bug #6: Pause on tab switch
+    useEffect(() => {
+        const handler = () => {
+            const s = useTypingStore.getState();
+            if (document.hidden && s.state.startTime && !s.state.isComplete && !s.state.isPaused) {
+                useTypingStore.getState().pause();
+            } else if (!document.hidden && s.state.isPaused) {
+                useTypingStore.getState().resume();
+            }
+        };
+        document.addEventListener('visibilitychange', handler);
+        return () => document.removeEventListener('visibilitychange', handler);
+    }, []);
 
     // Handle keyboard events
     useEffect(() => {
@@ -82,31 +132,51 @@ export function useTypingController({
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
             if (document.activeElement?.closest('[role="dialog"]')) return;
 
+            // Fix: Timing determinism + Anti-cheat (isTrusted + Jitter)
+            const s = useTypingStore.getState();
+            if (s.state.isComplete || s.state.isPaused || document.hidden || !e.isTrusted) return;
+            if (timeLimitSeconds && s.state.startTime) {
+                const pauseAdj = s.state.pausedMs + (s.state.pauseStart ? Date.now() - s.state.pauseStart : 0);
+                if ((Date.now() - s.state.startTime - pauseAdj) / 1000 >= timeLimitSeconds) return;
+            }
+            
+            const lastKey = s.state.keystrokes[s.state.keystrokes.length - 1];
+            if (lastKey) {
+                const delta = Date.now() - lastKey.timestamp;
+                if (delta < 10) return; // Block <10ms keys
+            }
+
             if (e.key.length === 1) {
                 e.preventDefault();
+
+                // Anti-cheat: record keystroke timing + trust
+                antiCheatCollector.recordKeystroke(Date.now(), e.isTrusted);
 
                 // 1. Process local state
                 const keystroke = handleKeystroke(e.key);
                 
-                // 2. Dispatch to decoupled systems
+                // 2. Dispatch to decoupled systems — Bug #5: read fresh state from store
                 if (keystroke) {
-                    // Update Machine Learning on background thread
+                    const freshState = useTypingStore.getState();
+                    const freshIndex = freshState.state.currentIndex;
+                    const freshText = freshState.state.text;
+
                     updateKey(e.key, keystroke.isCorrect, keystroke.hesitationMs, {
                         timestamp: keystroke.timestamp,
-                        sessionPosition: currentText.length > 0 ? currentIndex / currentText.length : 0,
+                        sessionPosition: freshText.length > 0 ? freshIndex / freshText.length : 0,
                         recentErrors: 0,
                     }).catch(console.error);
 
                     typingBus.emit('KEYSTROKE_REGISTERED', {
                         key: e.key,
-                        expectedChar: currentText[currentIndex] || '',
+                        expectedChar: keystroke.expected,
                         isCorrect: keystroke.isCorrect,
                         timestamp: keystroke.timestamp,
                         delayFromLastKey: keystroke.hesitationMs,
-                        wpm: getWpm(),
-                        accuracy: getAccuracy(),
-                        textLength: currentText.length,
-                        currentIndex: currentIndex
+                        wpm: freshState.getWpm(),
+                        accuracy: freshState.getAccuracy(),
+                        textLength: freshText.length,
+                        currentIndex: freshIndex
                     });
                 }
             }
@@ -114,7 +184,50 @@ export function useTypingController({
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeystroke, currentText, currentIndex, getWpm, getAccuracy]);
+    }, [handleKeystroke, timeLimitSeconds]);
+
+    // Bug #10: Read all values from store directly to avoid stale closures
+    // Bug #13: Read maxCombo from game store
+    const completeSession = useCallback((reason: 'text' | 'time') => {
+        if (completionStateRef.current.completed) return;
+
+        completionStateRef.current = { completed: true, reason };
+
+        const store = useTypingStore.getState();
+        const wpm = store.getWpm();
+        const accuracy = store.getAccuracy();
+        const duration = store.getElapsedTime();
+        const freshIndex = store.state.currentIndex;
+        const freshErrors = store.state.errorIndices.length;
+        const maxCombo = useGameStore.getState().game.maxCombo;
+
+        // Anti-cheat: analyze session integrity
+        const integrity = analyzeSession(antiCheatCollector, wpm, accuracy);
+
+        const record: PerformanceRecord = {
+            id: crypto.randomUUID(),
+            lessonId,
+            mode,
+            wpm,
+            accuracy,
+            duration,
+            totalChars: freshIndex,
+            errors: freshErrors,
+            maxCombo,
+            score: 0,
+            timestamp: Date.now(),
+            cheatScore: integrity.cheatScore,
+            valid: integrity.valid,
+            integrityHash: integrity.hash,
+        };
+
+        if (integrity.flags.length > 0) {
+            console.warn('[Anti-Cheat]', integrity.flags.map(f => f.reason).join('; '));
+        }
+
+        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid });
+        onComplete?.(record);
+    }, [lessonId, mode, onComplete]);
 
     // Time limit check
     useEffect(() => {
@@ -131,44 +244,18 @@ export function useTypingController({
         };
         rafIdRef.current = requestAnimationFrame(checkTimeLimit);
         return () => { if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current); };
-    }, [startTime, isComplete, timeLimitSeconds, getElapsedTime]);
+    }, [startTime, isComplete, timeLimitSeconds, getElapsedTime, completeSession]);
 
     // Text completion check
     useEffect(() => {
         if (isComplete && !completionStateRef.current.completed) {
             completeSession('text');
         }
-    }, [isComplete]);
-
-    const completeSession = useCallback((reason: 'text' | 'time') => {
-        if (completionStateRef.current.completed) return;
-
-        completionStateRef.current = { completed: true, reason };
-
-        const wpm = getWpm();
-        const accuracy = getAccuracy();
-        const duration = getElapsedTime();
-
-        const record: PerformanceRecord = {
-            id: crypto.randomUUID(),
-            lessonId,
-            mode,
-            wpm,
-            accuracy,
-            duration,
-            totalChars: currentIndex,
-            errors: errorIndices.length,
-            maxCombo: 0, // Calculated dynamically by Gamification Engine when rendering
-            score: 0,    // Calculated dynamically by Gamification Engine when rendering
-            timestamp: Date.now(),
-        };
-
-        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: errorIndices.length });
-        onComplete?.(record);
-    }, [getWpm, getAccuracy, getElapsedTime, currentIndex, errorIndices.length, lessonId, mode, onComplete]);
+    }, [isComplete, completeSession]);
 
     const handleReset = useCallback(() => {
         reset();
+        antiCheatCollector.reset();
         completionStateRef.current = { completed: false, reason: null };
     }, [reset]);
 

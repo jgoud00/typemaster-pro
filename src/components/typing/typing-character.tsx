@@ -31,45 +31,38 @@ export const TypingCharacter = memo(function TypingCharacter({
     ref
 }: TypingCharacterProps) {
     return (
-        <span
+        <motion.span
             ref={isCurrent ? ref : undefined}
             aria-current={isCurrent ? 'location' : undefined}
             aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
+            animate={
+                isError && isCurrent ? { x: [-2, 2, -2, 2, 0], color: '#f87171' } :
+                isTyped && !isError ? { scale: [1, 1.05, 1] } : {}
+            }
+            transition={{ duration: 0.15 }}
             className={cn(
                 'relative inline-block',
-                'transition-colors duration-75',
-                // Typed correctly - bright green
-                isTyped && !isError && 'text-green-400',
-                // Typed with error - green but with underline for colorblind support
-                isTyped && isError && 'text-green-400 underline decoration-wavy decoration-amber-500',
-                // Current position - highlighted with border for colorblind support
-                isCurrent && !isError && 'text-foreground bg-primary/10 border-b-2 border-primary',
-                // Current position with previous errors
-                isCurrent && isError && 'bg-red-500/20 text-foreground underline decoration-wavy decoration-red-500',
+                'transition-colors duration-150',
+                // Typed correctly - crisp white/primary (old text)
+                isTyped && !isError && 'text-primary opacity-60 drop-shadow-[0_0_2px_rgba(255,255,255,0.1)]',
+                // Typed with error - softer red
+                isTyped && isError && 'text-red-400 opacity-60',
+                // Current position
+                isCurrent && !isError && 'text-primary opacity-100',
+                isCurrent && isError && 'text-red-500 opacity-100',
                 // Predicted error - amber glow
                 !isTyped && isPredictedError && 'text-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]',
-                // Not yet typed - muted
-                !isTyped && !isCurrent && !isPredictedError && 'text-muted-foreground/60',
+                // Not yet typed - subtle dim
+                !isTyped && !isCurrent && !isPredictedError && 'text-muted-foreground/30',
             )}
         >
-            {/* Cursor - Configurable Styles */}
+            {/* The Cursor Element (Smooth animated caret) */}
             {isCurrent && (
-                <motion.span
-                    className={cn(
-                        "absolute z-10 bg-primary/90",
-                        cursorStyle === 'line' && "left-0 top-[10%] w-[2px] h-[80%] rounded-full",
-                        cursorStyle === 'block' && "inset-0 opacity-30 animate-pulse",
-                        cursorStyle === 'underline' && "left-0 right-0 bottom-0 h-[3px] rounded-full",
-                        cursorStyle === 'bar' && "left-0 top-0 w-[4px] h-full rounded-full"
-                    )}
-                    animate={cursorStyle !== 'block' ? { opacity: [1, 0, 1] } : undefined}
-                    transition={{
-                        duration: 0.8,
-                        repeat: Infinity,
-                        ease: 'easeInOut'
-                    }}
-                    aria-hidden="true"
+                <motion.div
                     layoutId={smoothCaret ? "caret" : undefined}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    className="absolute left-0 top-[10%] w-[3px] h-[80%] bg-primary rounded-sm shadow-[0_0_8px_var(--color-primary)] opacity-90 animate-pulse"
+                    style={{ animationDuration: '1.2s' }}
                 />
             )}
 
@@ -84,14 +77,6 @@ export const TypingCharacter = memo(function TypingCharacter({
             {/* Character */}
             {char === ' ' ? '\u00A0' : char}
 
-            {/* Error underline for current position */}
-            {isCurrent && isError && (
-                <span
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 rounded-full"
-                    aria-hidden="true"
-                />
-            )}
-
             {/* Predictive Difficulty Indicator */}
             {!isTyped && !isError && (
                 <CharacterDifficultyIndicator
@@ -99,7 +84,7 @@ export const TypingCharacter = memo(function TypingCharacter({
                     isNextChar={isCurrent || isNext}
                 />
             )}
-        </span>
+        </motion.span>
     );
 }, (prevProps, nextProps) => {
     // Custom comparison function for performance

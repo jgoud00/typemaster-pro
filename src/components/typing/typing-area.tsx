@@ -19,6 +19,18 @@ interface TypingAreaProps {
     readonly className?: string;
 }
 
+// Isolated sub-component: subscribes to wpm/accuracy/combo without re-rendering parent
+function SrOnlyStats({ progress }: { progress: number }) {
+    const wpm = useTypingStore(s => s.getWpm());
+    const accuracy = useTypingStore(s => s.getAccuracy());
+    const combo = useGameStore(s => s.game.combo);
+    return (
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {`Speed: ${wpm} words per minute. Accuracy: ${accuracy} percent. Combo: ${combo}. Progress: ${progress} percent complete.`}
+        </div>
+    );
+}
+
 function TypingAreaComponent({
     ghostIndex,
     predictedMistakeIndices = [],
@@ -29,17 +41,15 @@ function TypingAreaComponent({
     const { settings } = useSettingsStore();
     const { cursorStyle } = settings;
 
-    // Connect to stores
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
+
     // Connect to stores
     const text = useTypingStore(s => s.state.text);
     const currentIndex = useTypingStore(s => s.state.currentIndex);
     const errorIndices = useTypingStore(s => s.state.errorIndices);
-    const getWpm = useTypingStore(s => s.getWpm);
-    const getAccuracy = useTypingStore(s => s.getAccuracy);
-    const wpm = getWpm();
-    const accuracy = getAccuracy();
-
-    const combo = useGameStore(s => s.game.combo);
 
     // Auto-scroll to keep cursor visible
     useEffect(() => {
@@ -91,7 +101,39 @@ function TypingAreaComponent({
     const errorSet = useMemo(() => new Set(errorIndices), [errorIndices]);
     const predictionSet = useMemo(() => new Set(predictedMistakeIndices), [predictedMistakeIndices]);
     const progress = text.length > 0 ? Math.round((currentIndex / text.length) * 100) : 0;
-    const charsArray = useMemo(() => text.split(''), [text]);
+    
+    // Group characters into words for focus effect
+    const words = useMemo(() => {
+        const result = [];
+        let currentWord = [];
+        for (let i = 0; i < text.length; i++) {
+            currentWord.push({ char: text[i], index: i });
+            if (text[i] === ' ') {
+                result.push(currentWord);
+                currentWord = [];
+            }
+        }
+        if (currentWord.length > 0) result.push(currentWord);
+        return result;
+    }, [text]);
+
+    const currentWordIdx = useMemo(() => {
+        return text.slice(0, currentIndex).split(' ').length - 1;
+    }, [text, currentIndex]);
+    
+    // Calculate line index approximately based on word index for smooth scrolling
+    // (Assuming ~10 words per line on average)
+    const currentLineIndex = Math.floor(currentWordIdx / 10);
+
+    if (!hasMounted) {
+        return (
+            <div className={cn('relative bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/15 min-h-[180px]', className)}>
+                <div className="flex items-center justify-center h-full">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -113,15 +155,8 @@ function TypingAreaComponent({
                 errorProbabilities={errorProbabilities}
             />
 
-            {/* Screen reader live region for stats announcements */}
-            <div
-                className="sr-only"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-            >
-                {`Speed: ${wpm} words per minute. Accuracy: ${accuracy} percent. Combo: ${combo}. Progress: ${progress} percent complete.`}
-            </div>
+            {/* Screen reader live region — isolated to avoid re-rendering char grid */}
+            <SrOnlyStats progress={progress} />
 
             {/* Hidden instructions for screen readers */}
             <p id="typing-instructions" className="sr-only">
@@ -136,40 +171,50 @@ function TypingAreaComponent({
                 aria-describedby="typing-instructions"
                 aria-readonly="true"
                 className={cn(
-                    'p-8 md:p-10',
-                    'min-h-[180px] max-h-[280px] overflow-y-auto',
-                    'font-mono text-xl md:text-2xl leading-relaxed tracking-wide',
-                    'selection:bg-primary/20'
+                    'p-4 md:p-8',
+                    'min-h-[180px] max-h-[280px] overflow-hidden',
+                    'text-[1.8rem] leading-[1.7] font-medium tracking-[0.05em] font-mono focus:outline-none selection:bg-transparent'
                 )}
             >
-                <div className="text-wrap wrap-break-word">
-                    {charsArray.map((char, index) => {
-                        const isTyped = index < currentIndex;
-                        const isCurrent = index === currentIndex;
-                        const isError = errorSet.has(index);
-                        const isPredictedError = predictionSet.has(index);
-                        const isNext = index === currentIndex + 1;
-                        const isGhost = ghostIndex !== undefined && index === Math.floor(ghostIndex);
-                        const errorProb = errorProbabilities.get(char.toLowerCase()) || 0;
+                <motion.div 
+                    className="text-wrap wrap-break-word flex flex-wrap gap-x-0 gap-y-2"
+                    animate={{ y: -(currentLineIndex * 40) }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                >
+                    {words.map((word, wIdx) => (
+                        <div key={wIdx} className={cn(
+                            "inline-block whitespace-nowrap transition-opacity duration-200",
+                            wIdx === currentWordIdx ? "opacity-100" : "opacity-40"
+                        )}>
+                            {word.map(({ char, index }) => {
+                                const isTyped = index < currentIndex;
+                                const isCurrent = index === currentIndex;
+                                const isError = errorSet.has(index);
+                                const isPredictedError = predictionSet.has(index);
+                                const isNext = index === currentIndex + 1;
+                                const isGhost = ghostIndex !== undefined && index === Math.floor(ghostIndex);
+                                const errorProb = errorProbabilities.get(char.toLowerCase()) || 0;
 
-                        return (
-                            <TypingCharacter
-                                key={index}
-                                char={char}
-                                isTyped={isTyped}
-                                isCurrent={isCurrent}
-                                isError={isError}
-                                isPredictedError={isPredictedError}
-                                isNext={isNext}
-                                isGhost={isGhost}
-                                errorProb={errorProb}
-                                cursorStyle={cursorStyle}
-                                smoothCaret={settings.smoothCaret}
-                                ref={cursorRef}
-                            />
-                        );
-                    })}
-                </div>
+                                return (
+                                    <TypingCharacter
+                                        key={index}
+                                        char={char}
+                                        isTyped={isTyped}
+                                        isCurrent={isCurrent}
+                                        isError={isError}
+                                        isPredictedError={isPredictedError}
+                                        isNext={isNext}
+                                        isGhost={isGhost}
+                                        errorProb={errorProb}
+                                        cursorStyle={cursorStyle}
+                                        smoothCaret={settings.smoothCaret}
+                                        ref={cursorRef}
+                                    />
+                                );
+                            })}
+                        </div>
+                    ))}
+                </motion.div>
             </div>
 
             {/* Gradient fade at bottom for scroll indication */}

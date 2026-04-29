@@ -1,60 +1,63 @@
-'use client';
-
 /**
- * GDPR Data Export Utility
+ * GDPR Data Export Tool
  * 
- * Provides comprehensive data export and deletion functionality
- * to comply with GDPR requirements (Right to Access, Right to Erasure).
+ * Implements Right to Portability and Right to Erasure
  */
 
-// All localStorage keys used by Aloo Type
-const STORAGE_KEYS = [
-    'typing-progress',           // User progress, lesson scores
-    'settings-store',            // User preferences
-    'achievement-store',         // Unlocked achievements
-    'analytics-store',           // Performance analytics
-    'diagnostic-store',          // Diagnostic test results
-    'ngram-analytics',           // N-gram typing patterns
-    'advanced-ngram-analytics',  // Advanced pattern analysis
-    'skill-tree',                // Skill progression
-    'sound-settings',            // Audio preferences
-    'personalization-profile',   // AI personalization
-    'error-prediction-model',    // Error prediction data
-    'ultimate-weakness-detector', // Weakness analysis
-] as const;
-
 export interface GDPRExportData {
-    exportVersion: '2.0';
+    version: string;
     exportDate: string;
-    applicationName: 'Aloo Type';
     dataCategories: {
         name: string;
         description: string;
         data: unknown;
     }[];
-    metadata: {
-        totalKeys: number;
-        exportSizeBytes: number;
-    };
+}
+
+// All localStorage keys used by Aloo Type
+const STORAGE_KEYS = [
+    'typing-progress',
+    'typing-settings',
+    'typing-game-state',
+    'typing-analytics',
+    'typing-ngram-analysis',
+    'typing-achievements',
+    'personal-records',
+];
+
+function getKeyDescription(key: string): string {
+    switch (key) {
+        case 'typing-progress': return 'Lesson completion and history';
+        case 'typing-settings': return 'App preferences and configurations';
+        case 'typing-game-state': return 'Current session and streak data';
+        case 'typing-analytics': return 'Detailed keystroke performance metrics';
+        case 'typing-ngram-analysis': return 'N-gram sequence performance data';
+        case 'typing-achievements': return 'Unlocked badges and achievements';
+        case 'personal-records': return 'Best WPM and accuracy records';
+        default: return 'Application data';
+    }
 }
 
 /**
  * Export ALL user data for GDPR compliance
  */
-export function exportAllUserData(): GDPRExportData {
-    const categories: GDPRExportData['dataCategories'] = [];
+export function exportAllUserData(): GDPRExportData | null {
+    const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+    const safeStorage = (globalThis as any).localStorage;
+    if (!isMainThread || !safeStorage) return null;
+
+    const categories: { name: string; description: string; data: unknown }[] = [];
 
     for (const key of STORAGE_KEYS) {
         try {
-            const raw = localStorage.getItem(key);
+            const raw = safeStorage.getItem(key);
             if (raw) {
                 let data: unknown;
                 try {
                     data = JSON.parse(raw);
                 } catch {
-                    data = raw; // Store as-is if not JSON
+                    data = raw;
                 }
-
                 categories.push({
                     name: key,
                     description: getKeyDescription(key),
@@ -66,39 +69,29 @@ export function exportAllUserData(): GDPRExportData {
         }
     }
 
-    const exportData: GDPRExportData = {
-        exportVersion: '2.0',
+    return {
+        version: '1.0',
         exportDate: new Date().toISOString(),
-        applicationName: 'Aloo Type',
         dataCategories: categories,
-        metadata: {
-            totalKeys: categories.length,
-            exportSizeBytes: 0, // Will be calculated below
-        },
     };
-
-    const jsonString = JSON.stringify(exportData, null, 2);
-    exportData.metadata.exportSizeBytes = new Blob([jsonString]).size;
-
-    return exportData;
 }
 
 /**
- * Download user data as JSON file
+ * Triggers a download of all user data as a JSON file
  */
 export function downloadUserData(): void {
     const data = exportAllUserData();
-    const jsonString = JSON.stringify(data, null, 2);
+    if (!data) return;
 
-    const blob = new Blob([jsonString], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+    });
+
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
-    a.download = `typemaster-pro-gdpr-export-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
+    a.download = `typemaster-pro-privacy-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
 
@@ -106,9 +99,13 @@ export function downloadUserData(): void {
  * Delete ALL user data (Right to Erasure)
  */
 export function deleteAllUserData(): void {
+    const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+    const safeStorage = (globalThis as any).localStorage;
+    if (!isMainThread || !safeStorage) return;
+
     for (const key of STORAGE_KEYS) {
         try {
-            localStorage.removeItem(key);
+            safeStorage.removeItem(key);
         } catch (e) {
             console.warn(`Failed to delete ${key}:`, e);
         }
@@ -120,39 +117,24 @@ export function deleteAllUserData(): void {
  */
 export function getStoredDataSummary(): { key: string; size: number; description: string }[] {
     const summary: { key: string; size: number; description: string }[] = [];
+    const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+    const safeStorage = (globalThis as any).localStorage;
+    if (!isMainThread || !safeStorage) return summary;
 
     for (const key of STORAGE_KEYS) {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-            summary.push({
-                key,
-                size: new Blob([raw]).size,
-                description: getKeyDescription(key),
-            });
+        try {
+            const raw = safeStorage.getItem(key);
+            if (raw) {
+                summary.push({
+                    key,
+                    size: new Blob([raw]).size,
+                    description: getKeyDescription(key),
+                });
+            }
+        } catch {
+            // Ignore individual key errors
         }
     }
 
     return summary;
-}
-
-/**
- * Human-readable descriptions for each data category
- */
-function getKeyDescription(key: string): string {
-    const descriptions: Record<string, string> = {
-        'typing-progress': 'Lesson completion, WPM scores, accuracy, and practice statistics',
-        'settings-store': 'Sound, display, and keyboard preferences',
-        'achievement-store': 'Unlocked achievements and badges',
-        'analytics-store': 'Performance trends and session analytics',
-        'diagnostic-store': 'Initial typing assessment results',
-        'ngram-analytics': 'Character sequence timing patterns',
-        'advanced-ngram-analytics': 'Advanced typing pattern analysis',
-        'skill-tree': 'Skill progression and mastery levels',
-        'sound-settings': 'Audio volume and sound effect preferences',
-        'personalization-profile': 'AI-driven learning personalization',
-        'error-prediction-model': 'Predictive model for typing errors',
-        'ultimate-weakness-detector': 'Bayesian analysis of typing weaknesses',
-    };
-
-    return descriptions[key] ?? 'Application data';
 }

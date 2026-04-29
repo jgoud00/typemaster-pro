@@ -90,15 +90,20 @@ export function initializeTypingListeners() {
         
         soundEngine.play('complete');
         
-        progress.updatePersonalBests(stats.wpm, stats.accuracy, gameState.game.maxCombo);
-        progress.addKeystrokes(stats.wpm * 5); // approximate
+        // Anti-cheat: Only update leaderboards and personal bests if the session is valid
+        if (stats.valid !== false) {
+            progress.updatePersonalBests(stats.wpm, stats.accuracy, gameState.game.maxCombo);
+            
+            useAchievementStore.getState().checkAchievements(progress.progress, gameState.game, {
+                type: 'session_end',
+                wpm: stats.wpm,
+                accuracy: stats.accuracy,
+                duration: 60, // approximate
+            });
+        }
         
-        useAchievementStore.getState().checkAchievements(progress.progress, gameState.game, {
-            type: 'session_end',
-            wpm: stats.wpm,
-            accuracy: stats.accuracy,
-            duration: 60, // approximate
-        });
+        // Keystrokes accumulate regardless to reflect practice effort
+        progress.addKeystrokes(stats.wpm * 5); // approximate
     });
 
     // 3. Combo Processors

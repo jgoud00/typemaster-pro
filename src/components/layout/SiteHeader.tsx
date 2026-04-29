@@ -43,7 +43,7 @@ function SiteHeaderComponent() {
                 </Link>
 
                 {/* Navigation */}
-                <div className="flex items-center gap-2 md:gap-4">
+                <nav className="flex items-center gap-2 md:gap-4" aria-label="Main Navigation">
 
                     {/* Streak Badge (Always visible) */}
                     {game.dailyStreak > 0 && (
@@ -73,6 +73,7 @@ function SiteHeaderComponent() {
                         <Button
                             variant="ghost"
                             size="sm"
+                            aria-label="More Options"
                             className={cn("gap-1", isMoreOpen && "bg-accent text-accent-foreground")}
                             onClick={() => setIsMoreOpen(!isMoreOpen)}
                         >
@@ -112,11 +113,11 @@ function SiteHeaderComponent() {
 
                     {/* Settings */}
                     <Link href="/settings">
-                        <Button variant="ghost" size="icon" className="hover:rotate-45 transition-transform duration-300">
+                        <Button variant="ghost" size="icon" aria-label="Settings" className="hover:rotate-45 transition-transform duration-300">
                             <Settings className="w-5 h-5" />
                         </Button>
                     </Link>
-                </div>
+                </nav>
             </div>
         </header>
     );

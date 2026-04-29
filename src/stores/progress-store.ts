@@ -43,6 +43,13 @@ interface ProgressStore {
     adoptRemoteState: (remote: UserProgress) => void;
 }
 
+const computeHash = (data: any): string => {
+    const s = JSON.stringify(data);
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+    return (h >>> 0).toString(16);
+};
+
 const incrementClock = (progress: UserProgress): UserProgress => {
     let deviceId = progress.deviceId;
     if (!deviceId) {
@@ -51,7 +58,7 @@ const incrementClock = (progress: UserProgress): UserProgress => {
             : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
     }
     const currentClock = progress.vectorClock?.[deviceId] || 0;
-    return {
+    const nextProgress = {
         ...progress,
         deviceId,
         vectorClock: {
@@ -59,6 +66,8 @@ const incrementClock = (progress: UserProgress): UserProgress => {
             [deviceId]: currentClock + 1
         }
     };
+    // Append integrity hash
+    return { ...nextProgress, integrityHash: computeHash(nextProgress) };
 };
 
 const initialProgress: UserProgress = {
@@ -246,41 +255,17 @@ export const useProgressStore = create<ProgressStore>()(
                 URL.revokeObjectURL(url);
             },
 
-            importData: (jsonData: string): boolean => {
+            importData: (json: string): boolean => {
                 try {
-                    const data = JSON.parse(jsonData);
-
-                    if (data.version !== '1.0') {
-                        return false;
-                    }
-
-                    // Validate structure before applying
-                    const progress = data?.data?.progress;
-                    if (
-                        !progress ||
-                        !Array.isArray(progress.completedLessons) ||
-                        typeof progress.lessonScores !== 'object' ||
-                        !Array.isArray(progress.records) ||
-                        typeof progress.totalPracticeTime !== 'number' ||
-                        typeof progress.totalKeystrokes !== 'number' ||
-                        !progress.personalBests ||
-                        typeof progress.personalBests.wpm !== 'number' ||
-                        typeof progress.personalBests.accuracy !== 'number' ||
-                        typeof progress.personalBests.combo !== 'number' ||
-                        !Array.isArray(progress.unlockedAchievements)
-                    ) {
-                        return false;
-                    }
-
-                    set({
-                        progress: data.data.progress,
-                        hasSeenWelcome: data.data.hasSeenWelcome ?? false,
-                    });
-
+                    const d = JSON.parse(json);
+                    if (d.version !== '1.0' || !d.data?.progress) return false;
+                    const p = d.data.progress;
+                    const valid = Array.isArray(p.completedLessons) && typeof p.lessonScores === 'object' && 
+                                Array.isArray(p.records) && typeof p.totalPracticeTime === 'number';
+                    if (!valid) return false;
+                    set({ progress: p, hasSeenWelcome: !!d.data.hasSeenWelcome });
                     return true;
-                } catch {
-                    return false;
-                }
+                } catch { return false; }
             },
 
             isLessonCompleted: (lessonId: string) => {
@@ -301,6 +286,36 @@ export const useProgressStore = create<ProgressStore>()(
         }),
         {
             name: 'typing-progress',
+            merge: (persistedState: unknown, currentState: ProgressStore): ProgressStore => {
+                const persisted = persistedState as Partial<ProgressStore> | undefined;
+                if (!persisted?.progress) return currentState;
+
+                // Anti-Cheat: Validate integrity hash
+                const p = persisted.progress;
+                const { integrityHash, ...rest } = p;
+                if (integrityHash !== computeHash(rest)) {
+                    console.warn("Progress data tampered! Resetting.");
+                    return currentState;
+                }
+
+                // Clamp personal bests to sane maximums to mitigate localStorage tampering
+                const pb = p.personalBests ?? currentState.progress.personalBests;
+                const clampedProgress: UserProgress = {
+                    ...currentState.progress,
+                    ...p,
+                    personalBests: {
+                        wpm: Math.min(Math.max(0, pb.wpm || 0), 250), // Lowered to 250
+                        accuracy: Math.min(Math.max(0, pb.accuracy || 0), 100),
+                        combo: Math.min(Math.max(0, pb.combo || 0), 2000), // Lowered to 2000
+                    },
+                };
+
+                return {
+                    ...currentState,
+                    ...persisted,
+                    progress: clampedProgress,
+                };
+            },
         }
     )
 );

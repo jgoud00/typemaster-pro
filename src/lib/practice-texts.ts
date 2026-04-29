@@ -88,15 +88,19 @@ export function generateWeaknessTargetedText(weakKeys: string[], wordCount: numb
     return words.join(' ') + '.';
 }
 
-export function generateRandomText(wordCount: number, prng: PRNG = globalPrng): string {
+export function generateAdaptiveText(wordCount: number, difficulty: 'easy' | 'medium' | 'hard', prng: PRNG = globalPrng): string {
     const words: string[] = [];
-    const locale = getLocale();
-    const pool = [...locale.commonWords, ...locale.advancedWords];
-    for (let i = 0; i < wordCount; i++) {
-        words.push(prng.choice(pool));
-    }
-    words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
-    return words.join(' ') + '.';
+    const { commonWords, advancedWords, shortSentences } = getLocale();
+    const pool = difficulty === 'easy' ? commonWords : 
+                 difficulty === 'medium' ? [...commonWords, ...advancedWords] : 
+                 [...advancedWords, ...shortSentences];
+    for (let i = 0; i < wordCount; i++) words.push(prng.choice(pool));
+    return words.join(' ');
+}
+
+export function generateRandomText(wordCount: number, prng: PRNG = globalPrng): string {
+    const text = generateAdaptiveText(wordCount, 'medium', prng);
+    return text.charAt(0).toUpperCase() + text.slice(1) + '.';
 }
 
 export function getRandomQuote(prng: PRNG = globalPrng): string {

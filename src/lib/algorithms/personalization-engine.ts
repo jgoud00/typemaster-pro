@@ -52,7 +52,12 @@ export class PersonalizationEngine {
     private profile: UserProfile;
 
     constructor() {
-        this.profile = this.load() || this.createDefaultProfile();
+        this.profile = this.createDefaultProfile();
+        const safeStorage = (globalThis as any).localStorage;
+        if (typeof window !== 'undefined' && safeStorage) {
+            const saved = this.load();
+            if (saved) this.profile = saved;
+        }
     }
 
     /**
@@ -348,8 +353,9 @@ export class PersonalizationEngine {
      */
     save(): void {
         try {
-            if (typeof window === 'undefined') return;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.profile));
+            const safeStorage = (globalThis as any).localStorage;
+            if (typeof window === 'undefined' || !safeStorage) return;
+            safeStorage.setItem(STORAGE_KEY, JSON.stringify(this.profile));
         } catch (e) {
             console.warn('Failed to save user profile:', e);
         }
@@ -360,8 +366,9 @@ export class PersonalizationEngine {
      */
     private load(): UserProfile | null {
         try {
-            if (typeof window === 'undefined') return null;
-            const saved = localStorage.getItem(STORAGE_KEY);
+            const safeStorage = (globalThis as any).localStorage;
+            if (typeof window === 'undefined' || !safeStorage) return null;
+            const saved = safeStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const profile = JSON.parse(saved);
                 profile.createdAt = new Date(profile.createdAt);

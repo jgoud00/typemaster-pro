@@ -11,7 +11,7 @@ const getWorker = () => {
     if (!sharedWorker && typeof window !== 'undefined') {
         sharedWorker = new Worker(new URL('../lib/algorithms/ultimate-weakness-detector.worker.ts', import.meta.url));
         
-        sharedWorker.onmessage = (e: MessageEvent) => {
+        sharedWorker.onmessage = (e: MessageEvent<WorkerResponse>) => {
             const { messageId, success, payload, error } = e.data;
             const handler = resolvers.get(messageId);
             if (handler) {
@@ -27,7 +27,20 @@ const getWorker = () => {
     return sharedWorker;
 };
 
-const sendMessage = (message: any): Promise<any> => {
+interface WorkerMessage {
+    type: 'LOAD' | 'UPDATE_KEY' | 'ANALYZE_ALL' | 'ANALYZE_KEY' | 'SAVE';
+    payload?: any;
+    messageId?: string;
+}
+
+interface WorkerResponse {
+    messageId: string;
+    success: boolean;
+    payload?: any;
+    error?: string;
+}
+
+const sendMessage = <T = any>(message: WorkerMessage): Promise<T> => {
     return new Promise((resolve, reject) => {
         const worker = getWorker();
         if (!worker) return reject(new Error('Worker not available'));

@@ -118,6 +118,11 @@ const Key = memo(({ char, x, y, width = KEY_SIZE, fatigue, isActive }: KeyProps)
 Key.displayName = 'HandOverlayKey';
 
 export function HandOverlay() {
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
+
     const [activeKey, setActiveKey] = useState<string | null>(null);
     const [fatigueData, setFatigueData] = useState<Record<string, number>>({});
     const { analyzeAllKeys } = useWeaknessDetectorWorker();
@@ -194,6 +199,12 @@ export function HandOverlay() {
 
         return { renderedRows, totalWidth, totalHeight: (ROWS.length + 1) * (KEY_SIZE + KEY_GAP) };
     }, [fatigueData, activeKey]);
+    
+    if (!hasMounted) {
+        return <div className="h-[300px] w-full flex items-center justify-center bg-black/20 rounded-3xl border border-white/5 backdrop-blur-md">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>;
+    }
 
     return (
         <div className="flex flex-col items-center gap-4 py-8 bg-black/20 rounded-3xl border border-white/5 backdrop-blur-md">

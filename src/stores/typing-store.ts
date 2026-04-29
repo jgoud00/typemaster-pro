@@ -41,6 +41,8 @@ const initialState: TypingState = {
     keystrokes: [],
     isComplete: false,
     isPaused: false,
+    pausedMs: 0,
+    pauseStart: null,
     riskLevel: 0,
 };
 
@@ -105,8 +107,7 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
         const isComplete = newIndex >= state.text.length;
 
-        let newKeystrokes = state.keystrokes;
-        newKeystrokes.push(keystroke);
+        const newKeystrokes = [...state.keystrokes, keystroke];
         if (newKeystrokes.length > MAX_KEYSTROKES_BUFFER) {
             newKeystrokes.shift();
         }
@@ -117,7 +118,10 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
                 currentIndex: newIndex,
                 startTime: state.startTime ?? now,
                 endTime: isComplete ? now : null,
-                errorIndices: isCorrect ? state.errorIndices : state.errorIndices.concat(state.currentIndex),
+                errorIndices: isCorrect ? state.errorIndices
+                    : state.errorIndices.includes(state.currentIndex)
+                        ? state.errorIndices
+                        : [...state.errorIndices, state.currentIndex],
                 keystrokes: newKeystrokes,
                 isComplete,
             },
@@ -143,11 +147,24 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
     },
 
     pause: () => {
-        set(s => ({ state: { ...s.state, isPaused: true } }));
+        set(s => {
+            if (s.state.isPaused) return s; // idempotent: already paused
+            return { state: { ...s.state, isPaused: true, pauseStart: Date.now() } };
+        });
     },
 
     resume: () => {
-        set(s => ({ state: { ...s.state, isPaused: false } }));
+        set(s => {
+            if (!s.state.isPaused) return s; // idempotent: not paused
+            return {
+                state: {
+                    ...s.state,
+                    isPaused: false,
+                    pausedMs: s.state.pausedMs + (Date.now() - (s.state.pauseStart || Date.now())),
+                    pauseStart: null,
+                }
+            };
+        });
     },
 
     getWpm: () => {
@@ -155,16 +172,13 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         if (!state.startTime) return 0;
 
         const endTime = state.endTime ?? Date.now();
-        const elapsedSeconds = (endTime - state.startTime) / 1000;
+        const activePause = state.pauseStart ? (Date.now() - state.pauseStart) : 0;
+        const elapsedSeconds = Math.max(0, (endTime - state.startTime - state.pausedMs - activePause)) / 1000;
 
         // Guard: Minimum time and characters to prevent spikes
-        if (elapsedSeconds < 2 || correctCount < 5) return 0;
+        if (elapsedSeconds < 1 || correctCount < 3) return 0;
 
-        const elapsedMinutes = elapsedSeconds / 60;
-        // Use counter instead of array filter (O(1) vs O(n))
-        const words = correctCount / 5;
-
-        return Math.round(words / elapsedMinutes);
+        return Math.round((correctCount / 5) / (elapsedSeconds / 60));
     },
 
     getAccuracy: () => {
@@ -180,7 +194,8 @@ export const useTypingStore = create<TypingStore>((set, get) => ({
         if (!state.startTime) return 0;
 
         const endTime = state.endTime ?? Date.now();
-        return Math.floor((endTime - state.startTime) / 1000);
+        const activePause = state.pauseStart ? (Date.now() - state.pauseStart) : 0;
+        return Math.max(0, Math.floor((endTime - state.startTime - state.pausedMs - activePause) / 1000));
     },
 
     getProgress: () => {

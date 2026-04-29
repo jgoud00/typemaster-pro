@@ -42,6 +42,10 @@ export function RaceMode() {
     const [startTime, setStartTime] = useState<number | null>(null);
     const [winner, setWinner] = useState<string | null>(null);
 
+    // Multiplayer Handshake - ensure both are ready
+    const [localReady, setLocalReady] = useState(false);
+    const [remoteReady, setRemoteReady] = useState(false);
+
     const peerRef = useRef<Peer | null>(null);
     const connRef = useRef<DataConnection | null>(null);
 
@@ -54,8 +58,11 @@ export function RaceMode() {
     };
 
     const handleData = useCallback((data: unknown) => {
-        const payload = data as SyncPayload;
-        if (payload.type === 'RACE_TEXT' && payload.text) {
+        const payload = data as any;
+        if (payload.type === 'READY') {
+            setRemoteReady(true);
+            toast.success('Opponent is ready!');
+        } else if (payload.type === 'RACE_TEXT' && payload.text) {
             setText(payload.text);
             setState('ready');
         } else if (payload.type === 'RACE_START') {
@@ -91,26 +98,44 @@ export function RaceMode() {
     const hostRace = () => {
         setState('hosting');
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        setRoomCode(code);
-        const peer = new Peer(`typemaster-race-${code}`);
+        // Use a unique namespace to avoid global collisions
+        const roomID = `alootype-v2-${code}-${Math.random().toString(36).substr(2, 5)}`;
+        setRoomCode(roomID);
+        const peer = new Peer(roomID);
         peerRef.current = peer;
         peer.on('connection', (conn) => setupConnection(conn, true));
-        peer.on('error', () => { toast.error('Error starting server'); setState('idle'); });
+        peer.on('error', (err) => { 
+            console.error('Peer error:', err);
+            toast.error('Error starting server'); 
+            setState('idle'); 
+        });
     };
 
     const joinRace = () => {
-        if (joinCode.length !== 6) return toast.error('Invalid code');
+        if (!joinCode) return toast.error('Enter a room code');
         setState('joining');
         const peer = new Peer();
         peerRef.current = peer;
         peer.on('open', () => {
-            const conn = peer.connect(`typemaster-race-${joinCode}`);
+            const conn = peer.connect(joinCode);
             setupConnection(conn, false);
         });
-        peer.on('error', () => { toast.error('Connection failed'); setState('idle'); });
+        peer.on('error', (err) => { 
+            console.error('Join error:', err);
+            toast.error('Connection failed'); 
+            setState('idle'); 
+        });
+    };
+
+    const markReady = () => {
+        setLocalReady(true);
+        connRef.current?.send({ type: 'READY' });
     };
 
     const startRace = () => {
+        if (!localReady || !remoteReady) {
+            return toast.error('Both players must be ready');
+        }
         broadcast({ type: 'RACE_START' });
         setState('racing');
         setStartTime(Date.now());
@@ -159,9 +184,31 @@ export function RaceMode() {
             )}
 
             {state === 'ready' && (
-                <div className="text-center py-10">
-                    <h2 className="text-2xl mb-6 text-green-400 font-bold">Opponent Connected!</h2>
-                    {roomCode ? <Button onClick={startRace} size="lg" className="w-48 text-lg font-bold">Start Race</Button> : <p className="text-muted-foreground">Waiting for host to start the match...</p>}
+                <div className="text-center py-6 space-y-6">
+                    <h2 className="text-2xl text-green-400 font-bold">Opponent Connected!</h2>
+                    
+                    <div className="flex justify-center gap-6">
+                        <div className={`p-4 rounded-xl border-2 transition-all ${localReady ? 'border-green-500 bg-green-500/10' : 'border-white/10 opacity-50'}`}>
+                           <p className="text-sm">You</p>
+                           <p className="font-bold">{localReady ? 'READY' : 'Waiting...'}</p>
+                        </div>
+                        <div className={`p-4 rounded-xl border-2 transition-all ${remoteReady ? 'border-green-500 bg-green-500/10' : 'border-white/10 opacity-50'}`}>
+                           <p className="text-sm">Opponent</p>
+                           <p className="font-bold">{remoteReady ? 'READY' : 'Waiting...'}</p>
+                        </div>
+                    </div>
+
+                    {!localReady ? (
+                         <Button onClick={markReady} size="lg" className="w-48">Ready Up</Button>
+                    ) : (
+                        roomCode && remoteReady ? (
+                             <Button onClick={startRace} size="lg" className="w-48 text-lg font-bold bg-green-600 hover:bg-green-700">Start Race</Button>
+                        ) : (
+                             <p className="text-muted-foreground duration-1000 animate-pulse">
+                                 {remoteReady ? 'Starting...' : 'Waiting for opponent to ready up...'}
+                             </p>
+                        )
+                    )}
                 </div>
             )}
 

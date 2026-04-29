@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
-import Script from "next/script";
 import { AchievementToast } from "@/components/gamification/achievement-toast";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PWARegistry } from "@/components/pwa-registry";
@@ -47,13 +46,6 @@ export default function RootLayout({
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
-        <Script
-          src="https://cdn.logrocket.io/LogRocket.min.js"
-          strategy="beforeInteractive"
-        />
-        <Script id="logrocket-init" strategy="afterInteractive">
-          {`window.LogRocket && window.LogRocket.init('d8haum/typemaster-pro');`}
-        </Script>
         <AchievementToast />
         <Toaster
           position="bottom-right"

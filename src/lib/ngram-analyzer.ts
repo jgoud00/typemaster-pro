@@ -44,7 +44,9 @@ class NgramAnalyzer {
     private recentChars: { char: string; time: number; correct: boolean }[] = [];
 
     constructor() {
-        this.load();
+        if (typeof window !== 'undefined') {
+            this.load();
+        }
     }
 
     /**
@@ -233,6 +235,7 @@ class NgramAnalyzer {
      * Load from IndexedDB
      */
     async load(): Promise<void> {
+        if (typeof window === 'undefined') return;
         try {
             const data = await loadFromDB<any>(NGRAM_STORAGE_KEY);
             if (data) {

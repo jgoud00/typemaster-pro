@@ -58,7 +58,11 @@ export class UltimateWeaknessDetector {
     private loadStarted = false;
 
     constructor() {
-        this.load();
+        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const safeStorage = (globalThis as any).localStorage;
+        if (isMainThread && safeStorage) {
+            this.load();
+        }
     }
 
     private initLoaded() {
@@ -512,7 +516,9 @@ export class UltimateWeaknessDetector {
 
     async saveNow(): Promise<void> {
         try {
-            if (typeof window === 'undefined' && typeof (globalThis as any).importScripts === 'undefined') return;
+            const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+            const safeStorage = (globalThis as any).localStorage;
+            if (!isMainThread || !safeStorage) return;
             const data = {
                 keyStates: Array.from(this.keyStates.entries()).map(([key, state]) => [
                     key,
@@ -545,7 +551,9 @@ export class UltimateWeaknessDetector {
     }
 
     async load(): Promise<void> {
-        if (typeof window === 'undefined' && typeof (globalThis as any).importScripts === 'undefined') return;
+        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const safeStorage = (globalThis as any).localStorage;
+        if (!isMainThread || !safeStorage) return;
         try {
             const data = await loadFromDB<any>('ultimate-weakness-detector');
             
@@ -604,7 +612,10 @@ export class UltimateWeaknessDetector {
     }
 
     async clear(): Promise<void> {
-        if (typeof window === 'undefined' && typeof (globalThis as any).importScripts === 'undefined') return;
+        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const safeStorage = (globalThis as any).localStorage;
+        if (!isMainThread || !safeStorage) return;
+
         this.keyStates.clear();
         await clearFromDB('ultimate-weakness-detector');
     }
@@ -638,10 +649,9 @@ export class UltimateWeaknessDetector {
 }
 
 const createInstance = () => {
-    if (typeof window === 'undefined' && typeof (globalThis as any).importScripts === 'undefined') {
-        return new Proxy({} as UltimateWeaknessDetector, {
-            get: () => (..._args: unknown[]) => {},
-        });
+    const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+    if (!isMainThread) {
+        // In Worker or Server - skip sync initialization if it touches DOM
     }
     return new UltimateWeaknessDetector();
 };

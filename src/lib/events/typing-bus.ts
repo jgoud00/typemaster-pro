@@ -18,7 +18,7 @@ export type TypingEvents = {
     'TYPING_STARTED': void;
     'TYPING_PAUSED': { elapsedTime: number };
     'TYPING_RESUMED': { elapsedTime: number };
-    'TYPING_COMPLETED': { wpm: number; accuracy: number; totalErrors: number };
+    'TYPING_COMPLETED': { wpm: number; accuracy: number; totalErrors: number; valid?: boolean };
     'COMBO_ACHIEVED': { combo: number };
     'COMBO_BROKEN': void;
 };

@@ -201,22 +201,33 @@ const SKILL_TREE_DEFINITION: SkillNode[] = [
 
 const STORAGE_KEY = 'typemaster-skill-tree';
 
+import { saveToDB, loadFromDB } from './storage/db';
+
 class SkillTreeManager {
     private nodes: Map<string, SkillNode> = new Map();
+    private isInitialized = false;
 
     constructor() {
-        this.load();
+        if (typeof window !== 'undefined') {
+            this.init();
+        } else {
+            this.reset();
+        }
+    }
+
+    private async init(): Promise<void> {
+        await this.load();
+        this.isInitialized = true;
     }
 
     /**
-     * Load skill tree from localStorage
+     * Load skill tree from IndexedDB
      */
-    private load(): void {
+    private async load(): Promise<void> {
         try {
-            const saved = localStorage.getItem(STORAGE_KEY);
+            const saved = await loadFromDB<SkillNode[]>(STORAGE_KEY);
             if (saved) {
-                const parsed = JSON.parse(saved) as SkillNode[];
-                parsed.forEach(node => this.nodes.set(node.id, node));
+                saved.forEach(node => this.nodes.set(node.id, node));
             } else {
                 this.reset();
             }
@@ -237,12 +248,13 @@ class SkillTreeManager {
     }
 
     /**
-     * Save to localStorage
+     * Save to IndexedDB
      */
-    private save(): void {
+    private async save(): Promise<void> {
         try {
+            if (typeof window === 'undefined') return;
             const nodes = Array.from(this.nodes.values());
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
+            await saveToDB(STORAGE_KEY, nodes);
         } catch {
             // Ignore save errors
         }
@@ -296,8 +308,18 @@ class SkillTreeManager {
                     shouldUnlock = stats.bestWpm >= node.requirement.value;
                     break;
                 case 'accuracy':
-                    progress = Math.min(100, (stats.bestAccuracy / node.requirement.value) * 100);
-                    shouldUnlock = stats.bestAccuracy >= node.requirement.value;
+                    if (node.id === 'accuracy-2') {
+                        // 5 tests with 95% accuracy
+                        progress = Math.min(100, (stats.testsAt95Plus / 5) * 100);
+                        shouldUnlock = stats.testsAt95Plus >= 5;
+                    } else if (node.id === 'accuracy-3' || node.id === 'accuracy-4') {
+                        // These are best-accuracy based for now
+                        progress = Math.min(100, (stats.bestAccuracy / node.requirement.value) * 100);
+                        shouldUnlock = stats.bestAccuracy >= node.requirement.value;
+                    } else {
+                        progress = Math.min(100, (stats.bestAccuracy / node.requirement.value) * 100);
+                        shouldUnlock = stats.bestAccuracy >= node.requirement.value;
+                    }
                     break;
                 case 'streak':
                     progress = Math.min(100, (stats.currentStreak / node.requirement.value) * 100);

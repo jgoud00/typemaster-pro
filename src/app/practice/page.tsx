@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, Suspense, useEffect } from 'react';
+import { useState, useRef, Suspense, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link'; // Added for Hub links
 import { motion } from 'framer-motion';
@@ -9,12 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
+import { FlowStateGraph } from '@/components/typing/flow-state-graph';
 import { TypingArea } from '@/components/typing/typing-area';
 import { TypingStats } from '@/components/typing/typing-stats';
 import { useTypingController } from '@/hooks/use-typing-controller';
 import { useTypingStore } from '@/stores/typing-store';
+import { useGameStore } from '@/stores/game-store';
+import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
-import { generateSpeedTestText, getRandomQuote, getRandomParagraph } from '@/lib/practice-texts';
+import { generateAdaptiveText, getRandomQuote, getRandomParagraph } from '@/lib/practice-texts';
 import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -126,32 +129,61 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
     const [customText, setCustomText] = useState('');
     const [text, setText] = useState(() => getTextForMode(initialMode, 60));
+    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [isComplete, setIsComplete] = useState(false);
     const [result, setResult] = useState<PerformanceRecord | null>(null);
+    const [sessionData, setSessionData] = useState<{ sessionId: string; token: string } | null>(null);
+    const sessionDataRef = useRef(sessionData);
+    sessionDataRef.current = sessionData;
 
     // Performance History Tracking
     const [history, setHistory] = useState<{ timestamp: number; wpm: number; errors: number; }[]>([]);
     const { fireLessonComplete } = useConfetti();
     const completionHandledRef = useRef(false);
 
-    const handleComplete = (record: PerformanceRecord) => {
+    const handleComplete = useCallback(async (record: PerformanceRecord) => {
         if (completionHandledRef.current) return;
         completionHandledRef.current = true;
 
         setIsComplete(true);
-        setResult(record);
         fireLessonComplete();
         toast.dismiss();
-        toast.success(`Test complete! ${record.wpm} WPM with ${record.accuracy}% accuracy`, {
-            id: 'speed-test-complete',
-            duration: 5000,
-        });
-    };
+
+        // Task 5: Submit to hardened API
+        const sd = sessionDataRef.current;
+        if (sd && record.wpm > 0) {
+            const loadingToast = toast.loading("Verifying performance...");
+            try {
+                const res = await fetch('/api/submit-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sid: sd.sessionId,
+                        token: sd.token,
+                        score: { wpm: record.wpm, accuracy: record.accuracy, durationMs: record.duration * 1000 },
+                        keystrokes: useTypingStore.getState().state.keystrokes.map(k => ({ t: k.timestamp, correct: k.isCorrect })),
+                    })
+                });
+                
+                if (!res.ok) throw new Error(await res.text());
+                const verified = await res.json();
+                
+                setResult({ ...record, wpm: verified.wpm, accuracy: verified.accuracy });
+                toast.success(`Verified: ${verified.wpm} WPM`, { id: loadingToast });
+            } catch (e: any) {
+                setResult({ ...record, wpm: 0, accuracy: 0 });
+                toast.error(`Verification Failed: ${e.message}`, { id: loadingToast });
+            }
+        } else {
+            setResult(record);
+        }
+    }, [fireLessonComplete]);
 
     const {
         reset,
         isPaused,
         hasStarted,
+        currentIndex,
         isComplete: controllerIsComplete,
         predictedMistakeIndices,
     } = useTypingController({
@@ -160,6 +192,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         timeLimitSeconds: mode === 'speed-test' ? duration : undefined,
         onComplete: handleComplete,
     });
+
 
     // We can get it from store directly in the effect.
 
@@ -172,34 +205,80 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     const { getWpm, getElapsedTime, state } = useTypingStore();
     // derived state for this component (history tracking)
     const wpm = getWpm();
+    const accuracy = useTypingStore().getAccuracy();
     const elapsedTime = getElapsedTime();
     const errorIndices = state.errorIndices;
 
+    const flowScore = useMemo(() => {
+        if (history.length < 2) return 0;
+        const wpms = history.map(h => Math.min(250, h.wpm));
+        const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
+        const variance = wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length;
+        const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
+        const stability = Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5));
+        const accScore = Math.min(100, accuracy < 95 ? accuracy - (95 - accuracy) * 2 : accuracy);
+        return Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
+    }, [history, accuracy]);
 
-    // Track history every second
+    // Task 6: Adaptive difficulty (Debounced to avoid jumps)
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            if (flowScore > 80) setDifficulty('hard');
+            else if (flowScore < 60) setDifficulty('easy');
+            else setDifficulty('medium');
+        }, 150);
+        return () => clearTimeout(timeout);
+    }, [flowScore]);
+
+    // Task 3 & 4: Dynamic text generation & Smooth transition
+    useEffect(() => {
+        if (!hasStarted || isComplete) return;
+        const remainingChars = text.length - currentIndex;
+        if (remainingChars < 100) {
+            setText(prev => prev + ' ' + generateAdaptiveText(20, difficulty));
+        }
+    }, [currentIndex, text.length, difficulty, hasStarted, isComplete]);
+    
+    // Track history every second (refs to avoid interval thrashing)
+    const wpmRef = useRef(wpm);
+    const elapsedRef = useRef(elapsedTime);
+    const errorsRef = useRef(errorIndices.length);
+    wpmRef.current = wpm;
+    elapsedRef.current = elapsedTime;
+    errorsRef.current = errorIndices.length;
+
     useEffect(() => {
         if (!hasStarted || isPaused || isComplete) return;
 
         const interval = setInterval(() => {
             setHistory(prev => [...prev, {
-                timestamp: elapsedTime,
-                wpm,
-                errors: errorIndices.length
+                timestamp: elapsedRef.current,
+                wpm: wpmRef.current,
+                errors: errorsRef.current
             }]);
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [hasStarted, isPaused, isComplete, elapsedTime, wpm, errorIndices.length]);
+    }, [hasStarted, isPaused, isComplete]);
 
-    const handleStartTest = (newMode: PracticeMode, newDuration?: SpeedTestDuration) => {
+    const handleStartTest = async (newMode: PracticeMode, newDuration?: SpeedTestDuration) => {
+        // Fix 8: Block empty input and sanitize text
         setMode(newMode);
         if (newDuration) setDuration(newDuration);
-        setText(getTextForMode(newMode, newDuration || duration, customText));
+        const rawText = getTextForMode(newMode, newDuration || duration, customText);
+        setText(rawText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim());
         setIsComplete(false);
         setResult(null);
         setHistory([]);
-        // Update URL to match mode without full reload if possible, or just keep internal state
-        // Keeping internal state is smoother for Tabs
+        completionHandledRef.current = false;
+        useGameStore.getState().resetGame();
+        useAnalyticsStore.getState().clearSession();
+
+        // Fetch new session for verification
+        try {
+            const res = await fetch('/api/session');
+            if (res.ok) setSessionData(await res.json());
+        } catch (e) { console.error("Session fetch failed"); }
     };
 
     const handleReset = () => {
@@ -207,9 +286,25 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         setIsComplete(false);
         setResult(null);
         setHistory([]);
+        useGameStore.getState().resetGame();
+        useAnalyticsStore.getState().clearSession();
         completionHandledRef.current = false;
         toast.dismiss();
     };
+
+    // Task 9: Escape to restart (Ref-based to avoid stale closure)
+    const handleResetRef = useRef(handleReset);
+    handleResetRef.current = handleReset;
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                handleResetRef.current();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const [targetWpm, setTargetWpm] = useState<number>(0);
 
@@ -226,7 +321,10 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
             {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
+            <header className={cn(
+                "border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg transition-opacity duration-500",
+                hasStarted && !isComplete ? "opacity-0 hover:opacity-100" : "opacity-100"
+            )}>
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/practice">
@@ -266,10 +364,14 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                 {!isComplete ? (
                     <>
                         {/* Mode Selection Tabs */}
-                        <Tabs value={mode} onValueChange={(v) => handleStartTest(v as PracticeMode)}>
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="speed-test">Speed Test</TabsTrigger>
-                                <TabsTrigger value="free">Free Practice</TabsTrigger>
+                        <div className={cn(
+                            "transition-opacity duration-500",
+                            hasStarted && !isComplete ? "opacity-0 hover:opacity-100" : "opacity-100"
+                        )}>
+                            <Tabs value={mode} onValueChange={(v) => handleStartTest(v as PracticeMode)}>
+                                <TabsList className="grid w-full grid-cols-3">
+                                    <TabsTrigger value="speed-test">Speed Test</TabsTrigger>
+                                    <TabsTrigger value="free">Free Practice</TabsTrigger>
                                 <TabsTrigger value="custom">Custom Text</TabsTrigger>
                             </TabsList>
 
@@ -308,8 +410,11 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                         <textarea
                                             className="w-full h-32 p-3 rounded-lg border bg-background resize-none"
                                             placeholder="Paste your text here..."
+                                            maxLength={5000}
                                             value={customText}
-                                            onChange={(e) => setCustomText(e.target.value)}
+                                            onChange={(e) => setCustomText(
+                                                e.target.value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').replace(/[\u200B-\u200F\uFEFF]/g, '')
+                                            )}
                                         />
                                         <Button
                                             onClick={() => handleStartTest('custom')}
@@ -321,17 +426,30 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                 </Card>
                             </TabsContent>
                         </Tabs>
+                    </div>
 
+                    {/* Main Focus Area */}
+                    <div className={cn(
+                        "flex flex-col items-center justify-center min-h-[50vh] max-w-4xl mx-auto w-full transition-all duration-500",
+                        hasStarted && !isComplete ? "scale-105" : "scale-100"
+                    )}>
                         {/* Stats */}
                         <TypingStats
-                            remainingTime={mode === 'speed-test' ? (duration - elapsedTime) : null}
+                            remainingTime={mode === 'speed-test' ? Math.max(0, duration - elapsedTime) : null}
                             targetWpm={targetWpm > 0 ? targetWpm : undefined}
+                            flowScore={flowScore}
                         />
+                        <div className="flex justify-center mt-2">
+                            <span className="text-[10px] uppercase tracking-widest opacity-30">
+                                Difficulty: {difficulty}
+                            </span>
+                        </div>
 
                         {/* Typing area */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
+                            className="relative w-full"
                         >
                             <div className="mb-4">
                                 <RiskMeter />
@@ -340,6 +458,11 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                 ghostIndex={ghostIndex}
                                 predictedMistakeIndices={predictedMistakeIndices}
                             />
+                            
+                            {/* Flow State Visualization */}
+                            {!isComplete && hasStarted && history.length > 0 && (
+                                <FlowStateGraph data={history.map(h => h.wpm)} flowScore={flowScore} />
+                            )}
                         </motion.div>
 
                         {/* Virtual keyboard */}
@@ -350,6 +473,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                         >
                             <VirtualKeyboard />
                         </motion.div>
+                    </div>
                     </>
                 ) : (
                     /* Results View */
@@ -415,7 +539,7 @@ function getTextForMode(mode: PracticeMode, duration: number, customText?: strin
     const sessionId = Math.random().toString(36).substring(7);
     switch (mode) {
         case 'speed-test':
-            return generateSpeedTestText(duration, sessionId);
+            return generateAdaptiveText(Math.ceil(duration / 60 * 50), 'medium');
         case 'custom':
             return customText?.trim() || getRandomQuote();
         case 'free':

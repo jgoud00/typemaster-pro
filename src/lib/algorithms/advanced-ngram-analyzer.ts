@@ -59,7 +59,11 @@ export class AdvancedNgramAnalyzer {
     private readonly STORAGE_KEY = 'advanced-ngram-data';
 
     constructor() {
-        this.load();
+        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const safeStorage = (globalThis as any).localStorage;
+        if (isMainThread && safeStorage) {
+            this.load();
+        }
     }
 
     /**
@@ -322,12 +326,14 @@ export class AdvancedNgramAnalyzer {
      */
     save(): void {
         try {
-            if (typeof window === 'undefined') return;
+            const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+            const safeStorage = (globalThis as any).localStorage;
+            if (!isMainThread || !safeStorage) return;
             const data = {
                 bigrams: Array.from(this.bigramData.entries()),
                 trigrams: Array.from(this.trigramData.entries()),
             };
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            safeStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
             console.warn('Failed to save ngram data:', e);
         }
@@ -338,8 +344,10 @@ export class AdvancedNgramAnalyzer {
      */
     load(): void {
         try {
-            if (typeof window === 'undefined') return;
-            const saved = localStorage.getItem(this.STORAGE_KEY);
+            const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+            const safeStorage = (globalThis as any).localStorage;
+            if (!isMainThread || !safeStorage) return;
+            const saved = safeStorage.getItem(this.STORAGE_KEY);
             if (saved) {
                 const data = JSON.parse(saved);
                 this.bigramData = new Map(data.bigrams || []);
@@ -357,7 +365,12 @@ export class AdvancedNgramAnalyzer {
         this.bigramData.clear();
         this.trigramData.clear();
         this.resetSequence();
-        localStorage.removeItem(this.STORAGE_KEY);
+        
+        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const safeStorage = (globalThis as any).localStorage;
+        if (isMainThread && safeStorage) {
+            safeStorage.removeItem(this.STORAGE_KEY);
+        }
     }
 }
 

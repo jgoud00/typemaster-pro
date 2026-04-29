@@ -52,7 +52,10 @@ export class ErrorPredictionModel {
 
     constructor() {
         this.initializeWeights();
-        this.load();
+        const safeStorage = (globalThis as any).localStorage;
+        if (typeof window !== 'undefined' && safeStorage) {
+            this.load();
+        }
     }
 
     /**
@@ -376,16 +379,18 @@ export class ErrorPredictionModel {
      */
     save(): void {
         try {
-            if (typeof window === 'undefined') return;
-            const data = {
-                weightsIH: this.weightsIH,
-                weightsHH: this.weightsHH,
-                weightsHO: this.weightsHO,
-                biasH1: this.biasH1,
-                biasH2: this.biasH2,
-                biasO: this.biasO,
-            };
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            const safeStorage = (globalThis as any).localStorage;
+            if (typeof window !== 'undefined' && safeStorage) {
+                const data = {
+                    weightsIH: this.weightsIH,
+                    weightsHH: this.weightsHH,
+                    weightsHO: this.weightsHO,
+                    biasH1: this.biasH1,
+                    biasH2: this.biasH2,
+                    biasO: this.biasO,
+                };
+                safeStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+            }
         } catch (e) {
             console.warn('Failed to save error prediction model:', e);
         }
@@ -396,17 +401,19 @@ export class ErrorPredictionModel {
      */
     load(): boolean {
         try {
-            if (typeof window === 'undefined') return false;
-            const saved = localStorage.getItem(this.STORAGE_KEY);
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.weightsIH = data.weightsIH;
-                this.weightsHH = data.weightsHH;
-                this.weightsHO = data.weightsHO;
-                this.biasH1 = data.biasH1;
-                this.biasH2 = data.biasH2;
-                this.biasO = data.biasO;
-                return true;
+            const safeStorage = (globalThis as any).localStorage;
+            if (typeof window !== 'undefined' && safeStorage) {
+                const saved = safeStorage.getItem(this.STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    this.weightsIH = data.weightsIH;
+                    this.weightsHH = data.weightsHH;
+                    this.weightsHO = data.weightsHO;
+                    this.biasH1 = data.biasH1;
+                    this.biasH2 = data.biasH2;
+                    this.biasO = data.biasO;
+                    return true;
+                }
             }
         } catch (e) {
             console.warn('Failed to load error prediction model:', e);
