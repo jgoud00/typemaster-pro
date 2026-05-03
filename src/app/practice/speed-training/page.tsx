@@ -18,6 +18,7 @@ import { useConfetti } from '@/hooks/use-confetti';
 import toast from 'react-hot-toast';
 import { PerformanceRecord } from '@/types';
 import { generateRandomText, generateSpeedTestText, getRandomParagraph } from '@/lib/practice-texts';
+import { TIMERS } from '@/lib/config/constants';
 
 // ============= Parent Speed Training Page =============
 
@@ -104,13 +105,7 @@ function BurstMode() {
         textRef.current = text;
     }, [currentLevel, currentWpmGoal, text]);
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeUntilReset(getTimeUntilReset());
-        }, 1000);
 
-        return () => clearInterval(timer);
-    }, []);
 
     const startLevel = useCallback((level: number, wpm: number) => {
         setPhase('playing');
@@ -165,20 +160,6 @@ function BurstMode() {
 
     const elapsedTime = getElapsedTime();
     const remainingTime = levelDuration > 0 ? Math.max(0, levelDuration - elapsedTime) : 0;
-    useEffect(() => {
-        if (state.recentUnlock) {
-            fireConfetti({ particleCount: 50, spread: 60 });
-
-            const timer = setTimeout(() => {
-                clearRecentUnlock();
-            }, 4000);
-
-            return () => clearTimeout(timer);
-        }
-    }, [state.recentUnlock, clearRecentUnlock, fireConfetti]);
-
-    const visible = !!state.recentUnlock;
-    const achievement = state.recentUnlock;
 
     useEffect(() => {
         if (phase === 'gameover') {
@@ -302,8 +283,7 @@ function BurstMode() {
 
 function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t: string) => void }) {
     const [bpm, setBpm] = useState(60);
-    const [challenges] = useState(() => getDailyChallenges());
-    const [timeUntilReset, setTimeUntilReset] = useState(() => getTimeUntilReset());
+    const [isActive, setIsActive] = useState(false);
     const [beat, setBeat] = useState(false);
     const beatRef = useRef<NodeJS.Timeout | null>(null);
     const completionHandledRef = useRef(false);
@@ -330,15 +310,12 @@ function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t:
 
     // Metronome tick logic
     useEffect(() => {
-        if (!progress.records) return 0;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         if (isActive) {
             const intervalMs = (60 / bpm) * 1000;
             beatRef.current = setInterval(() => {
                 setBeat(true);
                 soundEngine.play('keystroke');
-                setTimeout(() => setBeat(false), 100);
+                setTimeout(() => setBeat(false), TIMERS.COUNTDOWN_TICK_MS);
             }, intervalMs);
 
             return () => {
@@ -472,7 +449,7 @@ function SprintMode({ text, onTextChange }: { text: string; onTextChange: (t: st
     const [, setNow] = useState(() => Date.now());
     useEffect(() => {
         if (phase === 'sprint') {
-            const interval = setInterval(() => setNow(Date.now()), 100);
+            const interval = setInterval(() => setNow(Date.now()), TIMERS.COUNTDOWN_TICK_MS);
             return () => clearInterval(interval);
         }
     }, [phase]);
