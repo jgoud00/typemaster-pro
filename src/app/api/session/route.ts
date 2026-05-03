@@ -11,15 +11,21 @@ function getSecret(): string {
 }
 // In Next.js, we can't use a simple Map for sessions if we scale, but for now this is the local state.
 // Note: In production Next.js, this would need Redis or a Database.
+export interface Session {
+  startTime: number;
+  ip: string;
+  token: string;
+}
+
 const rateLimit = new Map<string, number>();
-const sessions = new Map<string, { startTime: number; ip: string; token: string; }>();
+const sessions = new Map<string, Session>();
 
 const getIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
 
 export async function GET(req: Request) {
   const ip = getIp(req);
   const now = Date.now();
-  if ((rateLimit.get(ip) || 0) > now) return NextResponse.json({ ok: false }, { status: 429 });
+  if ((rateLimit.get(ip) || 0) > now) return NextResponse.json({ ok: false, error: 'Rate limit exceeded' }, { status: 429 });
   rateLimit.set(ip, now + 2000); // 2s cooldown for rapid restarts
 
   const sid = randomBytes(16).toString('hex');
@@ -28,8 +34,11 @@ export async function GET(req: Request) {
   return NextResponse.json({ sessionId: sid, startTime: now, token });
 }
 
-if (!(global as any).cleanupInterval) {
-  (global as any).cleanupInterval = setInterval(() => {
+// Global variable for interval to survive HMR in dev
+const globalWithCleanup = global as typeof globalThis & { cleanupInterval?: NodeJS.Timeout };
+
+if (!globalWithCleanup.cleanupInterval) {
+  globalWithCleanup.cleanupInterval = setInterval(() => {
     const now = Date.now();
     for (const [id, s] of sessions) if (now - s.startTime > 360000) sessions.delete(id);
     for (const [ip, exp] of rateLimit) if (exp < now) rateLimit.delete(ip);

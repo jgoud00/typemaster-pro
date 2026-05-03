@@ -14,6 +14,7 @@ export const PersonalRecordsDashboard = React.memo(() => {
 
     const weeklyBestWpm = useMemo(() => {
         if (!progress.records) return 0;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const weeklyRecords = progress.records.filter(r => r.timestamp >= oneWeekAgo);
         return weeklyRecords.length > 0 ? Math.max(...weeklyRecords.map(r => r.wpm)) : 0;

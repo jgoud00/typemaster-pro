@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  Keyboard, Trophy, TrendingUp, Flame, Clock, Target,
-  ChevronRight, Star, Zap, Settings, Info, BookOpen, Play, X, Sparkles
+  Trophy, TrendingUp, Flame, Clock, Target, Settings,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,19 +11,15 @@ import { Progress } from '@/components/ui/progress';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
-import { useDiagnosticStore } from '@/stores/diagnostic-store';
 import { cn } from '@/lib/utils';
 import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
 import { DailyGoals } from '@/components/goals/DailyGoals';
 import { HeroBanner } from '@/components/dashboard/HeroBanner';
 import { SiteHeader } from '@/components/layout/SiteHeader';
-import { WeaknessHeatmap } from '@/components/WeaknessHeatmap';
 
 export default function HomePage() {
   const { progress } = useProgressStore();
   const { game } = useGameStore();
-  const { hasTakenDiagnostic } = useDiagnosticStore();
-  const [showDiagnosticBanner, setShowDiagnosticBanner] = useState(true);
 
   const completedCount = progress.completedLessons.length;
   const totalLessons = lessons.length;
@@ -60,66 +54,6 @@ export default function HomePage() {
           nextLessonCategory={nextLessonCategory}
         />
 
-        {/* Diagnostic Banner */}
-        <AnimatePresence>
-          {!hasTakenDiagnostic && showDiagnosticBanner && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
-              <Card className="bg-linear-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-500/20 relative overflow-hidden mb-8">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-purple-500/20 shrink-0">
-                      <Sparkles className="w-6 h-6 text-purple-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg mb-1">Get a Personalized Learning Path</h3>
-                      <p className="text-muted-foreground text-sm mb-3">
-                        Take a quick 60-second assessment to tailor lessons to your skill level.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <Link href="/diagnostic">
-                          <Button size="sm" className="gap-2">
-                            <Zap className="w-4 h-4" />
-                            Take Assessment
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowDiagnosticBanner(false)}
-                        >
-                          Dismiss
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Insight Section: Weakness Heatmap */}
-        <motion.section
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <span className="text-2xl">🧠</span> AI Knowledge Graph
-            </h2>
-            <span className="text-sm text-muted-foreground">Real-time Mastery Tracking</span>
-          </div>
-          <WeaknessHeatmap />
-        </motion.section>
-
         {/* Practice Modes */}
         <section>
           <div className="flex items-center justify-between mb-6">
@@ -136,20 +70,6 @@ export default function HomePage() {
               href="/practice?mode=speed-test"
               icon="⚡"
               color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
-            />
-            <PracticeModeCard
-              title="Smart Practice"
-              description="AI weakness targeting"
-              href="/practice/smart"
-              icon="🧠"
-              color="from-purple-500/20 to-pink-500/20 border-purple-500/30"
-            />
-            <PracticeModeCard
-              title="Infinite Flow"
-              description="Zen mode typing"
-              href="/practice/infinite"
-              icon="∞"
-              color="from-indigo-500/20 to-violet-500/20 border-indigo-500/30"
             />
             <PracticeModeCard
               title="Burst Mode"

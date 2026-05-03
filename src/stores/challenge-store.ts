@@ -171,6 +171,7 @@ export const useChallengeStore = create<ChallengeStore>()(
         }),
         {
             name: 'challenge-store',
+            skipHydration: false
         }
     )
 );

@@ -96,7 +96,6 @@ export interface TypingState {
   isPaused: boolean;
   pausedMs: number;
   pauseStart: number | null;
-  riskLevel: number; // 0-1 probability of error
 }
 
 // ============= Lessons =============

@@ -23,12 +23,10 @@ export default function DailyChallengesPage() {
     const router = useRouter();
     const { progress } = useProgressStore();
     const { game } = useGameStore();
-    const [challenges, setChallenges] = useState<DailyChallenge[]>([]);
-    const [timeUntilReset, setTimeUntilReset] = useState(getTimeUntilReset());
+    const [challenges] = useState(() => getDailyChallenges());
+    const [timeUntilReset, setTimeUntilReset] = useState(() => getTimeUntilReset());
 
     useEffect(() => {
-        setChallenges(getDailyChallenges());
-
         const timer = setInterval(() => {
             setTimeUntilReset(getTimeUntilReset());
         }, 1000);

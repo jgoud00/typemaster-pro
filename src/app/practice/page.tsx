@@ -4,12 +4,10 @@ import { useState, useRef, Suspense, useEffect, useMemo, useCallback } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link'; // Added for Hub links
 import { motion } from 'framer-motion';
-import { ArrowLeft, RotateCcw, Clock, Zap, Brain, Rocket, Infinity as InfinityIcon, Keyboard } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Clock, Zap, Rocket, Keyboard, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
-import { FlowStateGraph } from '@/components/typing/flow-state-graph';
 import { TypingArea } from '@/components/typing/typing-area';
 import { TypingStats } from '@/components/typing/typing-stats';
 import { useTypingController } from '@/hooks/use-typing-controller';
@@ -17,12 +15,14 @@ import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
+import { useUserStore } from '@/stores/user-store';
+import { useLeaderboardStore } from '@/stores/leaderboard-store';
+import { LiveFlowGraph } from '@/components/typing/live-flow-graph';
 import { generateAdaptiveText, getRandomQuote, getRandomParagraph } from '@/lib/practice-texts';
 import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
-import { RiskMeter } from '@/components/RiskMeter';
 import { cn } from '@/lib/utils'; // Ensure cn is imported
 
 // --- Practice Hub Component ---
@@ -62,20 +62,6 @@ function PracticeHub() {
                         href="/practice?mode=speed-test"
                         icon={<Clock className="w-8 h-8" />}
                         color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
-                    />
-                    <PracticeHubCard
-                        title="Smart Practice"
-                        description="AI-driven exercises targeting your specific weak keys."
-                        href="/practice/smart"
-                        icon={<Brain className="w-8 h-8" />}
-                        color="from-purple-500/20 to-pink-500/20 border-purple-500/30"
-                    />
-                    <PracticeHubCard
-                        title="Infinite Flow"
-                        description="Zen mode for endless, distraction-free typing."
-                        href="/practice/infinite"
-                        icon={<InfinityIcon className="w-8 h-8" />}
-                        color="from-indigo-500/20 to-violet-500/20 border-indigo-500/30"
                     />
                     <PracticeHubCard
                         title="Burst Mode"
@@ -123,6 +109,46 @@ function PracticeHubCard({ title, description, href, icon, color }: {
 }
 
 // --- Standard Typing Interface (Refactored) ---
+function Leaderboard() {
+    const entries = useLeaderboardStore(s => s.getTop());
+
+    return (
+        <Card className="bg-black/20 border-white/10">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-yellow-400" />
+                    Local Leaderboard
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {entries.length === 0 ? (
+                    <div className="text-xs text-muted-foreground text-center py-8">
+                        No scores yet. Start typing!
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {entries.map((entry, i) => (
+                            <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className={cn(
+                                        "text-xs font-bold w-4",
+                                        i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-500"
+                                    )}>{i + 1}</span>
+                                    <span className="text-sm font-medium truncate">{entry.username}</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs">
+                                    <span className="font-bold text-blue-400">{entry.wpm} <span className="text-[10px] text-gray-600">WPM</span></span>
+                                    <span className="text-gray-500">{entry.accuracy}%</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode }) {
     const router = useRouter();
     const [mode, setMode] = useState<PracticeMode>(initialMode);
@@ -134,16 +160,43 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     const [result, setResult] = useState<PerformanceRecord | null>(null);
     const [sessionData, setSessionData] = useState<{ sessionId: string; token: string } | null>(null);
     const sessionDataRef = useRef(sessionData);
-    sessionDataRef.current = sessionData;
+
+    useEffect(() => {
+        sessionDataRef.current = sessionData;
+    }, [sessionData]);
 
     // Performance History Tracking
     const [history, setHistory] = useState<{ timestamp: number; wpm: number; errors: number; }[]>([]);
     const { fireLessonComplete } = useConfetti();
     const completionHandledRef = useRef(false);
+    const historyRef = useRef<{ timestamp: number; wpm: number; errors: number; }[]>([]);
+    
+    // Sync historyRef
+    useEffect(() => {
+        historyRef.current = history;
+    }, [history]);
 
     const handleComplete = useCallback(async (record: PerformanceRecord) => {
         if (completionHandledRef.current) return;
         completionHandledRef.current = true;
+
+        // Calculate final flow score for leaderboard
+        const wpms = historyRef.current.map(h => Math.min(250, h.wpm));
+        const mean = wpms.length > 0 ? wpms.reduce((a, b) => a + b, 0) / wpms.length : 0;
+        const variance = wpms.length > 0 ? wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length : 0;
+        const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
+        const stability = wpms.length > 0 ? Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5)) : 100;
+        const accScore = Math.min(100, record.accuracy < 95 ? record.accuracy - (95 - record.accuracy) * 2 : record.accuracy);
+        const finalFlowScore = Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
+
+        // Update leaderboard
+        useLeaderboardStore.getState().addEntry({
+            username: useUserStore.getState().username || 'Anonymous',
+            wpm: record.wpm,
+            accuracy: record.accuracy,
+            flowScore: finalFlowScore,
+            date: Date.now()
+        });
 
         setIsComplete(true);
         fireLessonComplete();
@@ -185,7 +238,6 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         hasStarted,
         currentIndex,
         isComplete: controllerIsComplete,
-        predictedMistakeIndices,
     } = useTypingController({
         text,
         mode,
@@ -209,15 +261,35 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     const elapsedTime = getElapsedTime();
     const errorIndices = state.errorIndices;
 
-    const flowScore = useMemo(() => {
-        if (history.length < 2) return 0;
+    // Task 5: Flow Intelligence Analysis
+    const { flowScore, trend } = useMemo(() => {
+        if (history.length < 2) return { flowScore: 0, trend: 'stable' as const };
+        
         const wpms = history.map(h => Math.min(250, h.wpm));
+        
+        // Smoothing for trend (window=3)
+        const getSmoothed = (arr: number[], idx: number) => {
+            if (idx < 2) return arr[idx];
+            return (arr[idx-2] + arr[idx-1] + arr[idx]) / 3;
+        };
+        
+        const currentSmoothed = getSmoothed(wpms, wpms.length - 1);
+        const prevSmoothed = getSmoothed(wpms, wpms.length - 2);
+        
+        let detectedTrend: 'rising' | 'falling' | 'stable' = 'stable';
+        if (currentSmoothed > prevSmoothed + 0.5) detectedTrend = 'rising';
+        else if (currentSmoothed < prevSmoothed - 0.5) detectedTrend = 'falling';
+
         const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
         const variance = wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length;
         const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
         const stability = Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5));
         const accScore = Math.min(100, accuracy < 95 ? accuracy - (95 - accuracy) * 2 : accuracy);
-        return Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
+        
+        return {
+            flowScore: Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3)))),
+            trend: detectedTrend
+        };
     }, [history, accuracy]);
 
     // Task 6: Adaptive difficulty (Debounced to avoid jumps)
@@ -243,9 +315,11 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     const wpmRef = useRef(wpm);
     const elapsedRef = useRef(elapsedTime);
     const errorsRef = useRef(errorIndices.length);
-    wpmRef.current = wpm;
-    elapsedRef.current = elapsedTime;
-    errorsRef.current = errorIndices.length;
+    useEffect(() => {
+        wpmRef.current = wpm;
+        elapsedRef.current = elapsedTime;
+        errorsRef.current = errorIndices.length;
+    }, [wpm, elapsedTime, errorIndices.length]);
 
     useEffect(() => {
         if (!hasStarted || isPaused || isComplete) return;
@@ -294,7 +368,9 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
     // Task 9: Escape to restart (Ref-based to avoid stale closure)
     const handleResetRef = useRef(handleReset);
-    handleResetRef.current = handleReset;
+    useEffect(() => {
+        handleResetRef.current = handleReset;
+    }, [handleReset]);
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -306,11 +382,6 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const [targetWpm, setTargetWpm] = useState<number>(0);
-
-    // Ghost Racer Logic: (Target WPM * 5 chars/word) / 60 seconds = chars/second
-    const ghostIndex = targetWpm > 0 ? (targetWpm * 5 / 60) * elapsedTime : undefined;
-
     // Calculate error breakdown
     const errorBreakdown = new Map<string, number>();
     errorIndices.forEach(idx => {
@@ -320,10 +391,10 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Header */}
+            {/* Header - Focus Mode (Hidden when typing) */}
             <header className={cn(
-                "border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg transition-opacity duration-500",
-                hasStarted && !isComplete ? "opacity-0 hover:opacity-100" : "opacity-100"
+                "border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 transition-opacity duration-700",
+                hasStarted && !isComplete ? "opacity-0 pointer-events-none" : "opacity-100"
             )}>
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -338,20 +409,6 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {/* Target Speed Control */}
-                        <div className="hidden md:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                            <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Ghost Racer</span>
-                            <input
-                                type="number"
-                                min="0"
-                                max="200"
-                                value={targetWpm || ''}
-                                onChange={(e) => setTargetWpm(Number(e.target.value))}
-                                placeholder="Off"
-                                className="w-12 bg-transparent border-none text-sm font-bold text-center focus:ring-0 p-0"
-                            />
-                            <span className="text-xs text-muted-foreground">WPM</span>
-                        </div>
 
                         <Button variant="ghost" size="icon" onClick={handleReset}>
                             <RotateCcw className="w-5 h-5" />
@@ -365,8 +422,8 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                     <>
                         {/* Mode Selection Tabs */}
                         <div className={cn(
-                            "transition-opacity duration-500",
-                            hasStarted && !isComplete ? "opacity-0 hover:opacity-100" : "opacity-100"
+                            "transition-all duration-700",
+                            hasStarted && !isComplete ? "opacity-0 pointer-events-none translate-y-[-20px]" : "opacity-100"
                         )}>
                             <Tabs value={mode} onValueChange={(v) => handleStartTest(v as PracticeMode)}>
                                 <TabsList className="grid w-full grid-cols-3">
@@ -428,51 +485,30 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                         </Tabs>
                     </div>
 
-                    {/* Main Focus Area */}
-                    <div className={cn(
-                        "flex flex-col items-center justify-center min-h-[50vh] max-w-4xl mx-auto w-full transition-all duration-500",
-                        hasStarted && !isComplete ? "scale-105" : "scale-100"
-                    )}>
-                        {/* Stats */}
-                        <TypingStats
-                            remainingTime={mode === 'speed-test' ? Math.max(0, duration - elapsedTime) : null}
-                            targetWpm={targetWpm > 0 ? targetWpm : undefined}
-                            flowScore={flowScore}
-                        />
-                        <div className="flex justify-center mt-2">
-                            <span className="text-[10px] uppercase tracking-widest opacity-30">
-                                Difficulty: {difficulty}
-                            </span>
+                    {/* Main Focus Area - Centered */}
+                    <div className="flex flex-col items-center justify-center min-h-[70vh] max-w-6xl mx-auto w-full">
+                        {/* Flow Score & Trend Graph */}
+                        <div className={cn(
+                            "flex items-center gap-6 mb-8 h-12 transition-opacity duration-1000",
+                            hasStarted ? "opacity-40 hover:opacity-100" : "opacity-20"
+                        )}>
+                            <div className="flex flex-col items-center">
+                                <span className="text-[9px] uppercase tracking-[0.3em] text-gray-600 font-black">Flow</span>
+                                <span className={cn(
+                                    "text-xl font-black tabular-nums transition-colors duration-500",
+                                    trend === 'rising' ? 'text-teal-400' : trend === 'falling' ? 'text-magenta-400' : 'text-gray-500'
+                                )}>
+                                    {flowScore}
+                                </span>
+                            </div>
+                            <LiveFlowGraph history={history} trend={trend} />
                         </div>
 
-                        {/* Typing area */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="relative w-full"
-                        >
-                            <div className="mb-4">
-                                <RiskMeter />
-                            </div>
-                            <TypingArea
-                                ghostIndex={ghostIndex}
-                                predictedMistakeIndices={predictedMistakeIndices}
-                            />
-                            
-                            {/* Flow State Visualization */}
-                            {!isComplete && hasStarted && history.length > 0 && (
-                                <FlowStateGraph data={history.map(h => h.wpm)} flowScore={flowScore} />
-                            )}
-                        </motion.div>
+                        {/* Stats - Minimal */}
+                        <TypingStats />
 
-                        {/* Virtual keyboard */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                        >
-                            <VirtualKeyboard />
-                        </motion.div>
+                        {/* Typing area */}
+                        <TypingArea />
                     </div>
                     </>
                 ) : (
@@ -514,6 +550,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <ResultChart data={history} />
                             <WeaknessAnalysis errorBreakdown={errorBreakdown} />
+                            <Leaderboard />
                         </div>
                     </motion.div>
                 )}

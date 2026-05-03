@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import {
     Dialog,
     DialogContent,
@@ -9,24 +10,35 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useProgressStore } from '@/stores/progress-store';
+import { useUserStore } from '@/stores/user-store';
 
 export function WelcomeModal() {
     const [open, setOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const pathname = usePathname();
+    const { username, setUsername } = useUserStore();
     const hasSeenWelcome = useProgressStore((state) => state.hasSeenWelcome);
     const setHasSeenWelcome = useProgressStore((state) => state.setHasSeenWelcome);
 
     useEffect(() => {
-        if (!hasSeenWelcome) {
-            // Small delay to ensure smooth page load first
+        const loadingTimer = setTimeout(() => setIsLoading(false), 2000);
+        
+        if (!hasSeenWelcome && pathname === '/') {
             const timer = setTimeout(() => setOpen(true), 500);
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(loadingTimer);
+            };
         }
-    }, [hasSeenWelcome]);
+        return () => clearTimeout(loadingTimer);
+    }, [hasSeenWelcome, pathname]);
 
     const handleStart = () => {
         setHasSeenWelcome(true);
         setOpen(false);
     };
+
+    if (pathname.startsWith('/lessons')) return null;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -68,16 +80,36 @@ export function WelcomeModal() {
                         </div>
                     </div>
 
-                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-2">💡 Quick Tip:</h4>
-                        <p className="text-sm text-muted-foreground">
-                            Start with the Home Row lessons and work your way up.
-                            Consistency is key - practice 15 minutes daily for best results!
-                        </p>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label htmlFor="username" className="text-sm font-medium">Your Name / Alias</label>
+                            <input
+                                id="username"
+                                type="text"
+                                placeholder="Enter username..."
+                                className="w-full px-4 py-3 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none transition-all"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-2">💡 Quick Tip:</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Start with the Home Row lessons and work your way up.
+                                Consistency is key - practice 15 minutes daily for best results!
+                            </p>
+                        </div>
                     </div>
 
                     <div className="flex gap-3 justify-center">
-                        <Button onClick={handleStart} size="lg" className="px-8">
+                        <Button 
+                            onClick={handleStart} 
+                            size="lg" 
+                            className="px-8"
+                            disabled={isLoading}
+                        >
                             Start Learning! 🚀
                         </Button>
                     </div>

@@ -1,20 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download, FileText } from 'lucide-react';
+import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useProgressStore } from '@/stores/progress-store';
-import dynamic from 'next/dynamic';
-import { downloadUserData, getStoredDataSummary, deleteAllUserData } from '@/lib/gdpr-export';
 import toast from 'react-hot-toast';
-
-const WebRTCSync = dynamic(() => import('@/components/sync/WebRTCSync').then(mod => mod.WebRTCSync), { ssr: false });
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -22,12 +18,6 @@ export default function SettingsPage() {
     const { settings, updateSetting, resetSettings } = useSettingsStore();
     const { exportData, importData, resetProgress } = useProgressStore();
     const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const [dataSummary, setDataSummary] = useState<{ key: string; size: number; description: string }[]>([]);
-
-    // Fetch data summary on client side only
-    useEffect(() => {
-        setDataSummary(getStoredDataSummary());
-    }, []);
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -277,16 +267,7 @@ export default function SettingsPage() {
                     </Card>
                 </motion.div>
 
-                {/* P2P Sync */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
-                    <WebRTCSync />
-                </motion.div>
-
-                {/* Privacy & Data (GDPR Compliant) */}
+                {/* Privacy & Data */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -296,9 +277,6 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-3 mb-6">
                             <Shield className="w-5 h-5 text-orange-500" />
                             <h2 className="text-xl font-semibold">Privacy & Data</h2>
-                            <span className="ml-auto text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded">
-                                GDPR Compliant
-                            </span>
                         </div>
 
                         <div className="space-y-4">
@@ -312,47 +290,16 @@ export default function SettingsPage() {
                                 <Switch checked disabled />
                             </div>
 
-                            {/* Data Summary */}
-                            <div className="p-3 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <FileText className="w-4 h-4" />
-                                    <span className="font-medium text-sm">Your Data Summary</span>
-                                </div>
-                                <div className="text-xs text-muted-foreground space-y-1">
-                                    {dataSummary.slice(0, 4).map((item) => (
-                                        <div key={item.key} className="flex justify-between">
-                                            <span>{item.description.slice(0, 35)}...</span>
-                                            <span>{(item.size / 1024).toFixed(1)} KB</span>
-                                        </div>
-                                    ))}
-                                    {dataSummary.length > 4 && (
-                                        <div className="text-muted-foreground/70">
-                                            +{dataSummary.length - 4} more categories
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* GDPR Full Export */}
                             <Button
                                 variant="default"
                                 className="w-full gap-2"
                                 onClick={() => {
-                                    downloadUserData();
-                                    toast.success('Full data export downloaded!');
+                                    exportData();
+                                    toast.success('Data export downloaded!');
                                 }}
                             >
                                 <Download className="w-4 h-4" />
-                                Download All My Data (GDPR)
-                            </Button>
-
-                            {/* Basic Progress Export */}
-                            <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => exportData()}
-                            >
-                                📥 Export Progress Only
+                                Export My Data
                             </Button>
 
                             <input
@@ -398,7 +345,6 @@ export default function SettingsPage() {
                                             variant="destructive"
                                             className="flex-1"
                                             onClick={() => {
-                                                deleteAllUserData();
                                                 resetProgress();
                                                 resetSettings();
                                                 setShowResetConfirm(false);

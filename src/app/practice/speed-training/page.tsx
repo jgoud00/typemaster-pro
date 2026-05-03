@@ -97,18 +97,20 @@ function BurstMode() {
     const currentLevelRef = useRef(currentLevel);
     const currentWpmGoalRef = useRef(currentWpmGoal);
     const textRef = useRef(text);
-    currentLevelRef.current = currentLevel;
-    currentWpmGoalRef.current = currentWpmGoal;
-    textRef.current = text;
 
-    // Force re-render for timer
-    const [, setNow] = useState(Date.now());
     useEffect(() => {
-        if (phase === 'playing') {
-            const interval = setInterval(() => setNow(Date.now()), 100);
-            return () => clearInterval(interval);
-        }
-    }, [phase]);
+        currentLevelRef.current = currentLevel;
+        currentWpmGoalRef.current = currentWpmGoal;
+        textRef.current = text;
+    }, [currentLevel, currentWpmGoal, text]);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTimeUntilReset(getTimeUntilReset());
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     const startLevel = useCallback((level: number, wpm: number) => {
         setPhase('playing');
@@ -163,6 +165,20 @@ function BurstMode() {
 
     const elapsedTime = getElapsedTime();
     const remainingTime = levelDuration > 0 ? Math.max(0, levelDuration - elapsedTime) : 0;
+    useEffect(() => {
+        if (state.recentUnlock) {
+            fireConfetti({ particleCount: 50, spread: 60 });
+
+            const timer = setTimeout(() => {
+                clearRecentUnlock();
+            }, 4000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [state.recentUnlock, clearRecentUnlock, fireConfetti]);
+
+    const visible = !!state.recentUnlock;
+    const achievement = state.recentUnlock;
 
     useEffect(() => {
         if (phase === 'gameover') {
@@ -286,7 +302,8 @@ function BurstMode() {
 
 function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t: string) => void }) {
     const [bpm, setBpm] = useState(60);
-    const [isActive, setIsActive] = useState(false);
+    const [challenges] = useState(() => getDailyChallenges());
+    const [timeUntilReset, setTimeUntilReset] = useState(() => getTimeUntilReset());
     const [beat, setBeat] = useState(false);
     const beatRef = useRef<NodeJS.Timeout | null>(null);
     const completionHandledRef = useRef(false);
@@ -313,6 +330,9 @@ function MetronomeMode({ text, onTextChange }: { text: string; onTextChange: (t:
 
     // Metronome tick logic
     useEffect(() => {
+        if (!progress.records) return 0;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         if (isActive) {
             const intervalMs = (60 / bpm) * 1000;
             beatRef.current = setInterval(() => {
@@ -442,11 +462,14 @@ function SprintMode({ text, onTextChange }: { text: string; onTextChange: (t: st
     // Refs to avoid stale closures
     const currentSprintRef = useRef(currentSprint);
     const totalSprintsRef = useRef(totalSprints);
-    currentSprintRef.current = currentSprint;
-    totalSprintsRef.current = totalSprints;
+
+    useEffect(() => {
+        currentSprintRef.current = currentSprint;
+        totalSprintsRef.current = totalSprints;
+    }, [currentSprint, totalSprints]);
 
     // Force update for timer
-    const [, setNow] = useState(Date.now());
+    const [, setNow] = useState(() => Date.now());
     useEffect(() => {
         if (phase === 'sprint') {
             const interval = setInterval(() => setNow(Date.now()), 100);

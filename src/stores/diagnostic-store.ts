@@ -95,6 +95,7 @@ export const useDiagnosticStore = create<DiagnosticState>()(
         }),
         {
             name: 'typemaster-diagnostic',
+            skipHydration: false,
             partialize: (state) => ({
                 hasTakenDiagnostic: state.hasTakenDiagnostic,
                 diagnosticResult: state.diagnosticResult,

@@ -10,26 +10,22 @@ import { useConfetti } from '@/hooks/use-confetti';
 
 function AchievementToastComponent() {
     const { state, clearRecentUnlock } = useAchievementStore();
-    const [visible, setVisible] = useState(false);
-    const [achievement, setAchievement] = useState<Achievement | null>(null);
     const { fireConfetti } = useConfetti();
 
     useEffect(() => {
         if (state.recentUnlock) {
-            setAchievement(state.recentUnlock);
-            setVisible(true);
             fireConfetti({ particleCount: 50, spread: 60 });
 
             const timer = setTimeout(() => {
-                setVisible(false);
-                setTimeout(() => {
-                    clearRecentUnlock();
-                }, 500);
+                clearRecentUnlock();
             }, 4000);
 
             return () => clearTimeout(timer);
         }
     }, [state.recentUnlock, clearRecentUnlock, fireConfetti]);
+
+    const visible = !!state.recentUnlock;
+    const achievement = state.recentUnlock;
 
     return (
         <AnimatePresence>

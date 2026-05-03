@@ -286,6 +286,7 @@ export const useProgressStore = create<ProgressStore>()(
         }),
         {
             name: 'typing-progress',
+            skipHydration: false,
             merge: (persistedState: unknown, currentState: ProgressStore): ProgressStore => {
                 const persisted = persistedState as Partial<ProgressStore> | undefined;
                 if (!persisted?.progress) return currentState;

@@ -1,15 +1,7 @@
 // Curated practice texts for various modes, vastly expanded to prevent repetition.
-import { useSettingsStore } from '@/stores/settings-store';
 import { enLocale } from './locales/en';
-import { esLocale } from './locales/es';
 
 function getLocale() {
-    if (typeof window !== 'undefined') {
-        const state = useSettingsStore.getState();
-        if (state?.settings?.language === 'es') {
-            return esLocale;
-        }
-    }
     return enLocale;
 }
 

@@ -129,6 +129,7 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'typing-game',
+            skipHydration: false
         }
     )
 );

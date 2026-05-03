@@ -2,21 +2,34 @@
 
 import { create } from 'zustand';
 import { KeystrokeEvent, KeyStat, BigramStat, TrigramStat, WeaknessProfile, Finger } from '@/types';
+import type { Remote } from 'comlink';
+import type { MLWorkerAPI, SkillState, BayesianResult } from '../workers/ml.worker';
 
 interface AnalyticsStore {
     // Session analytics
     sessionKeystrokes: KeystrokeEvent[];
 
-    // Cumulative stats (for weakness detection)
+    // Cumulative stats
     keyStats: Record<string, KeyStat>;
     bigramStats: Record<string, BigramStat>;
     trigramStats: Record<string, TrigramStat>;
     fingerStats: Record<Finger, { correct: number; total: number }>;
 
-    // Actions
-    recordKeystroke: (keystroke: KeystrokeEvent) => void;
-    clearSession: () => void;
+    // ML Results
+    mlResults: {
+        skillStates: Record<string, SkillState>;
+        bayesianEstimates: Record<string, BayesianResult>;
+        errorPrediction: number;
+    };
 
+    // Actions
+    recordKeystroke: (
+        keystroke: KeystrokeEvent,
+        context: { wpm: number; accuracy: number },
+        mlWorker?: Remote<MLWorkerAPI> | null
+    ) => Promise<void>;
+    clearSession: () => void;
+    
     // Analytics getters
     getWeaknessProfile: () => WeaknessProfile;
     getKeyAccuracy: (key: string) => number;
@@ -42,13 +55,16 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
     bigramStats: {},
     trigramStats: {},
     fingerStats: { ...initialFingerStats },
+    mlResults: {
+        skillStates: {},
+        bayesianEstimates: {},
+        errorPrediction: 0,
+    },
 
-    recordKeystroke: (keystroke: KeystrokeEvent) => {
+    recordKeystroke: async (keystroke, context, mlWorker) => {
+        // 1. Update Core Stats (Synchronous)
         set(state => {
-            // Update session keystrokes
             const newSessionKeystrokes = [...state.sessionKeystrokes, keystroke];
-
-            // Update key stats
             const keyStats = { ...state.keyStats };
             const existing = keyStats[keystroke.expected] || {
                 totalAttempts: 0,
@@ -57,132 +73,102 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
                 averageSpeed: 0,
             };
 
-            keyStats[keystroke.expected] = {
+            const updatedKeyStat = {
                 totalAttempts: existing.totalAttempts + 1,
                 errors: existing.errors + (keystroke.isCorrect ? 0 : 1),
                 totalHesitation: existing.totalHesitation + keystroke.hesitationMs,
                 averageSpeed: (existing.totalHesitation + keystroke.hesitationMs) / (existing.totalAttempts + 1),
             };
 
-            // Update bigram stats
+            keyStats[keystroke.expected] = updatedKeyStat;
+
             const bigramStats = { ...state.bigramStats };
             if (keystroke.previousKey) {
                 const bigram = keystroke.previousKey + keystroke.expected;
-                const existingBigram = bigramStats[bigram] || {
-                    bigram,
-                    totalAttempts: 0,
-                    errors: 0,
-                    averageTime: 0,
-                };
-
+                const existingB = bigramStats[bigram] || { bigram, totalAttempts: 0, errors: 0, averageTime: 0 };
                 bigramStats[bigram] = {
-                    bigram,
-                    totalAttempts: existingBigram.totalAttempts + 1,
-                    errors: existingBigram.errors + (keystroke.isCorrect ? 0 : 1),
-                    averageTime: (existingBigram.averageTime * existingBigram.totalAttempts + keystroke.hesitationMs) / (existingBigram.totalAttempts + 1),
+                    ...existingB,
+                    totalAttempts: existingB.totalAttempts + 1,
+                    errors: existingB.errors + (keystroke.isCorrect ? 0 : 1),
+                    averageTime: (existingB.averageTime * existingB.totalAttempts + keystroke.hesitationMs) / (existingB.totalAttempts + 1),
                 };
             }
 
-            // Update trigram stats
-            const trigramStats = { ...state.trigramStats };
-            if (newSessionKeystrokes.length >= 3) {
-                const lastThree = newSessionKeystrokes.slice(-3);
-                const trigram = lastThree[0].expected + lastThree[1].expected + lastThree[2].expected;
-                const existingTrigram = trigramStats[trigram] || {
-                    trigram,
-                    totalAttempts: 0,
-                    errors: 0,
-                    averageTime: 0,
-                };
-
-                trigramStats[trigram] = {
-                    trigram,
-                    totalAttempts: existingTrigram.totalAttempts + 1,
-                    errors: existingTrigram.errors + (keystroke.isCorrect ? 0 : 1),
-                    averageTime: (existingTrigram.averageTime * existingTrigram.totalAttempts + keystroke.hesitationMs) / (existingTrigram.totalAttempts + 1),
-                };
-            }
-
-            // Update finger stats
             const fingerStats = { ...state.fingerStats };
-            const finger = keystroke.finger;
-            fingerStats[finger] = fingerStats[finger] ?? { correct: 0, total: 0 };
-            fingerStats[finger] = {
-                correct: fingerStats[finger].correct + (keystroke.isCorrect ? 1 : 0),
-                total: fingerStats[finger].total + 1,
-            };
+            const currentFinger = fingerStats[keystroke.finger];
+            if (currentFinger) {
+                fingerStats[keystroke.finger] = {
+                    correct: currentFinger.correct + (keystroke.isCorrect ? 1 : 0),
+                    total: currentFinger.total + 1,
+                };
+            }
 
             return {
                 sessionKeystrokes: newSessionKeystrokes,
                 keyStats,
                 bigramStats,
-                trigramStats,
                 fingerStats,
             };
         });
+
+        // 2. Offload ML (Asynchronous via Worker)
+        if (mlWorker) {
+            try {
+                const state = get();
+                const currentStat = state.keyStats[keystroke.expected];
+                
+                const [bayesian, hmm, prediction] = await Promise.all([
+                    mlWorker.updateBayesianModel(currentStat),
+                    mlWorker.calculateHMMState(state.sessionKeystrokes, keystroke.expected),
+                    mlWorker.predictNextError({
+                        wpm: context.wpm,
+                        accuracy: context.accuracy / 100,
+                        recentErrors: state.sessionKeystrokes.slice(-10).filter(k => !k.isCorrect).length,
+                        fatigue: state.sessionKeystrokes.length / 500
+                    })
+                ]);
+
+                set(state => ({
+                    mlResults: {
+                        skillStates: { ...state.mlResults.skillStates, [keystroke.expected]: hmm },
+                        bayesianEstimates: { ...state.mlResults.bayesianEstimates, [keystroke.expected]: bayesian },
+                        errorPrediction: prediction,
+                    }
+                }));
+            } catch (error) {
+                console.warn('[MLWorker] inference failed:', error);
+            }
+        }
     },
 
-    clearSession: () => {
-        set({ sessionKeystrokes: [] });
-    },
+    clearSession: () => set({ sessionKeystrokes: [], mlResults: { skillStates: {}, bayesianEstimates: {}, errorPrediction: 0 } }),
 
     getWeaknessProfile: () => {
         const state = get();
-        const problemKeys: string[] = [];
-
-        // Find keys with <85% accuracy
-        Object.entries(state.keyStats).forEach(([key, stat]) => {
-            const accuracy = stat.totalAttempts > 0
-                ? ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100
-                : 100;
-            if (accuracy < 85 && stat.totalAttempts >= 5) {
-                problemKeys.push(key);
-            }
-        });
-
-        // Sort by error rate (worst first)
-        problemKeys.sort((a, b) => {
-            const aRate = state.keyStats[a].errors / state.keyStats[a].totalAttempts;
-            const bRate = state.keyStats[b].errors / state.keyStats[b].totalAttempts;
-            return bRate - aRate;
-        });
-
         return {
             keyStats: state.keyStats,
             bigramStats: state.bigramStats,
             trigramStats: state.trigramStats,
             fingerAccuracy: state.fingerStats,
             averageHesitation: get().getAverageHesitation(),
-            problemKeys,
+            problemKeys: get().getProblematicKeys(),
         };
     },
 
     getKeyAccuracy: (key: string) => {
         const stat = get().keyStats[key];
-        if (!stat || stat.totalAttempts === 0) return 100;
-        return ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100;
+        return stat && stat.totalAttempts > 0 ? ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100 : 100;
     },
 
     getProblematicKeys: (threshold = 85) => {
         const { keyStats } = get();
         return Object.entries(keyStats)
-            .filter(([, stat]) => {
-                if (stat.totalAttempts < 5) return false;
-                const accuracy = ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100;
-                return accuracy < threshold;
-            })
-            .map(([key]) => key)
-            .sort((a, b) => {
-                const aRate = keyStats[a].errors / keyStats[a].totalAttempts;
-                const bRate = keyStats[b].errors / keyStats[b].totalAttempts;
-                return bRate - aRate;
-            });
+            .filter(([, s]) => s.totalAttempts >= 5 && ((s.totalAttempts - s.errors) / s.totalAttempts) * 100 < threshold)
+            .map(([k]) => k);
     },
 
     getAverageHesitation: () => {
-        const keystrokes = get().sessionKeystrokes;
-        if (keystrokes.length === 0) return 0;
-        const total = keystrokes.reduce((sum, k) => sum + k.hesitationMs, 0);
-        return total / keystrokes.length;
+        const ks = get().sessionKeystrokes;
+        return ks.length === 0 ? 0 : ks.reduce((s, k) => s + k.hesitationMs, 0) / ks.length;
     },
 }));

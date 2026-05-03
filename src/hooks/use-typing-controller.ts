@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
-import { predictNextChars } from '@/lib/algorithms/next-word-predictor';
-import { useWeaknessDetectorWorker } from '@/hooks/use-weakness-detector-worker';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 import { typingBus } from '@/lib/events/typing-bus';
@@ -37,8 +35,6 @@ export function useTypingController({
 }: UseTypingControllerOptions) {
     const setText = useTypingStore(s => s.setText);
     const reset = useTypingStore(s => s.reset);
-    const getWpm = useTypingStore(s => s.getWpm);
-    const getAccuracy = useTypingStore(s => s.getAccuracy);
     const getElapsedTime = useTypingStore(s => s.getElapsedTime);
     const handleKeystroke = useTypingStore(s => s.handleKeystroke);
 
@@ -53,7 +49,6 @@ export function useTypingController({
 
     const completionStateRef = useRef<CompletionState>({ completed: false, reason: null });
     const rafIdRef = useRef<number>(0);
-    const { updateKey } = useWeaknessDetectorWorker();
 
     // Link milestone events
     useEffect(() => {
@@ -66,9 +61,7 @@ export function useTypingController({
     // Initialize — only reset store when text is a genuinely new session
     const prevTextRef = useRef('');
     useEffect(() => {
-        // If new text starts with old text, it's an append — update store text without resetting progress
         if (prevTextRef.current && text.startsWith(prevTextRef.current) && text !== prevTextRef.current) {
-            // Just update the text in store without resetting state
             const store = useTypingStore.getState();
             useTypingStore.setState({
                 state: { ...store.state, text },
@@ -106,7 +99,7 @@ export function useTypingController({
         };
     }, []);
 
-    // Bug #6: Pause on tab switch
+    // Pause on tab switch
     useEffect(() => {
         const handler = () => {
             const s = useTypingStore.getState();
@@ -132,7 +125,6 @@ export function useTypingController({
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
             if (document.activeElement?.closest('[role="dialog"]')) return;
 
-            // Fix: Timing determinism + Anti-cheat (isTrusted + Jitter)
             const s = useTypingStore.getState();
             if (s.state.isComplete || s.state.isPaused || document.hidden || !e.isTrusted) return;
             if (timeLimitSeconds && s.state.startTime) {
@@ -148,24 +140,13 @@ export function useTypingController({
 
             if (e.key.length === 1) {
                 e.preventDefault();
-
-                // Anti-cheat: record keystroke timing + trust
                 antiCheatCollector.recordKeystroke(Date.now(), e.isTrusted);
-
-                // 1. Process local state
                 const keystroke = handleKeystroke(e.key);
                 
-                // 2. Dispatch to decoupled systems — Bug #5: read fresh state from store
                 if (keystroke) {
                     const freshState = useTypingStore.getState();
                     const freshIndex = freshState.state.currentIndex;
                     const freshText = freshState.state.text;
-
-                    updateKey(e.key, keystroke.isCorrect, keystroke.hesitationMs, {
-                        timestamp: keystroke.timestamp,
-                        sessionPosition: freshText.length > 0 ? freshIndex / freshText.length : 0,
-                        recentErrors: 0,
-                    }).catch(console.error);
 
                     typingBus.emit('KEYSTROKE_REGISTERED', {
                         key: e.key,
@@ -173,6 +154,8 @@ export function useTypingController({
                         isCorrect: keystroke.isCorrect,
                         timestamp: keystroke.timestamp,
                         delayFromLastKey: keystroke.hesitationMs,
+                        finger: keystroke.finger,
+                        previousKey: keystroke.previousKey,
                         wpm: freshState.getWpm(),
                         accuracy: freshState.getAccuracy(),
                         textLength: freshText.length,
@@ -186,11 +169,8 @@ export function useTypingController({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleKeystroke, timeLimitSeconds]);
 
-    // Bug #10: Read all values from store directly to avoid stale closures
-    // Bug #13: Read maxCombo from game store
     const completeSession = useCallback((reason: 'text' | 'time') => {
         if (completionStateRef.current.completed) return;
-
         completionStateRef.current = { completed: true, reason };
 
         const store = useTypingStore.getState();
@@ -201,7 +181,6 @@ export function useTypingController({
         const freshErrors = store.state.errorIndices.length;
         const maxCombo = useGameStore.getState().game.maxCombo;
 
-        // Anti-cheat: analyze session integrity
         const integrity = analyzeSession(antiCheatCollector, wpm, accuracy);
 
         const record: PerformanceRecord = {
@@ -220,10 +199,6 @@ export function useTypingController({
             valid: integrity.valid,
             integrityHash: integrity.hash,
         };
-
-        if (integrity.flags.length > 0) {
-            console.warn('[Anti-Cheat]', integrity.flags.map(f => f.reason).join('; '));
-        }
 
         typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid });
         onComplete?.(record);
@@ -259,28 +234,6 @@ export function useTypingController({
         completionStateRef.current = { completed: false, reason: null };
     }, [reset]);
 
-    // Evaluate predictions for the upcoming characters
-    const predictedMistakeIndices = useMemo(() => {
-        if (!currentText || currentIndex >= currentText.length || currentIndex === 0) return [];
-        
-        // Grab context (up to 2 previous characters)
-        const start = Math.max(0, currentIndex - 2);
-        const context = currentText.substring(start, currentIndex);
-        
-        const predictedChars = predictNextChars(context, 2); // Get top 2 predictions
-        
-        const indices: number[] = [];
-        // Look ahead briefly to pre-highlight future mistakes
-        const lookAhead = Math.min(3, currentText.length - currentIndex);
-        for (let i = 0; i < lookAhead; i++) {
-            const upcomingChar = currentText[currentIndex + i]?.toLowerCase();
-            if (upcomingChar && predictedChars.includes(upcomingChar)) {
-                indices.push(currentIndex + i);
-            }
-        }
-        return indices;
-    }, [currentText, currentIndex]);
-
     return {
         reset: handleReset,
         isComplete,
@@ -289,7 +242,6 @@ export function useTypingController({
         text: currentText,
         currentIndex,
         errorIndices,
-        predictedMistakeIndices,
         keystrokes,
         activeKey,
     };

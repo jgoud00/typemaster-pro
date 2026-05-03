@@ -4,6 +4,8 @@ import { Toaster } from "react-hot-toast";
 import { AchievementToast } from "@/components/gamification/achievement-toast";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PWARegistry } from "@/components/pwa-registry";
+import { WorkerProvider } from "@/components/providers/worker-provider";
+import { HydrationProvider } from "@/components/providers/hydration-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,7 +46,11 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`} suppressHydrationWarning>
         <ErrorBoundary>
-          {children}
+          <HydrationProvider>
+            <WorkerProvider>
+              {children}
+            </WorkerProvider>
+          </HydrationProvider>
         </ErrorBoundary>
         <AchievementToast />
         <Toaster
@@ -74,5 +80,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-

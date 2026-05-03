@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Safelist for keyboard heatmap colors (Tailwind 4) */
+@source inline("fill-emerald-500/20 stroke-emerald-500/50 fill-green-500/20 stroke-green-500/50 fill-yellow-500/20 stroke-yellow-500/50 fill-orange-500/20 stroke-orange-500/50 fill-red-500/20 stroke-red-500/50");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -84,10 +87,10 @@
 
 .dark {
   --background: oklch(0.14 0.01 250);
-  --foreground: oklch(0.88 0.02 250);
-  --primary: oklch(0.75 0.15 190); /* Teal accent */
+  --foreground: oklch(0.92 0.01 250); /* Soft white (#e5e7eb equivalent) */
+  --primary: oklch(0.88 0.12 200); /* Readable light accent */
   --secondary: oklch(0.65 0.18 320); /* Magenta secondary tone */
-  --muted-foreground: oklch(0.45 0.05 250);
+  --muted-foreground: oklch(0.7 0.02 250); /* Lighter gray */
   --card: oklch(1 0 0 / 5%);
   --card-foreground: oklch(0.88 0.02 250);
   --popover: oklch(1 0 0 / 8%);
