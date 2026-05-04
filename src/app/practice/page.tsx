@@ -23,7 +23,8 @@ import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
-import { cn } from '@/lib/utils'; // Ensure cn is imported
+import { cn } from '@/lib/utils';
+import { API_ROUTES, TIMERS } from '@/lib/config/constants';
 
 // --- Practice Hub Component ---
 function PracticeHub() {
@@ -109,6 +110,16 @@ function PracticeHubCard({ title, description, href, icon, color }: {
 }
 
 // --- Standard Typing Interface (Refactored) ---
+function calculateFlowScore(wpms: number[], accuracy: number) {
+    if (wpms.length === 0) return 100;
+    const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
+    const variance = wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length;
+    const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
+    const stability = Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5));
+    const accScore = Math.min(100, accuracy < 95 ? accuracy - (95 - accuracy) * 2 : accuracy);
+    return Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
+}
+
 function Leaderboard() {
     const entries = useLeaderboardStore(s => s.getTop());
 
@@ -132,7 +143,7 @@ function Leaderboard() {
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className={cn(
                                         "text-xs font-bold w-4",
-                                        i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-500"
+                                        ['text-yellow-400', 'text-gray-300', 'text-orange-400'][i] || 'text-gray-500'
                                     )}>{i + 1}</span>
                                     <span className="text-sm font-medium truncate">{entry.username}</span>
                                 </div>
@@ -182,12 +193,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
         // Calculate final flow score for leaderboard
         const wpms = historyRef.current.map(h => Math.min(250, h.wpm));
-        const mean = wpms.length > 0 ? wpms.reduce((a, b) => a + b, 0) / wpms.length : 0;
-        const variance = wpms.length > 0 ? wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length : 0;
-        const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
-        const stability = wpms.length > 0 ? Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5)) : 100;
-        const accScore = Math.min(100, record.accuracy < 95 ? record.accuracy - (95 - record.accuracy) * 2 : record.accuracy);
-        const finalFlowScore = Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
+        const finalFlowScore = calculateFlowScore(wpms, record.accuracy);
 
         // Update leaderboard
         useLeaderboardStore.getState().addEntry({
@@ -207,7 +213,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         if (sd && record.wpm > 0) {
             const loadingToast = toast.loading("Verifying performance...");
             try {
-                const res = await fetch('/api/submit-score', {
+                const res = await fetch(API_ROUTES.SUBMIT_SCORE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -279,15 +285,9 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         let detectedTrend: 'rising' | 'falling' | 'stable' = 'stable';
         if (currentSmoothed > prevSmoothed + 0.5) detectedTrend = 'rising';
         else if (currentSmoothed < prevSmoothed - 0.5) detectedTrend = 'falling';
-
-        const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
-        const variance = wpms.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / wpms.length;
-        const consistency = Math.max(0, 100 - Math.sqrt(variance) * 2);
-        const stability = Math.max(0, 100 - ((Math.max(...wpms) - Math.min(...wpms)) * 1.5));
-        const accScore = Math.min(100, accuracy < 95 ? accuracy - (95 - accuracy) * 2 : accuracy);
         
         return {
-            flowScore: Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3)))),
+            flowScore: calculateFlowScore(wpms, accuracy),
             trend: detectedTrend
         };
     }, [history, accuracy]);
@@ -298,7 +298,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             if (flowScore > 80) setDifficulty('hard');
             else if (flowScore < 60) setDifficulty('easy');
             else setDifficulty('medium');
-        }, 150);
+        }, TIMERS.DEBOUNCE_MS);
         return () => clearTimeout(timeout);
     }, [flowScore]);
 
@@ -330,7 +330,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                 wpm: wpmRef.current,
                 errors: errorsRef.current
             }]);
-        }, 1000);
+        }, TIMERS.POLLING_INTERVAL_MS);
 
         return () => clearInterval(interval);
     }, [hasStarted, isPaused, isComplete]);
@@ -350,7 +350,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
         // Fetch new session for verification
         try {
-            const res = await fetch('/api/session');
+            const res = await fetch(API_ROUTES.SESSION);
             if (res.ok) setSessionData(await res.json());
         } catch (e) { console.error("Session fetch failed"); }
     };
@@ -496,7 +496,11 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                 <span className="text-[9px] uppercase tracking-[0.3em] text-gray-600 font-black">Flow</span>
                                 <span className={cn(
                                     "text-xl font-black tabular-nums transition-colors duration-500",
-                                    trend === 'rising' ? 'text-teal-400' : trend === 'falling' ? 'text-magenta-400' : 'text-gray-500'
+                                    {
+                                        'text-teal-400': trend === 'rising',
+                                        'text-magenta-400': trend === 'falling',
+                                        'text-gray-500': trend === 'stable'
+                                    }
                                 )}>
                                     {flowScore}
                                 </span>
@@ -573,7 +577,6 @@ function PracticeContent() {
 }
 
 function getTextForMode(mode: PracticeMode, duration: number, customText?: string): string {
-    const sessionId = Math.random().toString(36).substring(7);
     switch (mode) {
         case 'speed-test':
             return generateAdaptiveText(Math.ceil(duration / 60 * 50), 'medium');

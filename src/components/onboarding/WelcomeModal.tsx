@@ -21,16 +21,10 @@ export function WelcomeModal() {
     const setHasSeenWelcome = useProgressStore((state) => state.setHasSeenWelcome);
 
     useEffect(() => {
-        const loadingTimer = setTimeout(() => setIsLoading(false), 2000);
-        
         if (!hasSeenWelcome && pathname === '/') {
-            const timer = setTimeout(() => setOpen(true), 500);
-            return () => {
-                clearTimeout(timer);
-                clearTimeout(loadingTimer);
-            };
+            setOpen(true);
+            setIsLoading(false);
         }
-        return () => clearTimeout(loadingTimer);
     }, [hasSeenWelcome, pathname]);
 
     const handleStart = () => {

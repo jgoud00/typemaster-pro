@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 
+import { SHARE_URLS, buildShareUrl } from '@/lib/config/constants';
+
 interface ShareButtonsProps {
     url?: string;
     title: string;
@@ -13,17 +15,17 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
     const shareText = `${title}\n\nTry Aloo Type: ${shareUrl}`;
 
     const shareToTwitter = () => {
-        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+        const twitterUrl = buildShareUrl(SHARE_URLS.TWITTER, shareText, shareUrl);
         window.open(twitterUrl, '_blank');
     };
 
     const shareToFacebook = () => {
-        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+        const fbUrl = buildShareUrl(SHARE_URLS.FACEBOOK, shareText, shareUrl);
         window.open(fbUrl, '_blank');
     };
 
     const shareToReddit = () => {
-        const redditUrl = `https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(title)}`;
+        const redditUrl = buildShareUrl(SHARE_URLS.REDDIT, title, shareUrl);
         window.open(redditUrl, '_blank');
     };
 

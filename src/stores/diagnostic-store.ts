@@ -126,86 +126,95 @@ function classifyUserLevel(result: DiagnosticResult): UserLevel {
     return 'intermediate';
 }
 
-// Generate human-readable interpretations
-function generateInterpretations(result: DiagnosticResult): Interpretation[] {
-    const interpretations: Interpretation[] = [];
-
-    // Speed interpretation
-    if (result.wpm < 25) {
-        interpretations.push({
+function getSpeedInterpretation(wpm: number): Interpretation {
+    if (wpm < 25) {
+        return {
             type: 'insight',
             title: 'Building Your Foundation',
             description: 'Your typing speed is developing. Focus on accuracy first — speed will follow naturally.',
-        });
-    } else if (result.wpm >= 25 && result.wpm < 45) {
-        interpretations.push({
+        };
+    } else if (wpm < 45) {
+        return {
             type: 'strength',
             title: 'Solid Base Speed',
-            description: `You're typing at ${result.wpm} WPM, which is a great foundation to build upon.`,
-        });
-    } else {
-        interpretations.push({
-            type: 'strength',
-            title: 'Fast Typist',
-            description: `Impressive! You're already typing at ${result.wpm} WPM.`,
-        });
+            description: `You're typing at ${wpm} WPM, which is a great foundation to build upon.`,
+        };
     }
+    return {
+        type: 'strength',
+        title: 'Fast Typist',
+        description: `Impressive! You're already typing at ${wpm} WPM.`,
+    };
+}
 
-    // Accuracy interpretation
-    if (result.accuracy < 85) {
-        interpretations.push({
+function getAccuracyInterpretation(accuracy: number): Interpretation {
+    if (accuracy < 85) {
+        return {
             type: 'weakness',
             title: 'Accuracy Needs Work',
             description: 'You\'re making too many errors. Slow down and focus on hitting the right keys.',
             severity: 'high',
-        });
-    } else if (result.accuracy < 92) {
-        interpretations.push({
+        };
+    } else if (accuracy < 92) {
+        return {
             type: 'insight',
             title: 'Room for Improvement',
-            description: `Your ${result.accuracy.toFixed(1)}% accuracy is decent, but aiming for 95%+ will significantly improve your flow.`,
-        });
-    } else {
-        interpretations.push({
-            type: 'strength',
-            title: 'Accurate Typing',
-            description: `Excellent accuracy at ${result.accuracy.toFixed(1)}%! You rarely need to correct mistakes.`,
-        });
+            description: `Your ${accuracy.toFixed(1)}% accuracy is decent, but aiming for 95%+ will significantly improve your flow.`,
+        };
     }
+    return {
+        type: 'strength',
+        title: 'Accurate Typing',
+        description: `Excellent accuracy at ${accuracy.toFixed(1)}%! You rarely need to correct mistakes.`,
+    };
+}
 
-    // Hand balance
-    const leftErrors = result.weakHandErrors.left;
-    const rightErrors = result.weakHandErrors.right;
+function getHandBalanceInterpretation(leftErrors: number, rightErrors: number): Interpretation | null {
     const handDiff = Math.abs(leftErrors - rightErrors);
     const totalHandErrors = leftErrors + rightErrors;
-
     if (totalHandErrors > 0 && handDiff / totalHandErrors > 0.3) {
         const weakerHand = leftErrors > rightErrors ? 'left' : 'right';
-        interpretations.push({
+        return {
             type: 'weakness',
             title: `${weakerHand === 'left' ? 'Left' : 'Right'} Hand Weakness`,
             description: `Your ${weakerHand} hand is significantly weaker. It's responsible for ${Math.round((weakerHand === 'left' ? leftErrors : rightErrors) / totalHandErrors * 100)}% of your errors.`,
             severity: 'medium',
-        });
+        };
     }
+    return null;
+}
 
-    // Rhythm analysis
-    if (result.burstiness > 0.6) {
-        interpretations.push({
+function getRhythmInterpretation(burstiness: number): Interpretation | null {
+    if (burstiness > 0.6) {
+        return {
             type: 'weakness',
             title: 'Inconsistent Rhythm',
             description: 'You type in bursts rather than maintaining a steady pace. This leads to more errors during fast bursts.',
             severity: 'medium',
-        });
-    } else if (result.burstiness < 0.3) {
-        interpretations.push({
+        };
+    } else if (burstiness < 0.3) {
+        return {
             type: 'strength',
             title: 'Steady Rhythm',
             description: 'You maintain a consistent typing pace, which helps reduce errors.',
-        });
+        };
     }
+    return null;
+}
 
-    // Backspace dependence
+// Generate human-readable interpretations
+function generateInterpretations(result: DiagnosticResult): Interpretation[] {
+    const interpretations: Interpretation[] = [];
+
+    interpretations.push(getSpeedInterpretation(result.wpm));
+    interpretations.push(getAccuracyInterpretation(result.accuracy));
+
+    const handBal = getHandBalanceInterpretation(result.weakHandErrors.left, result.weakHandErrors.right);
+    if (handBal) interpretations.push(handBal);
+
+    const rhythm = getRhythmInterpretation(result.burstiness);
+    if (rhythm) interpretations.push(rhythm);
+
     if (result.backspaceDependence > 0.15) {
         interpretations.push({
             type: 'weakness',
@@ -215,7 +224,6 @@ function generateInterpretations(result: DiagnosticResult): Interpretation[] {
         });
     }
 
-    // Weak keys
     if (result.weakKeys.length > 0) {
         interpretations.push({
             type: 'insight',

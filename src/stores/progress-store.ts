@@ -46,7 +46,7 @@ interface ProgressStore {
 const computeHash = (data: any): string => {
     const s = JSON.stringify(data);
     let h = 0;
-    for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+    for (let i = 0; i < s.length; i++) h = Math.trunc(Math.imul(31, h) + s.charCodeAt(i));
     return (h >>> 0).toString(16);
 };
 

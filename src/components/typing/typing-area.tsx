@@ -109,7 +109,6 @@ function TypingAreaComponent({
 
                 {/* Text content area - Minimal & Large */}
                 <div
-                    role="textbox"
                     aria-label="Text to type"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -128,7 +127,7 @@ function TypingAreaComponent({
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     >
                         {words.map((word, wIdx) => (
-                            <div key={wIdx} className={cn(
+                            <div key={`word-${word[0]?.index ?? wIdx}`} className={cn(
                                 "inline-block whitespace-nowrap transition-opacity duration-200",
                                 wIdx === currentWordIdx ? "opacity-100" : "opacity-30"
                             )}>
@@ -139,7 +138,7 @@ function TypingAreaComponent({
                                     const isNext = index === currentIndex + 1;
                                     return (
                                         <TypingCharacter
-                                            key={index}
+                                            key={`char-${index}`}
                                             char={char}
                                             isTyped={isTyped}
                                             isCurrent={isCurrent}

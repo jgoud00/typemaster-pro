@@ -115,28 +115,37 @@ export function useTypingController({
 
     // Handle keyboard events
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey || e.altKey || e.metaKey) return;
-            if (['Escape', 'Tab', 'CapsLock', 'Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
-            if (e.key.startsWith('F') && e.key.length > 1) return;
-            if (e.key === 'Backspace' || e.key === 'Delete') return;
+        const isIgnoredKey = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.altKey || e.metaKey) return true;
+            if (['Escape', 'Tab', 'CapsLock', 'Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return true;
+            if (e.key.startsWith('F') && e.key.length > 1) return true;
+            if (e.key === 'Backspace' || e.key === 'Delete') return true;
+            return false;
+        };
 
+        const isInputTarget = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-            if (document.activeElement?.closest('[role="dialog"]')) return;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return true;
+            if (document.activeElement?.closest('[role="dialog"]')) return true;
+            return false;
+        };
 
-            const s = useTypingStore.getState();
-            if (s.state.isComplete || s.state.isPaused || document.hidden || !e.isTrusted) return;
+        const isInvalidState = (s: any, e: KeyboardEvent) => {
+            if (s.state.isComplete || s.state.isPaused || document.hidden || !e.isTrusted) return true;
             if (timeLimitSeconds && s.state.startTime) {
                 const pauseAdj = s.state.pausedMs + (s.state.pauseStart ? Date.now() - s.state.pauseStart : 0);
-                if ((Date.now() - s.state.startTime - pauseAdj) / 1000 >= timeLimitSeconds) return;
+                if ((Date.now() - s.state.startTime - pauseAdj) / 1000 >= timeLimitSeconds) return true;
             }
-            
             const lastKey = s.state.keystrokes[s.state.keystrokes.length - 1];
-            if (lastKey) {
-                const delta = Date.now() - lastKey.timestamp;
-                if (delta < 10) return; // Block <10ms keys
-            }
+            if (lastKey && Date.now() - lastKey.timestamp < 10) return true;
+            return false;
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (isIgnoredKey(e) || isInputTarget(e)) return;
+
+            const s = useTypingStore.getState();
+            if (isInvalidState(s, e)) return;
 
             if (e.key.length === 1) {
                 e.preventDefault();
@@ -145,9 +154,6 @@ export function useTypingController({
                 
                 if (keystroke) {
                     const freshState = useTypingStore.getState();
-                    const freshIndex = freshState.state.currentIndex;
-                    const freshText = freshState.state.text;
-
                     typingBus.emit('KEYSTROKE_REGISTERED', {
                         key: e.key,
                         expectedChar: keystroke.expected,
@@ -158,8 +164,8 @@ export function useTypingController({
                         previousKey: keystroke.previousKey,
                         wpm: freshState.getWpm(),
                         accuracy: freshState.getAccuracy(),
-                        textLength: freshText.length,
-                        currentIndex: freshIndex
+                        textLength: freshState.state.text.length,
+                        currentIndex: freshState.state.currentIndex
                     });
                 }
             }

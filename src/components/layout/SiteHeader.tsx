@@ -11,12 +11,29 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useGameStore } from '@/stores/game-store';
+import { createClient } from '@/lib/supabase/client';
+import { logout } from '@/app/auth/actions';
+import { User } from '@supabase/supabase-js';
 
 function SiteHeaderComponent() {
     const pathname = usePathname();
     const { game } = useGameStore();
     const [isMoreOpen, setIsMoreOpen] = useState(false);
     const moreRef = useRef<HTMLDivElement>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const supabase = createClient();
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUser(user);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            setUser(session?.user ?? null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, [supabase.auth]);
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -110,6 +127,21 @@ function SiteHeaderComponent() {
                     </div>
 
                     <div className="w-px h-6 bg-white/10 mx-1" />
+
+                    {/* Auth Status */}
+                    {user ? (
+                        <form action={logout}>
+                            <Button variant="ghost" size="sm" type="submit" className="hidden md:flex text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                                Log Out
+                            </Button>
+                        </form>
+                    ) : (
+                        <Link href="/login">
+                            <Button variant="default" size="sm" className="hidden md:flex">
+                                Log In
+                            </Button>
+                        </Link>
+                    )}
 
                     {/* Settings */}
                     <Link href="/settings">

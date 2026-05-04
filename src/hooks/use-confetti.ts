@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
+import { TIMERS, CONFETTI } from '@/lib/config/constants';
 
 export function useConfetti() {
     const isPlayingRef = useRef(false);
@@ -55,7 +56,7 @@ export function useConfetti() {
                 particleCount: 50,
                 origin: { x: 0.8, y: 0.5 },
             });
-        }, 150);
+        }, CONFETTI.STAGGER_MS);
 
         setTimeout(() => {
             confetti({
@@ -64,7 +65,7 @@ export function useConfetti() {
                 origin: { x: 0.5, y: 0.4 },
                 colors: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'],
             });
-        }, 300);
+        }, CONFETTI.BURST_MS);
     }, []);
 
     const fireStars = useCallback((starCount: number) => {
@@ -81,7 +82,7 @@ export function useConfetti() {
                     colors,
                     scalar: 1.2,
                 });
-            }, i * 200);
+            }, i * TIMERS.STAR_STAGGER_MS);
         }
     }, []);
 
