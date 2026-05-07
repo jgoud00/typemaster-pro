@@ -38,6 +38,9 @@ interface SettingsStore {
     // Actions
     updateSetting: <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => void;
     resetSettings: () => void;
+
+    // Sync
+    adoptRemoteSettings: (remote: SettingsState) => void;
 }
 
 const defaultSettings: SettingsState = {
@@ -85,6 +88,10 @@ export const useSettingsStore = create<SettingsStore>()(
 
             resetSettings: () => {
                 set({ settings: defaultSettings });
+            },
+
+            adoptRemoteSettings: (remote: SettingsState) => {
+                set({ settings: { ...defaultSettings, ...remote } });
             },
         }),
         {

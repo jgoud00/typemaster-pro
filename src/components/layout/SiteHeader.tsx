@@ -130,11 +130,21 @@ function SiteHeaderComponent() {
 
                     {/* Auth Status */}
                     {user ? (
-                        <form action={logout}>
-                            <Button variant="ghost" size="sm" type="submit" className="hidden md:flex text-red-400 hover:text-red-300 hover:bg-red-500/10">
-                                Log Out
-                            </Button>
-                        </form>
+                        <div className="hidden md:flex items-center gap-2">
+                            <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/5 border border-white/10">
+                                <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary uppercase">
+                                    {(user.user_metadata?.username || user.email || '?')[0]}
+                                </div>
+                                <span className="text-xs font-medium text-white/70 max-w-[100px] truncate">
+                                    {user.user_metadata?.username || user.email?.split('@')[0] || 'User'}
+                                </span>
+                            </div>
+                            <form action={logout}>
+                                <Button variant="ghost" size="sm" type="submit" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs px-2">
+                                    Log Out
+                                </Button>
+                            </form>
+                        </div>
                     ) : (
                         <Link href="/login">
                             <Button variant="default" size="sm" className="hidden md:flex">

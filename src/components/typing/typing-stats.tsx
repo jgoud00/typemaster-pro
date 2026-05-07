@@ -55,24 +55,24 @@ export const TypingStats = memo(function TypingStats({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const displayWpm = wpm > 0 ? wpm : '--';
-    const displayAcc = wpm > 0 ? `${accuracy}%` : '--%';
+    const displayWpm = wpm > 0 ? wpm : (startTime ? 0 : '--');
+    const displayAcc = `${accuracy}%`;
     const displayTime = formatTime(remainingTime ?? elapsedTime);
 
     return (
         <div className={cn('flex justify-center items-center gap-12 mb-8 font-mono text-3xl tabular-nums text-gray-500', className)}>
             <div className="flex items-baseline gap-2">
-                <span className="text-gray-200 font-bold">{displayTime}</span>
+                <span data-testid="timer" className="text-gray-200 font-bold">{displayTime}</span>
                 <span className="text-xs uppercase tracking-widest opacity-40">time</span>
             </div>
 
             <div className="flex items-baseline gap-2">
-                <span className="text-gray-200 font-bold">{displayWpm}</span>
+                <span data-testid="wpm" className="text-gray-200 font-bold">{displayWpm}</span>
                 <span className="text-xs opacity-40 uppercase tracking-widest">wpm</span>
             </div>
 
             <div className="flex items-baseline gap-2">
-                <span className="text-gray-200 font-bold">{displayAcc}</span>
+                <span data-testid="accuracy" className="text-gray-200 font-bold">{displayAcc}</span>
                 <span className="text-xs opacity-40 uppercase tracking-widest">acc</span>
             </div>
         </div>

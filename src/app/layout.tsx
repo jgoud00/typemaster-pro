@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PWARegistry } from "@/components/pwa-registry";
 import { WorkerProvider } from "@/components/providers/worker-provider";
 import { HydrationProvider } from "@/components/providers/hydration-provider";
+import { SyncProvider } from "@/components/providers/sync-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -48,7 +49,9 @@ export default function RootLayout({
         <ErrorBoundary>
           <HydrationProvider>
             <WorkerProvider>
-              {children}
+              <SyncProvider>
+                {children}
+              </SyncProvider>
             </WorkerProvider>
           </HydrationProvider>
         </ErrorBoundary>

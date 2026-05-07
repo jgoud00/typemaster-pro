@@ -25,6 +25,8 @@ import toast from 'react-hot-toast';
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
 import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
+import { createClient } from '@/lib/supabase/client';
+import { submitSessionToSupabase } from '@/lib/supabase/leaderboard';
 
 // --- Practice Hub Component ---
 function PracticeHub() {
@@ -121,24 +123,61 @@ function calculateFlowScore(wpms: number[], accuracy: number) {
 }
 
 function Leaderboard() {
-    const entries = useLeaderboardStore(s => s.getTop());
+    const localEntries = useLeaderboardStore(s => s.getTop());
+    const globalEntries = useLeaderboardStore(s => s.globalEntries);
+    const globalLoading = useLeaderboardStore(s => s.globalLoading);
+    const [tab, setTab] = useState<'local' | 'global'>('global');
+
+    useEffect(() => {
+        useLeaderboardStore.getState().fetchGlobalLeaderboard();
+    }, []);
+
+    const entries = tab === 'global'
+        ? globalEntries.map(e => ({ username: e.username || 'Anonymous', wpm: e.best_wpm, accuracy: e.best_accuracy }))
+        : localEntries.map(e => ({ username: e.username, wpm: e.wpm, accuracy: e.accuracy }));
 
     return (
         <Card className="bg-black/20 border-white/10">
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-yellow-400" />
-                    Local Leaderboard
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-yellow-400" />
+                        Leaderboard
+                    </CardTitle>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setTab('global')}
+                            className={cn(
+                                "px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-colors",
+                                tab === 'global' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
+                            )}
+                        >
+                            Global
+                        </button>
+                        <button
+                            onClick={() => setTab('local')}
+                            className={cn(
+                                "px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-colors",
+                                tab === 'local' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
+                            )}
+                        >
+                            Local
+                        </button>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
-                {entries.length === 0 ? (
+                {globalLoading && tab === 'global' ? (
+                    <div className="text-xs text-muted-foreground text-center py-8 animate-pulse">
+                        Loading global leaderboard...
+                    </div>
+                ) : entries.length === 0 ? (
                     <div className="text-xs text-muted-foreground text-center py-8">
-                        No scores yet. Start typing!
+                        {tab === 'global' ? 'No global scores yet. Be the first!' : 'No scores yet. Start typing!'}
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {entries.map((entry, i) => (
+                        {entries.slice(0, 10).map((entry, i) => (
                             <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className={cn(
@@ -203,6 +242,31 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             flowScore: finalFlowScore,
             date: Date.now()
         });
+
+        // Submit to global leaderboard if authenticated
+        try {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                submitSessionToSupabase(user.id, {
+                    wpm: record.wpm,
+                    accuracy: record.accuracy,
+                    duration: record.duration,
+                    mode: mode || 'free',
+                    maxCombo: record.maxCombo,
+                    score: record.score,
+                    totalChars: record.totalChars,
+                    errors: record.errors,
+                    cheatScore: record.cheatScore,
+                    isValid: record.valid,
+                }).catch(e => console.error('[Practice] Failed to submit to global leaderboard:', e));
+
+                // Refresh global leaderboard
+                useLeaderboardStore.getState().fetchGlobalLeaderboard();
+            }
+        } catch (e) {
+            // Non-blocking
+        }
 
         setIsComplete(true);
         fireLessonComplete();

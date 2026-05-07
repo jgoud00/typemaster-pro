@@ -41,6 +41,7 @@ interface ProgressStore {
 
     // Sync
     adoptRemoteState: (remote: UserProgress) => void;
+    lastSyncedAt: number | null;
 }
 
 const computeHash = (data: any): string => {
@@ -281,8 +282,10 @@ export const useProgressStore = create<ProgressStore>()(
             },
 
             adoptRemoteState: (remote: UserProgress) => {
-                set({ progress: remote });
+                set({ progress: remote, lastSyncedAt: Date.now() });
             },
+
+            lastSyncedAt: null,
         }),
         {
             name: 'typing-progress',

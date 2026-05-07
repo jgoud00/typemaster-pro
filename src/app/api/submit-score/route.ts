@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sessions } from '../session/route';
+import { createClient } from '@/lib/supabase/server';
 
 const MAX_VALID_WPM = 300;
 
@@ -70,6 +71,47 @@ export async function POST(req: Request) {
     }
 
     sessions.delete(sid); // Consume session
+
+    // Persist to Supabase if user is authenticated
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Insert typing session
+        await supabase.from('typing_sessions').insert({
+          user_id: user.id,
+          wpm: Math.min(MAX_VALID_WPM, Math.round(sWpm)),
+          accuracy: Math.round(sAcc),
+          duration: Math.round(ksDuration),
+          mode: 'speed-test',
+          max_combo: 0,
+          score: 0,
+          total_chars: keystrokes.length,
+          errors: keystrokes.filter(k => !k.correct).length,
+          cheat_score: 0,
+          is_valid: true,
+        });
+
+        // Update leaderboard
+        const { data: current } = await supabase
+          .from('leaderboard')
+          .select('best_wpm, best_accuracy, total_sessions, total_practice_time')
+          .eq('user_id', user.id)
+          .single();
+
+        await supabase.from('leaderboard').upsert({
+          user_id: user.id,
+          best_wpm: Math.max(current?.best_wpm || 0, Math.round(sWpm)),
+          best_accuracy: Math.max(current?.best_accuracy || 0, Math.round(sAcc)),
+          total_sessions: (current?.total_sessions || 0) + 1,
+          total_practice_time: (current?.total_practice_time || 0) + Math.round(ksDuration),
+        }, { onConflict: 'user_id' });
+      }
+    } catch (e) {
+      // Non-blocking: don't fail the response if Supabase write fails
+      console.error('[SubmitScore] Supabase persistence failed:', e);
+    }
+
     return NextResponse.json({ 
       ok: true, 
       wpm: Math.min(MAX_VALID_WPM, Math.round(sWpm)), 
