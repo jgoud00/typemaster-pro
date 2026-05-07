@@ -6,7 +6,7 @@ import { useProgressStore } from '@/stores/progress-store';
 import { useUserStore } from '@/stores/user-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { fetchProgress, pushProgress, mergeProgress, syncAchievements, fetchAchievements } from '@/lib/supabase/sync';
-import { fetchSettings, pushSettings } from '@/lib/supabase/settings';
+import { fetchSettings, pushSettings } from '../../lib/supabase/settings';
 import type { User } from '@supabase/supabase-js';
 
 const SYNC_DEBOUNCE_MS = 30_000; // Sync every 30 seconds of changes

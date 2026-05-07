@@ -154,7 +154,7 @@ export default function HomePage() {
                   <Link href={mode.href}>
                     <Card className={cn(
                       'cursor-pointer h-full transition-all duration-200 border-2',
-                      `bg-gradient-to-br ${mode.gradient}`,
+                      `bg-linear-to-br ${mode.gradient}`,
                       mode.border,
                       `hover:shadow-lg ${mode.glow}`,
                     )}>
