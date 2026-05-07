@@ -123,7 +123,7 @@ function calculateFlowScore(wpms: number[], accuracy: number) {
 }
 
 function Leaderboard() {
-    const localEntries = useLeaderboardStore(s => s.getTop());
+    const localEntries = useLeaderboardStore(s => s.entries).slice(0, 10);
     const globalEntries = useLeaderboardStore(s => s.globalEntries);
     const globalLoading = useLeaderboardStore(s => s.globalLoading);
     const [tab, setTab] = useState<'local' | 'global'>('global');

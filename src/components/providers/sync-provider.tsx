@@ -126,8 +126,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Subscribe to progress store changes → schedule sync
-    const unsubProgress = useProgressStore.subscribe(() => scheduleSync());
+    // Periodic sync — every 60s while user is authenticated
+    // (Replaces store subscription which could cascade into update loops)
+    const syncIntervalRef = setInterval(() => {
+      if (userRef.current && Date.now() - lastSyncRef.current > 55_000) {
+        performSync(userRef.current.id);
+      }
+    }, 60_000);
 
     // Sync on page unload
     const handleBeforeUnload = () => {
@@ -146,7 +151,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
-      unsubProgress();
+      clearInterval(syncIntervalRef);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
