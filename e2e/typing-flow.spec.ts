@@ -51,14 +51,14 @@ test.describe('Typing Flow & Stability', () => {
         // Verify no errors thrown (handled by beforeEach listener)
     });
 
-    test('verify smart practice hydration delay', async ({ page }) => {
-        await page.goto('/practice/smart');
+    test('verify burst mode hydration delay', async ({ page }) => {
+        await page.goto('/practice/speed-training');
         
         // Wait for loading state and briefing screen
         await page.waitForTimeout(600); 
         
-        // Click "Start Smart Practice" or "Next Exercise" to enter typing mode
-        const startButton = page.locator('button:has-text("Start Smart Practice"), button:has-text("Next Exercise")');
+        // Click "Start Burst Mode" to enter typing mode
+        const startButton = page.locator('button:has-text("Start Burst Mode")');
         await expect(startButton).toBeVisible();
         await startButton.click();
 

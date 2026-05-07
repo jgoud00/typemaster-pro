@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { useProgressStore } from '@/stores/progress-store';
 import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { CheckCircle2 } from 'lucide-react';
 
 interface DailyGoal {
     readonly id: string;
@@ -25,7 +26,6 @@ export function DailyGoals() {
         checkAndResetDaily
     } = useProgressStore();
 
-    // Check and reset daily on mount
     useEffect(() => {
         checkAndResetDaily();
     }, [checkAndResetDaily]);
@@ -33,10 +33,10 @@ export function DailyGoals() {
     const goals: DailyGoal[] = [
         {
             id: 'practice-time',
-            title: 'Practice 15 Minutes',
-            description: 'Build consistent habits',
+            title: 'Practice 15 min',
+            description: 'Build habits',
             target: 15,
-            current: Math.floor(todayPracticeTime / 60), // Convert seconds to minutes
+            current: Math.floor(todayPracticeTime / 60),
             icon: '⏱️',
             points: 50,
             unit: 'min',
@@ -44,7 +44,7 @@ export function DailyGoals() {
         {
             id: 'complete-lesson',
             title: 'Complete 1 Lesson',
-            description: 'Keep learning every day',
+            description: 'Keep learning',
             target: 1,
             current: todayLessonsCompleted,
             icon: '📚',
@@ -52,7 +52,7 @@ export function DailyGoals() {
         },
         {
             id: 'accuracy-goal',
-            title: 'Achieve 95% Accuracy',
+            title: '95% Accuracy',
             description: 'Precision matters',
             target: 95,
             current: todayBestAccuracy,
@@ -62,77 +62,77 @@ export function DailyGoals() {
         },
     ];
 
-    const calculateTodayPoints = (): number => {
-        return goals.reduce((sum, goal) => {
-            return sum + (goal.current >= goal.target ? goal.points : 0);
-        }, 0);
-    };
-
     const totalPossiblePoints = goals.reduce((sum, g) => sum + g.points, 0);
-    const earnedPoints = calculateTodayPoints();
+    const earnedPoints = goals.reduce((sum, goal) => {
+        return sum + (goal.current >= goal.target ? goal.points : 0);
+    }, 0);
     const allComplete = goals.every(g => g.current >= g.target);
 
     return (
-        <Card className="p-6">
+        <Card className={cn(
+            "p-5 border transition-all",
+            allComplete
+                ? "border-green-500/30 bg-green-500/5"
+                : "border-white/8"
+        )}>
+            {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">📅 Daily Goals</h3>
-                {allComplete && (
-                    <span className="text-sm font-medium text-green-500 bg-green-500/10 px-3 py-1 rounded-full">
-                        ✓ All Complete!
-                    </span>
-                )}
+                <div className="flex items-center gap-2">
+                    <span className="text-base">📅</span>
+                    <h3 className="font-bold text-base">Daily Goals</h3>
+                </div>
+                <div className={cn(
+                    "text-sm font-black font-mono",
+                    earnedPoints === totalPossiblePoints ? "text-yellow-400" : "text-muted-foreground"
+                )}>
+                    {earnedPoints}
+                    <span className="text-xs font-normal text-muted-foreground"> / {totalPossiblePoints} pts</span>
+                </div>
             </div>
 
-            <div className="space-y-4">
+            {/* Goals */}
+            <div className="space-y-3">
                 {goals.map((goal) => {
                     const isComplete = goal.current >= goal.target;
                     const progressPercent = Math.min((goal.current / goal.target) * 100, 100);
 
                     return (
-                        <div key={goal.id} className="space-y-2">
-                            <div className="flex justify-between items-center">
+                        <div key={goal.id} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-2xl">{goal.icon}</span>
-                                    <div>
-                                        <div className={cn(
-                                            "font-semibold",
-                                            isComplete && "text-green-500"
-                                        )}>
-                                            {goal.title}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {goal.description}
-                                        </div>
-                                    </div>
+                                    <span className="text-base leading-none">{goal.icon}</span>
+                                    <span className={cn(
+                                        "text-sm font-semibold",
+                                        isComplete ? "text-green-400" : "text-foreground"
+                                    )}>
+                                        {goal.title}
+                                    </span>
+                                    {isComplete && (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                    )}
                                 </div>
-                                <div className="text-sm font-semibold">
+                                <span className="text-xs text-muted-foreground font-mono">
                                     {goal.current}{goal.unit || ''}/{goal.target}{goal.unit || ''}
-                                </div>
+                                </span>
                             </div>
-
                             <Progress
                                 value={progressPercent}
-                                className={cn("h-2", isComplete && "[&>div]:bg-green-500")}
+                                className={cn(
+                                    "h-1.5",
+                                    isComplete ? "[&>div]:bg-green-500" : ""
+                                )}
                             />
-
-                            {isComplete && (
-                                <div className="text-sm text-green-500 flex items-center gap-1">
-                                    ✓ Complete! +{goal.points} points
-                                </div>
-                            )}
                         </div>
                     );
                 })}
             </div>
 
-            <div className="mt-4 pt-4 border-t">
-                <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Today&apos;s Points</span>
-                    <span className="text-lg font-bold text-yellow-500">
-                        {earnedPoints} / {totalPossiblePoints}
-                    </span>
+            {/* All complete banner */}
+            {allComplete && (
+                <div className="mt-4 text-center text-sm font-semibold text-green-400">
+                    🎉 All goals complete! Come back tomorrow.
                 </div>
-            </div>
+            )}
         </Card>
     );
 }

@@ -136,9 +136,9 @@ export default function StatsPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/30"
+                            className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
                             onClick={() => setShowResetModal(true)}
                         >
                             <RotateCcw className="w-4 h-4 mr-2" />

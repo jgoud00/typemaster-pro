@@ -110,6 +110,7 @@ function TypingAreaComponent({
                 {/* Text content area - Minimal & Large */}
                 <div
                     aria-label="Text to type"
+                    role="textbox"
                     tabIndex={0}
                     onKeyDown={(e) => {
                         // Prevent default scrolling for space

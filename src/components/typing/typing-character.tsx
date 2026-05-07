@@ -47,7 +47,7 @@ export const TypingCharacter = memo(function TypingCharacter({
                 isTyped && isError && 'text-red-400',
 
                 // FUTURE TEXT (dim but readable)
-                !isTyped && !isCurrent && 'text-gray-600'
+                !isTyped && !isCurrent && 'text-gray-400'
             )}
         >
             {/* The Cursor Element (Smooth animated caret) */}

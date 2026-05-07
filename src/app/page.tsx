@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Trophy, TrendingUp, Flame, Clock, Target, Settings,
+  Trophy, TrendingUp, Flame, Clock, Target,
+  Zap, Rocket, BookOpen, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
@@ -25,7 +25,6 @@ export default function HomePage() {
   const totalLessons = lessons.length;
   const overallProgress = (completedCount / totalLessons) * 100;
 
-  // Find the next uncompleted lesson
   const nextLesson = lessons.find(l => !progress.completedLessons.includes(l.id));
   const nextLessonCategory = nextLesson
     ? lessonCategories.find(c => getLessonsByCategory(c.id).some(l => l.id === nextLesson.id))
@@ -38,14 +37,88 @@ export default function HomePage() {
     return `${mins}m`;
   };
 
+  const stats = [
+    {
+      icon: <TrendingUp className="w-4 h-4" />,
+      label: 'Best WPM',
+      value: progress.personalBests.wpm || '—',
+      color: 'text-blue-400',
+      glow: 'hover:shadow-blue-500/20',
+    },
+    {
+      icon: <Target className="w-4 h-4" />,
+      label: 'Best Accuracy',
+      value: progress.personalBests.accuracy ? `${progress.personalBests.accuracy}%` : '—',
+      color: 'text-green-400',
+      glow: 'hover:shadow-green-500/20',
+    },
+    {
+      icon: <Flame className="w-4 h-4" />,
+      label: 'Best Combo',
+      value: progress.personalBests.combo || '—',
+      color: 'text-orange-400',
+      glow: 'hover:shadow-orange-500/20',
+    },
+    {
+      icon: <Clock className="w-4 h-4" />,
+      label: 'Practice Time',
+      value: formatTime(progress.totalPracticeTime),
+      color: 'text-purple-400',
+      glow: 'hover:shadow-purple-500/20',
+    },
+  ];
+
+  const practiceModes = [
+    {
+      title: 'Speed Test',
+      description: 'Timed challenges',
+      href: '/practice?mode=speed-test',
+      icon: <Zap className="w-6 h-6" />,
+      gradient: 'from-yellow-500/20 to-orange-500/20',
+      border: 'border-yellow-500/30 hover:border-yellow-400/60',
+      glow: 'hover:shadow-yellow-500/20',
+      accent: 'text-yellow-400',
+    },
+    {
+      title: 'Burst Mode',
+      description: 'High-intensity intervals',
+      href: '/practice/speed-training',
+      icon: <Rocket className="w-6 h-6" />,
+      gradient: 'from-red-500/20 to-pink-500/20',
+      border: 'border-red-500/30 hover:border-red-400/60',
+      glow: 'hover:shadow-red-500/20',
+      accent: 'text-red-400',
+    },
+    {
+      title: 'Free Practice',
+      description: 'No time pressure',
+      href: '/practice?mode=free',
+      icon: <BookOpen className="w-6 h-6" />,
+      gradient: 'from-cyan-500/20 to-blue-500/20',
+      border: 'border-cyan-500/30 hover:border-cyan-400/60',
+      glow: 'hover:shadow-cyan-500/20',
+      accent: 'text-cyan-400',
+    },
+    {
+      title: 'Lessons',
+      description: '73 progressive exercises',
+      href: '/lessons',
+      icon: <Trophy className="w-6 h-6" />,
+      gradient: 'from-purple-500/20 to-violet-500/20',
+      border: 'border-purple-500/30 hover:border-purple-400/60',
+      glow: 'hover:shadow-purple-500/20',
+      accent: 'text-purple-400',
+    },
+  ];
+
   return (
     <div className="min-h-screen">
-      {/* Welcome Modal for first-time users */}
       <WelcomeModal />
       <SiteHeader />
 
-      <main className="container mx-auto px-4 py-8 space-y-12">
-        {/* Hero Banner (Primary Focus) */}
+      <main className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
+
+        {/* Hero */}
         <HeroBanner
           completedCount={completedCount}
           totalLessons={totalLessons}
@@ -54,132 +127,89 @@ export default function HomePage() {
           nextLessonCategory={nextLessonCategory}
         />
 
-        {/* Practice Modes */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Practice Modes</h2>
-            <Link href="/practice" className="text-sm text-primary hover:underline">
-              View all modes
-            </Link>
+        {/* Two-column layout: Practice Modes + Daily Goals */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* LEFT — Practice Modes (2/3 width) */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Practice Modes</h2>
+              <Link
+                href="/practice"
+                className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+              >
+                View all <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {practiceModes.map((mode, i) => (
+                <motion.div
+                  key={mode.title}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  whileHover={{ y: -3 }}
+                >
+                  <Link href={mode.href}>
+                    <Card className={cn(
+                      'cursor-pointer h-full transition-all duration-200 border-2',
+                      `bg-gradient-to-br ${mode.gradient}`,
+                      mode.border,
+                      `hover:shadow-lg ${mode.glow}`,
+                    )}>
+                      <CardContent className="p-5">
+                        <div className={cn("mb-3", mode.accent)}>{mode.icon}</div>
+                        <h3 className="font-bold text-base leading-tight">{mode.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{mode.description}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Stats Strip — below practice modes */}
+            <motion.div
+              className="grid grid-cols-2 md:grid-cols-4 gap-3"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              {stats.map((stat) => (
+                <Card
+                  key={stat.label}
+                  className="transition-all duration-200 hover:bg-white/8 hover:shadow-lg border-white/8"
+                >
+                  <CardContent className="p-4">
+                    <div className={cn("mb-2", stat.color)}>{stat.icon}</div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">
+                      {stat.label}
+                    </p>
+                    <p className={cn(
+                      "text-xl font-black font-mono mt-0.5",
+                      stat.value === '—' ? "text-muted-foreground/40" : stat.color
+                    )}>
+                      {stat.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </motion.div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <PracticeModeCard
-              title="Speed Test"
-              description="Timed challenges"
-              href="/practice?mode=speed-test"
-              icon="⚡"
-              color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
-            />
-            <PracticeModeCard
-              title="Burst Mode"
-              description="High-intensity intervals"
-              href="/practice/speed-training"
-              icon="🚀"
-              color="from-red-500/20 to-orange-500/20 border-red-500/30"
-            />
-          </div>
-        </section>
+          {/* RIGHT — Daily Goals (1/3 width) */}
+          <motion.div
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+            className="lg:col-span-1"
+          >
+            <DailyGoals />
+          </motion.div>
+        </div>
 
-        {/* Quick Stats */}
-        <motion.section
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <StatCard
-            icon={<TrendingUp className="w-5 h-5 text-blue-400" />}
-            label="Best WPM"
-            value={progress.personalBests.wpm || '-'}
-          />
-          <StatCard
-            icon={<Target className="w-5 h-5 text-green-400" />}
-            label="Best Accuracy"
-            value={progress.personalBests.accuracy ? `${progress.personalBests.accuracy}%` : '-'}
-          />
-          <StatCard
-            icon={<Flame className="w-5 h-5 text-orange-400" />}
-            label="Best Combo"
-            value={progress.personalBests.combo || '-'}
-          />
-          <StatCard
-            icon={<Clock className="w-5 h-5 text-purple-400" />}
-            label="Practice Time"
-            value={formatTime(progress.totalPracticeTime)}
-          />
-        </motion.section>
-
-        {/* Daily Goals (Compact) */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <DailyGoals />
-        </motion.section>
       </main>
     </div>
-  );
-}
-
-// Stat Card Component (with Glassmorphism Hover)
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-    >
-      <Card className="transition-all duration-300 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] hover:bg-white/10 hover:backdrop-blur-2xl">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            {icon}
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-lg font-bold">{value}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
-
-
-// Practice Mode Card Component (Enhanced with Glassmorphism Hover)
-function PracticeModeCard({ title, description, href, icon, color }: {
-  title: string;
-  description: string;
-  href: string;
-  icon: string;
-  color?: string;
-}) {
-  return (
-    <Link href={href}>
-      <motion.div
-        whileHover={{
-          scale: 1.03,
-          y: -4,
-        }}
-        whileTap={{ scale: 0.98 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      >
-        <Card className={cn(
-          'h-full cursor-pointer bg-linear-to-br backdrop-blur-xl',
-          'border-2 transition-all duration-300',
-          'hover:shadow-[0_0_30px_rgba(139,92,246,0.3)] hover:backdrop-blur-2xl',
-          'hover:bg-white/10',
-          color || 'from-primary/10 to-primary/5 border-primary/30 hover:border-primary/50'
-        )}>
-          <CardContent className="p-6 relative overflow-hidden">
-            {/* Hover glow effect */}
-            <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 bg-linear-to-br from-white/5 to-transparent pointer-events-none" />
-            <div className="text-4xl mb-4">{icon}</div>
-            <h3 className="font-bold text-lg mb-1">{title}</h3>
-            <p className="text-sm text-muted-foreground">{description}</p>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </Link>
   );
 }

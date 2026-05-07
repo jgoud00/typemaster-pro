@@ -154,7 +154,7 @@ function AchievementCard({ achievement, isUnlocked, unlockedAt, index }: Achieve
                 'h-full transition-all',
                 isUnlocked
                     ? 'bg-linear-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30'
-                    : 'opacity-60'
+                    : 'opacity-75'
             )}>
                 <CardContent className="p-4">
                     <div className="flex items-start gap-4">

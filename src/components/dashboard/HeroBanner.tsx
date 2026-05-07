@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Play, BookOpen, Trophy, ArrowRight, Star } from 'lucide-react';
+import { Play, BookOpen, ArrowRight, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Lesson } from '@/types';
+import { useGameStore } from '@/stores/game-store';
 
 interface HeroBannerProps {
     completedCount: number;
@@ -24,109 +24,144 @@ export function HeroBanner({
     nextLesson,
     nextLessonCategory,
 }: HeroBannerProps) {
+    const { game } = useGameStore();
+    const streak = game.dailyStreak ?? 0;
+
     return (
-        <section className="relative w-full mb-12">
-            {/* Background Glow */}
-            <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10 rounded-full opacity-50" />
+        <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="relative w-full"
+        >
+            {/* Ambient glow */}
+            <div className="absolute -inset-4 bg-primary/10 blur-[80px] rounded-full -z-10 opacity-60" />
 
-            <Card className="relative overflow-hidden border-primary/20 bg-linear-to-r from-background via-primary/5 to-purple-500/5 backdrop-blur-3xl">
-                {/* Decorative Grid */}
-                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+            <div className="relative rounded-2xl border border-white/10 bg-black/30 backdrop-blur-xl overflow-hidden">
+                {/* Top accent line */}
+                <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-primary to-transparent opacity-70" />
 
-                <div className="relative p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-16">
+                <div className="p-6 md:p-8">
+                    <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
 
-                    {/* Left Content */}
-                    <div className="flex-1 space-y-6 text-center md:text-left">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                        >
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-4">
-                                <Trophy className="w-4 h-4" />
-                                <span>Keep the streak alive!</span>
-                            </div>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
-                                Master the Art of <span className="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-400">Typing</span>
-                            </h1>
-                            <p className="text-lg text-muted-foreground max-w-xl">
-                                {nextLesson
-                                    ? `Continue your journey with "${nextLesson.title}". You're making great progress!`
-                                    : "You've completed all lessons! Time to perfect your speed in the arena."}
-                            </p>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="flex flex-wrap items-center justify-center md:justify-start gap-4"
-                        >
-                            {nextLesson ? (
-                                <Link href={`/lessons/${nextLesson.id}`}>
-                                    <Button size="lg" className="h-12 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-                                        <Play className="w-5 h-5 mr-2 fill-current" />
-                                        Resume Journey
-                                    </Button>
-                                </Link>
-                            ) : (
-                                <Link href="/practice">
-                                    <Button size="lg" className="h-12 px-8 text-base">
-                                        <Star className="w-5 h-5 mr-2" />
-                                        Practice Mode
-                                    </Button>
-                                </Link>
-                            )}
-                            <Link href="/lessons">
-                                <Button variant="outline" size="lg" className="h-12 border-primary/20 hover:bg-primary/5">
-                                    View Curriculum
-                                    <ArrowRight className="w-4 h-4 ml-2" />
-                                </Button>
-                            </Link>
-                        </motion.div>
-                    </div>
-
-                    {/* Right Content: Progress Card */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.3 }}
-                        className="w-full md:w-[380px] shrink-0"
-                    >
-                        <div className="rounded-2xl border border-white/10 bg-black/20 p-6 backdrop-blur-md shadow-2xl">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-semibold flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-primary" />
-                                    Course Progress
-                                </h3>
-                                <span className="text-2xl font-bold font-mono">{Math.round(overallProgress)}%</span>
-                            </div>
-
-                            <Progress value={overallProgress} className="h-3 mb-4 bg-white/5" indicatorClassName="bg-linear-to-r from-primary to-purple-500" />
-
-                            <div className="flex justify-between text-sm text-muted-foreground mb-6">
-                                <span>{completedCount} Lessons Done</span>
-                                <span>{totalLessons - completedCount} Remaining</span>
-                            </div>
-
-                            {nextLesson && (
-                                <div className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-primary/20 transition-colors group cursor-default">
-                                    <div className="text-xs text-primary font-medium mb-1 uppercase tracking-wider">Up Next</div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
-                                            {nextLessonCategory?.icon || '📝'}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="font-medium truncate">{nextLesson.title}</div>
-                                            <div className="text-xs text-muted-foreground truncate opacity-80">{nextLesson.description}</div>
-                                        </div>
-                                    </div>
+                        {/* LEFT — Identity + CTA */}
+                        <div className="flex-1 space-y-4">
+                            {/* Streak pill */}
+                            <div className="flex items-center gap-3">
+                                <div className={cn(
+                                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide",
+                                    streak > 0
+                                        ? "bg-orange-500/15 border border-orange-500/30 text-orange-400"
+                                        : "bg-white/5 border border-white/10 text-muted-foreground"
+                                )}>
+                                    🔥 {streak > 0 ? `${streak}-Day Streak` : 'Start your streak today'}
                                 </div>
-                            )}
+                                {completedCount > 0 && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 border border-primary/20 text-primary">
+                                        <Zap className="w-3 h-3" />
+                                        {completedCount} lessons done
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Headline */}
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
+                                    {nextLesson ? (
+                                        <>
+                                            Up next:{' '}
+                                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">
+                                                {nextLesson.title}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            All lessons{' '}
+                                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
+                                                complete!
+                                            </span>
+                                        </>
+                                    )}
+                                </h1>
+                                <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                                    {nextLesson
+                                        ? nextLesson.description
+                                        : "Time to perfect your speed in the practice arena."}
+                                </p>
+                            </div>
+
+                            {/* CTA Buttons */}
+                            <div className="flex items-center gap-3">
+                                {nextLesson ? (
+                                    <Link href={`/lessons/${nextLesson.id}`}>
+                                        <Button
+                                            size="lg"
+                                            className="h-11 px-7 font-bold shadow-lg shadow-primary/25 hover:shadow-primary/50 transition-all duration-200"
+                                        >
+                                            <Play className="w-4 h-4 mr-2 fill-current" />
+                                            Resume Journey
+                                        </Button>
+                                    </Link>
+                                ) : (
+                                    <Link href="/practice">
+                                        <Button size="lg" className="h-11 px-7 font-bold">
+                                            <Zap className="w-4 h-4 mr-2" /> Practice Now
+                                        </Button>
+                                    </Link>
+                                )}
+                                <Link href="/lessons">
+                                    <Button variant="ghost" size="lg" className="h-11 text-muted-foreground hover:text-foreground">
+                                        Curriculum
+                                        <ArrowRight className="w-4 h-4 ml-1" />
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
-                    </motion.div>
+
+                        {/* RIGHT — Progress Card */}
+                        <div className="w-full md:w-72 shrink-0">
+                            <div className="rounded-xl border border-white/8 bg-white/4 p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-sm font-semibold">
+                                        <BookOpen className="w-4 h-4 text-primary" />
+                                        Course Progress
+                                    </div>
+                                    <span className="text-2xl font-black font-mono text-primary">
+                                        {Math.round(overallProgress)}%
+                                    </span>
+                                </div>
+
+                                <Progress
+                                    value={overallProgress}
+                                    className="h-2 bg-white/5"
+                                    indicatorClassName="bg-gradient-to-r from-primary to-purple-500"
+                                />
+
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>{completedCount} done</span>
+                                    <span>{totalLessons - completedCount} remaining</span>
+                                </div>
+
+                                {nextLesson && (
+                                    <Link href={`/lessons/${nextLesson.id}`}>
+                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/8 hover:border-primary/30 hover:bg-primary/5 transition-all group cursor-pointer mt-1">
+                                            <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-transform">
+                                                {nextLessonCategory?.icon || '📝'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-[10px] text-primary font-bold uppercase tracking-widest mb-0.5">Up Next</div>
+                                                <div className="text-sm font-semibold truncate">{nextLesson.title}</div>
+                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
-            </Card>
-        </section>
+            </div>
+        </motion.section>
     );
 }

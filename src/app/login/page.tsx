@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="email" 
                 type="email" 
                 required 
-                className="bg-black/20 border-white/10 focus:border-primary/50 text-white" 
+                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
                 placeholder="you@example.com" 
               />
             </div>
@@ -36,7 +36,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="password" 
                 type="password" 
                 required 
-                className="bg-black/20 border-white/10 focus:border-primary/50 text-white" 
+                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
                 placeholder="••••••••"
               />
             </div>
