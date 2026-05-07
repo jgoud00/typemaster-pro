@@ -178,7 +178,7 @@ function Leaderboard() {
                 ) : (
                     <div className="space-y-2">
                         {entries.slice(0, 10).map((entry, i) => (
-                            <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
+                            <div key={`${entry.username}-${i}`} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className={cn(
                                         "text-xs font-bold w-4",

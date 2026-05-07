@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useEffect, useState, memo, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useRef, useEffect, useState, memo, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '@/stores/settings-store';
 import { cn } from '@/lib/utils';
 import { TypingCharacter } from './typing-character';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
@@ -25,13 +26,12 @@ function SrOnlyStats({ progress }: { progress: number }) {
     );
 }
 
-import { ErrorBoundary } from '@/components/ui/error-boundary';
-
 function TypingAreaComponent({
     className
 }: TypingAreaProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const cursorRef = useRef<HTMLSpanElement>(null);
+    const hiddenInputRef = useRef<HTMLInputElement>(null);
     const { settings } = useSettingsStore();
     const { cursorStyle } = settings;
 
@@ -41,6 +41,11 @@ function TypingAreaComponent({
     const text = useTypingStore(s => s.state.text);
     const currentIndex = useTypingStore(s => s.state.currentIndex);
     const errorIndices = useTypingStore(s => s.state.errorIndices);
+    const hasStarted = useTypingStore(s => s.state.startTime !== null);
+    const isComplete = useTypingStore(s => s.state.isComplete);
+
+    // Focus state for "Click to Focus" overlay
+    const [isFocused, setIsFocused] = useState(true);
 
     // Auto-scroll to keep cursor visible
     useEffect(() => {
@@ -57,6 +62,40 @@ function TypingAreaComponent({
             }
         }
     }, [currentIndex]);
+
+    // Keep hidden input focused for mobile keyboard capture
+    const focusInput = useCallback(() => {
+        hiddenInputRef.current?.focus();
+        setIsFocused(true);
+    }, []);
+
+    // Auto-focus on mount and on click
+    useEffect(() => {
+        focusInput();
+    }, [focusInput]);
+
+    // Track focus/blur on the container
+    useEffect(() => {
+        const handleFocus = () => setIsFocused(true);
+        const handleBlur = () => {
+            // Small delay to avoid flash when clicking within the container
+            setTimeout(() => {
+                if (!containerRef.current?.contains(document.activeElement)) {
+                    setIsFocused(false);
+                }
+            }, 100);
+        };
+
+        const container = containerRef.current;
+        if (container) {
+            container.addEventListener('focusin', handleFocus);
+            container.addEventListener('focusout', handleBlur);
+            return () => {
+                container.removeEventListener('focusin', handleFocus);
+                container.removeEventListener('focusout', handleBlur);
+            };
+        }
+    }, []);
 
     const errorSet = useMemo(() => new Set(errorIndices), [errorIndices]);
     const progress = text.length > 0 ? Math.round((currentIndex / text.length) * 100) : 0;
@@ -83,6 +122,9 @@ function TypingAreaComponent({
     // Calculate line index approximately based on word index for smooth scrolling
     const currentLineIndex = Math.floor(currentWordIdx / 10);
 
+    // Show overlay only when: has started, not complete, and not focused
+    const showFocusOverlay = hasStarted && !isComplete && !isFocused;
+
     if (!hasMounted) {
         return (
             <div className={cn('relative bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/15 min-h-[180px]', className)}>
@@ -99,27 +141,74 @@ function TypingAreaComponent({
                 ref={containerRef}
                 role="application"
                 aria-label="Typing practice area"
-                className={cn('relative bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/15 p-8 shadow-2xl overflow-hidden', className)}
+                onClick={focusInput}
+                className={cn(
+                    'relative bg-white/5 backdrop-blur-2xl rounded-2xl border p-8 shadow-2xl overflow-hidden cursor-text transition-all duration-300',
+                    isFocused ? 'border-primary/50 ring-4 ring-primary/10' : 'border-white/15',
+                    className
+                )}
             >
+                {/* Hidden input for mobile keyboard capture */}
+                <input
+                    ref={hiddenInputRef}
+                    type="text"
+                    data-typing-shim="true"
+                    aria-label="Type here"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        // Prevent default scrolling for space
+                        if (e.key === ' ') e.preventDefault();
+                    }}
+                    onBlur={() => {
+                        // Re-focus if user clicked within the typing area
+                        setTimeout(() => {
+                            if (containerRef.current?.contains(document.activeElement)) {
+                                focusInput();
+                            }
+                        }, 50);
+                    }}
+                />
+
                 {/* Background glow */}
                 <div className="absolute top-0 left-1/4 w-1/2 h-full bg-primary/5 blur-[100px] pointer-events-none" />
 
                 {/* Screen reader live region */}
                 <SrOnlyStats progress={progress} />
 
+                {/* CLICK TO FOCUS overlay */}
+                <AnimatePresence>
+                    {showFocusOverlay && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl cursor-pointer"
+                            onClick={focusInput}
+                        >
+                            <div className="text-center space-y-2">
+                                <div className="text-2xl font-bold text-white">Click to resume</div>
+                                <div className="text-sm text-white/60">Timer is paused</div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Text content area - Minimal & Large */}
                 <div
                     aria-label="Text to type"
                     role="textbox"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                        // Prevent default scrolling for space
-                        if (e.key === ' ') e.preventDefault();
-                    }}
+                    tabIndex={-1}
                     className={cn(
                         'relative',
                         'min-h-[180px] overflow-hidden',
-                        'text-[2.5rem] leading-relaxed font-mono text-center focus:outline-none'
+                        'text-[2.5rem] leading-relaxed font-mono text-center focus:outline-none',
+                        showFocusOverlay && 'blur-sm select-none'
                     )}
                 >
                     <motion.div 

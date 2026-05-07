@@ -699,7 +699,7 @@ function SprintMode({ text, onTextChange }: { text: string; onTextChange: (t: st
                                         const maxWpm = Math.max(...sprintResults, 1);
                                         const heightPct = (wpm / maxWpm) * 100;
                                         return (
-                                            <div key={i} className="flex flex-col items-center gap-1">
+                                            <div key={`sprint-${i}`} className="flex flex-col items-center gap-1">
                                                 <span className="text-xs font-mono">{wpm}</span>
                                                 <motion.div
                                                     className="w-8 bg-primary/80 rounded-t"

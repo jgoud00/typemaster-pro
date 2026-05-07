@@ -25,15 +25,15 @@ test.describe('Typing Flow & Stability', () => {
         await page.waitForTimeout(1500);
         
         // Dismiss Welcome Modal if it exists
-        const welcomeButton = page.locator('button:has-text("Start Learning!")');
+        const welcomeButton = page.getByRole('button', { name: /Start Learning/i });
         if (await welcomeButton.isVisible()) {
             await welcomeButton.click();
-            await page.waitForTimeout(500); // Wait for modal to close
+            await page.waitForTimeout(800); // Wait for modal to close
         }
         
         // Use a more robust selector and wait strategy
-        const practiceButton = page.locator('button:has-text("Practice Mode"), button:has-text("Resume Journey")').first();
-        await expect(practiceButton).toBeVisible({ timeout: 10000 });
+        const practiceButton = page.locator('a[href*="practice"], button:has-text("Resume Journey")').first();
+        await expect(practiceButton).toBeVisible({ timeout: 15000 });
         
         // Force click if necessary
         await practiceButton.click({ force: true });
@@ -62,11 +62,11 @@ test.describe('Typing Flow & Stability', () => {
         await expect(startButton).toBeVisible();
         await startButton.click();
 
-        const typingArea = page.locator('[role="application"][aria-label="Typing practice area"]');
+        const typingArea = page.getByLabel('Typing practice area');
         await expect(typingArea).toBeVisible();
         
         // Verify text is not empty
-        const textbox = typingArea.locator('[role="textbox"]');
+        const textbox = page.getByLabel('Text to type');
         await expect(textbox).toBeVisible();
         const text = await textbox.innerText();
         expect(text.length).toBeGreaterThan(0);

@@ -2,13 +2,32 @@ import { Page, expect } from "@playwright/test";
 
 export const TOTAL_LESSONS = 73;
 
+export const LESSON_IDS: Record<number, string> = {
+  1: "home-1-fj",
+  2: "home-2-dk",
+  3: "home-3-sl",
+  4: "home-4-a-semi",
+  5: "home-5-left",
+  6: "home-6-right",
+  7: "home-7-words",
+  8: "home-8-gh",
+  9: "home-9-sentences",
+  10: "home-10-mastery",
+  73: "adv-10-graduation",
+};
+
 export const ROUTES = {
   dashboard: "/",
   stats: "/stats",
   lessons: "/lessons",
   settings: "/settings",
   sync: "/sync",
-  lesson: (id: number) => `/lessons/${id}`,
+  lesson: (id: number | string) => {
+    if (typeof id === "number" && LESSON_IDS[id]) {
+      return `/lessons/${LESSON_IDS[id]}`;
+    }
+    return `/lessons/${id}`;
+  },
 };
 
 export const SAMPLE_WORDS = "the quick brown fox jumps over the lazy dog typed text race words simple fast speed accuracy time typing practice mode test".split(" ");
@@ -30,8 +49,10 @@ export class AppPage {
 
   async waitForHydration() {
     // Wait for the app to be stable
-    await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {});
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+    await expect(this.page.locator('body')).toBeVisible({ timeout: 10000 });
+    // Extra safety for React 19 hydration
+    await this.page.waitForTimeout(1000);
   }
 
   async clearAllStorage() {

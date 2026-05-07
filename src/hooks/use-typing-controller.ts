@@ -125,6 +125,7 @@ export function useTypingController({
 
         const isInputTarget = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
+            if (target.hasAttribute('data-typing-shim')) return false;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return true;
             if (document.activeElement?.closest('[role="dialog"]')) return true;
             return false;

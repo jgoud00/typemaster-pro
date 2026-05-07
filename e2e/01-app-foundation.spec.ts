@@ -22,12 +22,12 @@ test.describe("App Layout & Root Rendering", () => {
   });
  
   test("page title is set correctly", async ({ page }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     await expect(page).toHaveTitle(/Aloo Type/i);
   });
  
   test("meta description tag exists", async ({ page }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     const meta = page.locator('meta[name="description"]');
     await expect(meta).toHaveAttribute("content", /.+/);
   });
@@ -72,7 +72,7 @@ test.describe("App Layout & Root Rendering", () => {
 // ─────────────────────────────────────────────
 test.describe("Client-side Navigation", () => {
   test("navigates to dashboard", async ({ page }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     const dashLink = page
       .locator('a[href*="dashboard"], nav a:has-text("Dashboard")')
       .first();
@@ -88,10 +88,10 @@ test.describe("Client-side Navigation", () => {
   });
  
   test("navigates to lesson 1", async ({ page }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     const lessonLink = page
       .locator(
-        'a[href*="/lessons/1"], a[href*="lesson-1"], button:has-text("Start")'
+        'a[href*="/lessons/home-1-fj"], button:has-text("Resume Journey"), button:has-text("Start Learning"), button:has-text("Start")'
       )
       .first();
     if (await lessonLink.isVisible()) {

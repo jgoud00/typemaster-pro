@@ -15,8 +15,7 @@ import {
 
 async function goToLessonPage(page: Page) {
   const app = new AppPage(page);
-  await page.goto("/");
-  await app.waitForHydration();
+  await app.goto("/");
   // Try direct route or lessons link
   const lessonsLink = page
     .locator(
@@ -67,7 +66,7 @@ test.describe("Lesson Listing", () => {
     await new AppPage(page).goto("/");
     const lesson1 = page
       .locator(
-        '[data-testid="lesson-card-1"], [href*="/lessons/1"], a:has-text("Lesson 1")'
+        '[data-testid="lesson-card-home-1-fj"], [href*="home-1-fj"], a:has-text("Lesson 1")'
       )
       .first();
     if (await lesson1.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -115,10 +114,10 @@ test.describe("Lesson Listing", () => {
 // ─────────────────────────────────────────────
 test.describe("Lesson Navigation", () => {
   test("clicking lesson 1 opens the lesson", async ({ page }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     const lesson1 = page
       .locator(
-        '[href*="/lessons/1"], [data-testid="lesson-card-1"], a:has-text("Lesson 1")'
+        '[href*="home-1-fj"], [data-testid="lesson-card-home-1-fj"], a:has-text("Lesson 1")'
       )
       .first();
 
@@ -163,11 +162,11 @@ test.describe("Lesson Navigation", () => {
     await page.waitForTimeout(500);
 
     const prevBtn = page.locator(
-      'a[href*="/lessons/1"], button:has-text("Previous"), [data-testid="prev-lesson"]'
+      'a[href*="home-1-fj"], button:has-text("Previous"), [data-testid="prev-lesson"]'
     ).first();
     if (await prevBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       const href = await prevBtn.getAttribute("href");
-      if (href) expect(href).toMatch(/lesson.*1|1.*lesson/i);
+      if (href) expect(href).toMatch(/lesson.*home-1-fj|home-1-fj.*lesson/i);
     }
   });
 
@@ -191,7 +190,7 @@ test.describe("Lesson Metadata", () => {
   test("each lesson card shows a difficulty level or category", async ({
     page,
   }) => {
-    await page.goto("/");
+    await new AppPage(page).goto("/");
     const difficulty = page.locator(
       '[data-testid*="difficulty"], .difficulty, [aria-label*="difficulty"], .beginner, .intermediate, .advanced'
     );
