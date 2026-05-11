@@ -51,8 +51,8 @@ test.describe("XP & Level System", () => {
     if (await xpBar.isVisible({ timeout: 4000 }).catch(() => false)) {
       const val = await xpBar.getAttribute("aria-valuenow");
       if (val !== null) {
-        expect(parseFloat(val)).toBeGreaterThanOrEqual(0);
-        expect(parseFloat(val)).toBeLessThanOrEqual(100);
+        expect(Number.parseFloat(val)).toBeGreaterThanOrEqual(0);
+        expect(Number.parseFloat(val)).toBeLessThanOrEqual(100);
       }
     }
   });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import {
     Dialog,
@@ -48,31 +49,35 @@ export function WelcomeModal() {
                         Master touch typing with our AI-powered adaptive learning platform
                     </p>
 
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <div className="text-center p-4 bg-muted rounded-lg">
-                            <div className="text-4xl mb-2">🎮</div>
-                            <h3 className="font-semibold mb-2">Gamified Learning</h3>
-                            <p className="text-sm text-muted-foreground">
-                                28 achievements, streaks, and combos to keep you motivated
-                            </p>
-                        </div>
-
-                        <div className="text-center p-4 bg-muted rounded-lg">
-                            <div className="text-4xl mb-2">📊</div>
-                            <h3 className="font-semibold mb-2">Smart Analytics</h3>
-                            <p className="text-sm text-muted-foreground">
-                                AI detects your weak keys and creates personalized exercises
-                            </p>
-                        </div>
-
-                        <div className="text-center p-4 bg-muted rounded-lg">
-                            <div className="text-4xl mb-2">🎯</div>
-                            <h3 className="font-semibold mb-2">73 Lessons</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Progressive curriculum from beginner to advanced
-                            </p>
-                        </div>
-                    </div>
+                    <motion.div 
+                        className="space-y-3"
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
+                        }}
+                    >
+                        {[
+                            { icon: '🎮', title: 'Gamified Learning', desc: '28 achievements, streaks, and combos to keep you motivated' },
+                            { icon: '📊', title: 'Smart Analytics', desc: 'AI detects your weak keys and creates personalized exercises' },
+                            { icon: '🎯', title: '73 Lessons', desc: 'Progressive curriculum from beginner to advanced' },
+                        ].map((f, i) => (
+                            <motion.div 
+                                key={i}
+                                variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}
+                                className="flex items-center justify-between p-3.5 bg-muted/50 rounded-lg border border-white/5"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="text-2xl">{f.icon}</div>
+                                    <h3 className="font-semibold text-sm">{f.title}</h3>
+                                </div>
+                                <p className="text-xs text-muted-foreground text-right max-w-[200px] leading-tight">
+                                    {f.desc}
+                                </p>
+                            </motion.div>
+                        ))}
+                    </motion.div>
 
                     <div className="space-y-4">
                         <div className="space-y-2">
@@ -88,8 +93,8 @@ export function WelcomeModal() {
                             />
                         </div>
 
-                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
-                            <h4 className="font-semibold mb-2">💡 Quick Tip:</h4>
+                        <div className="bg-amber-950/50 border-l-4 border-amber-400 border-y-0 border-r-0 p-4 rounded-r-lg">
+                            <h4 className="font-semibold mb-2 text-amber-500">💡 Quick Tip:</h4>
                             <p className="text-sm text-muted-foreground">
                                 Start with the Home Row lessons and work your way up.
                                 Consistency is key - practice 15 minutes daily for best results!

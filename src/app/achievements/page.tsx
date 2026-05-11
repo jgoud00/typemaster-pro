@@ -151,22 +151,30 @@ function AchievementCard({ achievement, isUnlocked, unlockedAt, index }: Achieve
             transition={{ delay: index * 0.05 }}
         >
             <Card className={cn(
-                'h-full transition-all',
+                'h-full transition-all relative overflow-hidden group',
                 isUnlocked
-                    ? 'bg-linear-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30'
-                    : 'opacity-75'
+                    ? 'bg-linear-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]'
+                    : 'opacity-55 grayscale-70'
             )}>
-                <CardContent className="p-4">
+                {!isUnlocked && (
+                    <div className="absolute top-3 right-3 z-10">
+                        <Lock className="w-4 h-4 text-muted-foreground/50" />
+                    </div>
+                )}
+                {isSecret && (
+                    <div className="absolute inset-0 z-20" title="Keep typing to unlock" />
+                )}
+                <CardContent className="p-4 relative z-0">
                     <div className="flex items-start gap-4">
                         {/* Icon */}
                         <div className={cn(
-                            'w-12 h-12 rounded-xl flex items-center justify-center shrink-0',
-                            isUnlocked ? 'bg-yellow-500/20' : 'bg-muted'
+                            'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all',
+                            isUnlocked ? 'bg-yellow-500/20 group-hover:bg-yellow-500/30 group-hover:shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'bg-muted'
                         )}>
                             {isSecret ? (
                                 <Lock className="w-5 h-5 text-muted-foreground" />
                             ) : (
-                                <span className="text-2xl">{achievement.icon}</span>
+                                <span className="text-2xl drop-shadow-sm">{achievement.icon}</span>
                             )}
                         </div>
 

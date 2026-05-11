@@ -2,6 +2,7 @@ import { login, signup, loginWithOAuth } from '@/app/auth/actions'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
@@ -69,7 +70,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="username" 
                 type="text" 
                 maxLength={20}
-                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
+                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
                 placeholder="typingmaster42" 
               />
             </div>
@@ -80,7 +81,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="email" 
                 type="email" 
                 required 
-                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
+                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
                 placeholder="you@example.com" 
               />
             </div>
@@ -91,12 +92,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                   Forgot password?
                 </Link>
               </div>
-              <Input 
+              <PasswordInput 
                 id="password" 
                 name="password" 
-                type="password" 
                 required 
-                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
+                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
                 placeholder="••••••••"
               />
             </div>

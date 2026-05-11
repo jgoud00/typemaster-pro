@@ -1,15 +1,27 @@
 'use client';
 
-import { useMLWorker } from '@/hooks/useMLWorker';
-import React from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import * as Comlink from 'comlink';
+import { getMLProxy } from '@/workers/ml-worker-instance';
+import type { MLWorkerAPI } from '@/workers/ml.worker';
 
-/**
- * WorkerProvider — Simple component to initialize the ML Worker
- * at the root of the application.
- */
+const WorkerContext = createContext<Comlink.Remote<MLWorkerAPI> | null>(null);
+
 export function WorkerProvider({ children }: { children: React.ReactNode }) {
-    // Initialize the worker once on mount
-    useMLWorker();
-    
-    return <>{children}</>;
+    const [proxy, setProxy] = useState<Comlink.Remote<MLWorkerAPI> | null>(null);
+
+    useEffect(() => {
+        const p = getMLProxy();
+        if (p) {
+            setProxy(p);
+        }
+    }, []);
+
+    return (
+        <WorkerContext.Provider value={proxy}>
+            {children}
+        </WorkerContext.Provider>
+    );
 }
+
+export const useMLWorker = () => useContext(WorkerContext);

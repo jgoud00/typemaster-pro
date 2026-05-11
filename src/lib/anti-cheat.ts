@@ -231,7 +231,7 @@ function generateIntegrityHash(
     // FNV-1a 32-bit hash — fast, no crypto dependency needed
     let h = 0x811c9dc5;
     for (let i = 0; i < payload.length; i++) {
-        h ^= payload.charCodeAt(i);
+        h ^= (payload.codePointAt(i) ?? 0);
         h = Math.imul(h, 0x01000193);
     }
     return (h >>> 0).toString(36);

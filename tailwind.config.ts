@@ -19,7 +19,21 @@ const config: Config & { safelist?: string[] } = {
     "stroke-red-500/50",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: "#06B6D4",
+        "primary-hover": "#0891B2",
+        success: "#22C55E",
+        error: "#F87171",
+        warning: "#EAB308",
+        surface: "#0F172A",
+        "surface-elevated": "#1E293B",
+        "border-subtle": "#334155",
+        "text-primary": "#F1F5F9",
+        "text-secondary": "#94A3B8",
+        "text-muted": "#64748B",
+      },
+    },
   },
   plugins: [],
 };

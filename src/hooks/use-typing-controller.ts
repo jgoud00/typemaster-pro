@@ -91,11 +91,11 @@ export function useTypingController({
             e.preventDefault();
             antiCheatCollector.recordDropAttempt();
         };
-        window.addEventListener('paste', blockPaste);
-        window.addEventListener('drop', blockDrop);
+        globalThis.window.addEventListener('paste', blockPaste);
+        globalThis.window.addEventListener('drop', blockDrop);
         return () => {
-            window.removeEventListener('paste', blockPaste);
-            window.removeEventListener('drop', blockDrop);
+            globalThis.window.removeEventListener('paste', blockPaste);
+            globalThis.window.removeEventListener('drop', blockDrop);
         };
     }, []);
 
@@ -142,6 +142,28 @@ export function useTypingController({
             return false;
         };
 
+        const processKeystroke = (key: string, isTrusted: boolean) => {
+            antiCheatCollector.recordKeystroke(Date.now(), isTrusted);
+            const keystroke = handleKeystroke(key);
+            
+            if (keystroke) {
+                const freshState = useTypingStore.getState();
+                typingBus.emit('KEYSTROKE_REGISTERED', {
+                    key,
+                    expectedChar: keystroke.expected,
+                    isCorrect: keystroke.isCorrect,
+                    timestamp: keystroke.timestamp,
+                    delayFromLastKey: keystroke.hesitationMs,
+                    finger: keystroke.finger,
+                    previousKey: keystroke.previousKey,
+                    wpm: freshState.getWpm(),
+                    accuracy: freshState.getAccuracy(),
+                    textLength: freshState.state.text.length,
+                    currentIndex: freshState.state.currentIndex
+                });
+            }
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (isIgnoredKey(e) || isInputTarget(e)) return;
 
@@ -150,30 +172,12 @@ export function useTypingController({
 
             if (e.key.length === 1) {
                 e.preventDefault();
-                antiCheatCollector.recordKeystroke(Date.now(), e.isTrusted);
-                const keystroke = handleKeystroke(e.key);
-                
-                if (keystroke) {
-                    const freshState = useTypingStore.getState();
-                    typingBus.emit('KEYSTROKE_REGISTERED', {
-                        key: e.key,
-                        expectedChar: keystroke.expected,
-                        isCorrect: keystroke.isCorrect,
-                        timestamp: keystroke.timestamp,
-                        delayFromLastKey: keystroke.hesitationMs,
-                        finger: keystroke.finger,
-                        previousKey: keystroke.previousKey,
-                        wpm: freshState.getWpm(),
-                        accuracy: freshState.getAccuracy(),
-                        textLength: freshState.state.text.length,
-                        currentIndex: freshState.state.currentIndex
-                    });
-                }
+                processKeystroke(e.key, e.isTrusted);
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.window.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
     }, [handleKeystroke, timeLimitSeconds]);
 
     const completeSession = useCallback((reason: 'text' | 'time') => {

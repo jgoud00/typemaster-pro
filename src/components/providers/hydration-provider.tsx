@@ -7,7 +7,6 @@ import { useUserStore } from '@/stores/user-store';
 import { useLeaderboardStore } from '@/stores/leaderboard-store';
 import { useGameStore } from '@/stores/game-store';
 import { useDiagnosticStore } from '@/stores/diagnostic-store';
-import { useChallengeStore } from '@/stores/challenge-store';
 import { useAchievementStore } from '@/stores/achievement-store';
 
 /**
@@ -32,7 +31,6 @@ export function HydrationProvider({ children }: { children: React.ReactNode }) {
                     useLeaderboardStore.persist.rehydrate(),
                     useGameStore.persist.rehydrate(),
                     useDiagnosticStore.persist.rehydrate(),
-                    useChallengeStore.persist.rehydrate(),
                     useAchievementStore.persist.rehydrate(),
                 ]);
             } catch (e) {

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 export function PWARegistry() {
     useEffect(() => {
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+        if ('serviceWorker' in navigator && (globalThis.window.location.protocol === 'https:' || globalThis.window.location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/sw.js').catch(console.error);
         }
     }, []);

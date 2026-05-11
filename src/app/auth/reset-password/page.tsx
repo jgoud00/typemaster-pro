@@ -27,7 +27,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
                 name="email" 
                 type="email" 
                 required 
-                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-white/30" 
+                className="bg-white/8 border-white/20 focus:border-primary/60 text-white placeholder:text-text-muted" 
                 placeholder="you@example.com" 
               />
             </div>

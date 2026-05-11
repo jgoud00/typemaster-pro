@@ -139,7 +139,7 @@ function TypingAreaComponent({
         <ErrorBoundary>
             <div
                 ref={containerRef}
-                role="application"
+                role="region"
                 aria-label="Typing practice area"
                 onClick={focusInput}
                 className={cn(
@@ -193,7 +193,7 @@ function TypingAreaComponent({
                         >
                             <div className="text-center space-y-2">
                                 <div className="text-2xl font-bold text-white">Click to resume</div>
-                                <div className="text-sm text-white/60">Timer is paused</div>
+                                <div className="text-sm text-text-secondary">Timer is paused</div>
                             </div>
                         </motion.div>
                     )}
@@ -202,8 +202,8 @@ function TypingAreaComponent({
                 {/* Text content area - Minimal & Large */}
                 <div
                     aria-label="Text to type"
-                    role="textbox"
-                    tabIndex={-1}
+                    role="status"
+                    aria-live="polite"
                     className={cn(
                         'relative',
                         'min-h-[180px] overflow-hidden',

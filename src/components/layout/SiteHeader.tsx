@@ -52,11 +52,11 @@ function SiteHeaderComponent() {
         <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 group">
+                <Link href="/" className="flex items-center gap-3 group focus-ring rounded-lg outline-none pr-2">
                     <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Keyboard className="w-6 h-6 text-primary" />
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight">Aloo Type</h1>
+                    <h1 className="text-xl font-bold tracking-tight text-white">Aloo Type</h1>
                 </Link>
 
                 {/* Navigation */}
@@ -65,21 +65,21 @@ function SiteHeaderComponent() {
                     {/* Streak Badge (Always visible) */}
                     {game.dailyStreak > 0 && (
                         <div className="hidden md:flex items-center gap-1.5 text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 mr-2">
-                            <Flame className="w-4 h-4 fill-current" />
+                            <Flame className="w-4 h-4 fill-current animate-pulse" />
                             <span className="font-bold text-sm">{game.dailyStreak}</span>
                         </div>
                     )}
 
                     {/* Primary Nav Items */}
-                    <Link href="/lessons">
-                        <Button variant={isActive('/lessons') ? "secondary" : "ghost"} size="sm" className="hidden md:flex">
+                    <Link href="/lessons" className="focus-ring rounded-md">
+                        <Button variant={isActive('/lessons') ? "secondary" : "ghost"} size="sm" className="hidden md:flex text-white hover:text-white">
                             <BookOpen className="w-4 h-4 mr-2" />
                             Lessons
                         </Button>
                     </Link>
 
-                    <Link href="/stats">
-                        <Button variant={isActive('/stats') ? "secondary" : "ghost"} size="sm" className="hidden md:flex">
+                    <Link href="/stats" className="focus-ring rounded-md">
+                        <Button variant={isActive('/stats') ? "secondary" : "ghost"} size="sm" className="hidden md:flex text-white hover:text-white">
                             <TrendingUp className="w-4 h-4 mr-2" />
                             Stats
                         </Button>
@@ -91,7 +91,7 @@ function SiteHeaderComponent() {
                             variant="ghost"
                             size="sm"
                             aria-label="More Options"
-                            className={cn("gap-1", isMoreOpen && "bg-accent text-accent-foreground")}
+                            className={cn("gap-1 text-text-secondary text-sm hover:text-text-primary focus-ring", isMoreOpen && "bg-accent text-accent-foreground")}
                             onClick={() => setIsMoreOpen(!isMoreOpen)}
                         >
                             <span className="hidden md:inline">More</span>
@@ -135,28 +135,31 @@ function SiteHeaderComponent() {
                                 <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary uppercase">
                                     {(user.user_metadata?.username || user.email || '?')[0]}
                                 </div>
-                                <span className="text-xs font-medium text-white/70 max-w-[100px] truncate">
+                                <span className="text-xs font-medium text-white max-w-[100px] truncate">
                                     {user.user_metadata?.username || user.email?.split('@')[0] || 'User'}
                                 </span>
                             </div>
                             <form action={logout}>
-                                <Button variant="ghost" size="sm" type="submit" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs px-2">
+                                <Button variant="ghost" size="sm" type="submit" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs px-2 focus-ring">
                                     Log Out
                                 </Button>
                             </form>
                         </div>
                     ) : (
-                        <Link href="/login">
+                        <Link href="/login" className="focus-ring rounded-md">
                             <Button variant="default" size="sm" className="hidden md:flex">
                                 Log In
                             </Button>
                         </Link>
                     )}
 
+                    {/* Divider before Settings */}
+                    <div className="hidden md:block w-px h-6 bg-white/10 ml-2" />
+
                     {/* Settings */}
-                    <Link href="/settings">
+                    <Link href="/settings" className="focus-ring rounded-md">
                         <Button variant="ghost" size="icon" aria-label="Settings" className="hover:rotate-45 transition-transform duration-300">
-                            <Settings className="w-5 h-5" />
+                            <Settings className="w-5 h-5 text-text-secondary hover:text-text-primary" />
                         </Button>
                     </Link>
                 </nav>

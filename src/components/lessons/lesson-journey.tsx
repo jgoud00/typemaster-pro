@@ -68,13 +68,26 @@ export function LessonNode({ lesson, score, isLocked, isCompleted, index }: Less
             className="relative z-10"
         >
             <Link href={isLocked ? '#' : `/lessons/${lesson.id}`}>
-                <div className={cn(
-                    "group relative w-64 p-4 rounded-xl border transition-all duration-300",
-                    isLocked
-                        ? "bg-muted/10 border-white/5 opacity-50 cursor-not-allowed grayscale"
-                        : "bg-card/40 border-white/10 hover:border-primary/50 hover:bg-card/60 hover:shadow-lg hover:shadow-primary/5 cursor-pointer backdrop-blur-md",
-                    isCompleted && "border-green-500/30 bg-green-500/5"
-                )}>
+                <div className="relative group">
+                    {(!isLocked && !isCompleted) && (
+                        <motion.div 
+                            className="absolute -inset-1 rounded-xl border-2 border-primary/50 pointer-events-none"
+                            animate={{ scale: [1, 1.05, 1], opacity: [0.5, 0, 0.5] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                        />
+                    )}
+                    <div className="absolute -top-3 -left-3 z-20">
+                        <div className="w-6 h-6 rounded-full bg-background border flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-sm">
+                            {index + 1}
+                        </div>
+                    </div>
+                    <div className={cn(
+                        "group relative w-64 p-4 rounded-xl border transition-all duration-300",
+                        isLocked
+                            ? "bg-slate-900 border-slate-700 opacity-50 cursor-not-allowed grayscale"
+                            : "bg-card/40 border-white/10 hover:border-primary/50 hover:bg-card/60 hover:shadow-lg hover:shadow-primary/5 cursor-pointer backdrop-blur-md",
+                        isCompleted && "border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:border-cyan-300"
+                    )}>
                     {/* Status Badge */}
                     <div className="absolute -top-3 -right-3">
                         {isCompleted ? (
@@ -129,6 +142,7 @@ export function LessonNode({ lesson, score, isLocked, isCompleted, index }: Less
                             </span>
                         </div>
                     </div>
+                    </div>
                 </div>
             </Link>
         </motion.div>
@@ -145,7 +159,7 @@ export function LessonPath({ lessons, completedLessonIds, lessonScores }: Lesson
     return (
         <div className="relative flex flex-col items-center py-8 space-y-8 max-w-3xl mx-auto">
             {/* Center Line */}
-            <div className="absolute left-[50%] top-0 bottom-0 w-1 bg-linear-to-b from-transparent via-primary/20 to-transparent -translate-x-1/2 hidden md:block" />
+            <div className="absolute left-[50%] top-0 bottom-0 w-1 -translate-x-1/2 hidden md:block bg-linear-to-b from-primary via-purple-500 to-surface-elevated" />
 
             {lessons.map((lesson, index) => {
                 const isCompleted = completedLessonIds.includes(lesson.id);

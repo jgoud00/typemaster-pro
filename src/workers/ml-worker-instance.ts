@@ -1,14 +1,21 @@
-import { Remote } from 'comlink';
+import * as Comlink from 'comlink';
 import type { MLWorkerAPI } from './ml.worker';
 
-let mlProxy: Remote<MLWorkerAPI> | null = null;
+let worker: Worker | null = null;
+let proxy: Comlink.Remote<MLWorkerAPI> | null = null;
 
-/**
- * Singleton instance to store the ML Worker proxy outside of state management.
- * This prevents serialization issues and circular dependencies.
- */
-export const getMLProxy = () => mlProxy;
+export function getMLProxy(): Comlink.Remote<MLWorkerAPI> | null {
+    if (typeof window === 'undefined') return null;
 
-export const setMLProxy = (proxy: Remote<MLWorkerAPI> | null) => {
-    mlProxy = proxy;
-};
+    if (!proxy) {
+        try {
+            // In Next.js, we use this syntax for workers
+            worker = new Worker(new URL('./ml.worker.ts', import.meta.url));
+            proxy = Comlink.wrap<MLWorkerAPI>(worker);
+        } catch (error) {
+            console.error('Failed to initialize ML Worker:', error);
+            return null;
+        }
+    }
+    return proxy;
+}

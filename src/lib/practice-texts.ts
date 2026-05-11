@@ -116,7 +116,7 @@ export function generateSpeedTestText(durationSeconds: number, sessionId: string
     // Generate a crude numeric seed from a string
     let numericalSeed = 0;
     for(let i = 0; i < sessionId.length; i++) {
-        numericalSeed = (numericalSeed * 31 + sessionId.charCodeAt(i)) % 2147483647;
+        numericalSeed = (numericalSeed * 31 + (sessionId.codePointAt(i) ?? 0)) % 2147483647;
     }
     
     const prng = new PRNG(numericalSeed + Date.now()); // Date.now ensures fresh pool per click

@@ -7,6 +7,7 @@ import { PWARegistry } from "@/components/pwa-registry";
 import { WorkerProvider } from "@/components/providers/worker-provider";
 import { HydrationProvider } from "@/components/providers/hydration-provider";
 import { SyncProvider } from "@/components/providers/sync-provider";
+import { AnalyticsSyncProvider } from "@/components/providers/AnalyticsSyncProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,7 +51,9 @@ export default function RootLayout({
           <HydrationProvider>
             <WorkerProvider>
               <SyncProvider>
-                {children}
+                <AnalyticsSyncProvider>
+                  {children}
+                </AnalyticsSyncProvider>
               </SyncProvider>
             </WorkerProvider>
           </HydrationProvider>
@@ -69,10 +72,10 @@ export default function RootLayout({
           <script
             dangerouslySetInnerHTML={{
               __html: `
-                window.addEventListener('error', (e) => {
+                globalThis.addEventListener('error', (e) => {
                   console.error('RUNTIME ERROR:', e.message, e.filename, e.lineno);
                 });
-                window.addEventListener('unhandledrejection', (e) => {
+                globalThis.addEventListener('unhandledrejection', (e) => {
                   console.error('UNHANDLED PROMISE:', e.reason);
                 });
               `,

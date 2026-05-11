@@ -119,7 +119,7 @@ class SoundEngine {
     }
 
     private saveSettings(): void {
-        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const isMainThread = typeof globalThis.window !== 'undefined' && typeof globalThis.document !== 'undefined';
         const safeStorage = (globalThis as any).localStorage;
         if (isMainThread && safeStorage) {
             safeStorage.setItem('sound-settings', JSON.stringify(this.settings));
@@ -127,7 +127,7 @@ class SoundEngine {
     }
 
     loadSettings(): void {
-        const isMainThread = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const isMainThread = typeof globalThis.window !== 'undefined' && typeof globalThis.document !== 'undefined';
         const safeStorage = (globalThis as any).localStorage;
         if (isMainThread && safeStorage) {
             const saved = safeStorage.getItem('sound-settings');

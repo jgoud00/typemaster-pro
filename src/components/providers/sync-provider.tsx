@@ -141,18 +141,19 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         // For complex syncs, we just push the current state
         const userId = userRef.current.id;
         const progress = useProgressStore.getState().progress;
+        
         // Best-effort push via navigator.sendBeacon isn't possible with Supabase client
         // Instead, just do a quick push (may not complete)
         pushProgress(userId, progress).catch(() => {});
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    globalThis.window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       subscription.unsubscribe();
       clearInterval(syncIntervalRef);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      globalThis.window.removeEventListener('beforeunload', handleBeforeUnload);
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
   }, [performSync, scheduleSync]);

@@ -72,8 +72,10 @@ export function KeyboardHeatmap() {
         return 'bg-red-500/20 border-red-500/50 text-red-400 shadow-[0_0_15px_-3px_rgba(239,68,68,0.3)]';
     };
 
+    const isEmpty = Object.keys(keyStats).length === 0;
+
     return (
-        <div className="flex flex-col gap-2 select-none perspective-[1000px]">
+        <div className="flex flex-col gap-2 select-none perspective-[1000px] relative">
             {KEYBOARD_LAYOUT.map((row, rowIndex) => (
                 <div key={rowIndex} className="flex gap-1 justify-center">
                     {row.map((keyConfig, keyIndex) => {
@@ -89,7 +91,9 @@ export function KeyboardHeatmap() {
                         // Color style
                         let colorClass = "bg-muted/30 border-muted-foreground/20 text-muted-foreground/50"; // Default unused/modifier
 
-                        if (keyConfig.type !== 'modifier' && accuracy !== null) {
+                        if (isEmpty && keyConfig.type !== 'modifier') {
+                            colorClass = "bg-muted/10 border-white/5 text-muted-foreground/20 animate-pulse";
+                        } else if (keyConfig.type !== 'modifier' && accuracy !== null) {
                             colorClass = getAccuracyColor(accuracy);
                         } else if (keyConfig.type === 'modifier') {
                             colorClass = "bg-muted/50 border-white/5 text-muted-foreground/30 text-xs";
@@ -144,6 +148,14 @@ export function KeyboardHeatmap() {
                     })}
                 </div>
             ))}
+            
+            {isEmpty && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div className="bg-background/80 px-6 py-3 rounded-full backdrop-blur-sm border shadow-xl">
+                        <p className="text-sm font-medium text-muted-foreground">Type some lessons to see your heatmap</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

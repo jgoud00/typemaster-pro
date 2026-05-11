@@ -324,9 +324,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
     // To get elapsedTime for history, we need to import useTypingStore.
 
-    const { getWpm, getElapsedTime, state } = useTypingStore();
-    // derived state for this component (history tracking)
-    const wpm = getWpm();
+    const { getElapsedTime, state } = useTypingStore();
     const accuracy = useTypingStore().getAccuracy();
     const elapsedTime = getElapsedTime();
     const errorIndices = state.errorIndices;
@@ -442,8 +440,8 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                 handleResetRef.current();
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.window.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     // Calculate error breakdown

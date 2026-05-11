@@ -38,16 +38,16 @@ export const TypingCharacter = memo(function TypingCharacter({
                 'relative inline-block transition-colors duration-75',
 
                 // CURRENT CHARACTER (cursor position)
-                isCurrent && 'text-white',
+                isCurrent && 'char-active',
 
                 // CORRECT TYPED TEXT
-                isTyped && !isError && 'text-gray-300',
+                isTyped && !isError && 'char-correct',
 
                 // ERROR TEXT
-                isTyped && isError && 'text-red-400',
+                isTyped && isError && 'char-error',
 
                 // FUTURE TEXT (dim but readable)
-                !isTyped && !isCurrent && 'text-gray-400'
+                !isTyped && !isCurrent && 'char-untyped'
             )}
         >
             {/* The Cursor Element (Smooth animated caret) */}

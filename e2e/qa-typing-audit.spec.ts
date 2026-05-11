@@ -114,7 +114,7 @@ test.describe('WPM & Accuracy Calculations', () => {
   test('WPM starts at 0 before typing', async ({ page }) => {
     await goToPractice(page);
     const wpm = await getStatValue(page, 'wpm');
-    expect(parseInt(wpm) || 0).toBe(0);
+    expect(Number.parseInt(wpm) || 0).toBe(0);
   });
 
   test('accuracy starts at 100%', async ({ page }) => {
@@ -139,7 +139,7 @@ test.describe('WPM & Accuracy Calculations', () => {
     await page.waitForTimeout(500);
 
     const acc = await getStatValue(page, 'accuracy');
-    const num = parseFloat(acc.replace(/[^0-9.]/g, ''));
+    const num = Number.parseFloat(acc.replace(/[^0-9.]/g, ''));
     expect(num).toBeLessThan(100);
   });
 
@@ -153,7 +153,7 @@ test.describe('WPM & Accuracy Calculations', () => {
     await page.waitForTimeout(3000);
 
     const wpm = await getStatValue(page, 'wpm');
-    const num = parseInt(wpm) || 0;
+    const num = Number.parseInt(wpm) || 0;
     expect(num).toBeGreaterThan(0);
   });
 });
@@ -386,7 +386,7 @@ test.describe('Reset', () => {
       await page.waitForTimeout(500);
 
       const wpm = await getStatValue(page, 'wpm');
-      expect(parseInt(wpm) || 0).toBe(0);
+      expect(Number.parseInt(wpm) || 0).toBe(0);
     }
   });
 });
@@ -407,7 +407,7 @@ test.describe('Combo System', () => {
     const comboText = await page.locator('text=Combo').first().locator('..').innerText();
     const comboMatch = comboText.match(/(\d+)/);
     if (comboMatch) {
-      expect(parseInt(comboMatch[1])).toBeGreaterThanOrEqual(10);
+      expect(Number.parseInt(comboMatch[1])).toBeGreaterThanOrEqual(10);
     }
   });
 

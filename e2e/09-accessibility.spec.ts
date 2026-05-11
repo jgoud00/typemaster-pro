@@ -169,10 +169,10 @@ test.describe("ARIA Roles & Labels", () => {
       const min = await bar.getAttribute("aria-valuemin");
       const max = await bar.getAttribute("aria-valuemax");
       if (now !== null) {
-        expect(parseFloat(now)).toBeGreaterThanOrEqual(0);
+        expect(Number.parseFloat(now)).toBeGreaterThanOrEqual(0);
       }
       if (min !== null && max !== null) {
-        expect(parseFloat(min)).toBeLessThanOrEqual(parseFloat(max));
+        expect(Number.parseFloat(min)).toBeLessThanOrEqual(Number.parseFloat(max));
       }
     }
   });

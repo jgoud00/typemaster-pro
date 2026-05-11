@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download } from 'lucide-react';
+import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,15 @@ import { Slider } from '@/components/ui/slider';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useProgressStore } from '@/stores/progress-store';
 import toast from 'react-hot-toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -317,45 +326,36 @@ export default function SettingsPage() {
                                 📤 Import Data
                             </Button>
 
-                            {!showResetConfirm ? (
-                                <Button
-                                    variant="destructive"
-                                    className="w-full"
-                                    onClick={() => setShowResetConfirm(true)}
-                                >
-                                    🗑️ Delete All My Data
-                                </Button>
-                            ) : (
-                                <div className="space-y-2 p-3 border border-destructive/50 rounded-lg">
-                                    <p className="text-sm text-center text-destructive font-medium">
-                                        ⚠️ This will permanently delete ALL your data!
-                                    </p>
-                                    <p className="text-xs text-center text-muted-foreground">
-                                        We recommend downloading your data first.
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1"
-                                            onClick={() => setShowResetConfirm(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            className="flex-1"
-                                            onClick={() => {
-                                                resetProgress();
-                                                resetSettings();
-                                                setShowResetConfirm(false);
-                                                toast.success('All data has been deleted');
-                                            }}
-                                        >
-                                            Yes, Delete All
-                                        </Button>
-                                    </div>
+                            {/* Danger Zone */}
+                            <div className="border border-red-900/40 bg-red-950/20 rounded-xl p-4 mt-8">
+                                <div className="text-red-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Danger Zone
                                 </div>
-                            )}
+                                <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="destructive" className="w-full">
+                                            🗑️ Delete All My Data
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Are you absolutely sure?</DialogTitle>
+                                            <DialogDescription>
+                                                This will permanently delete ALL your data! We recommend downloading your data first.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter className="mt-4">
+                                            <Button variant="outline" onClick={() => setShowResetConfirm(false)}>
+                                                Cancel
+                                            </Button>
+                                            <Button variant="destructive" onClick={handleResetData}>
+                                                Yes, Delete All
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                         </div>
                     </Card>
                 </motion.div>

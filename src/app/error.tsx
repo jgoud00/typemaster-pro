@@ -6,13 +6,13 @@ import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function Error({
+export default function ApplicationError({
     error,
     reset,
-}: {
+}: Readonly<{
     error: Error & { digest?: string };
     reset: () => void;
-}) {
+}>) {
     useEffect(() => {
         // Log the error to an analytics service if needed
         console.error('Application Error:', error);

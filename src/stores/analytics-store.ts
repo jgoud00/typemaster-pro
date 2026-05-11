@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { KeystrokeEvent, KeyStat, BigramStat, TrigramStat, WeaknessProfile, Finger } from '@/types';
 import type { Remote } from 'comlink';
 import type { MLWorkerAPI, SkillState, BayesianResult } from '../workers/ml.worker';
+import type { AnalyticsPayload } from '@/types/analytics';
 
 interface AnalyticsStore {
     // Session analytics
@@ -22,6 +23,13 @@ interface AnalyticsStore {
         errorPrediction: number;
     };
 
+    // Sync state
+    lastSyncedAt?: number;
+    isSyncing: boolean;
+    syncError: string | null;
+    vectorClock: Record<string, number>;
+    deviceId: string;
+
     // Actions
     recordKeystroke: (
         keystroke: KeystrokeEvent,
@@ -29,8 +37,12 @@ interface AnalyticsStore {
         mlWorker?: Remote<MLWorkerAPI> | null
     ) => Promise<void>;
     clearSession: () => void;
+    mergeRemoteData: (remoteData: AnalyticsPayload) => void;
+    setSyncStatus: (isSyncing: boolean, error: string | null) => void;
+    markSynced: () => void;
     
     // Analytics getters
+    getAnalyticsPayload: () => AnalyticsPayload;
     getWeaknessProfile: () => WeaknessProfile;
     getKeyAccuracy: (key: string) => number;
     getProblematicKeys: (threshold?: number) => string[];
@@ -60,6 +72,10 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
         bayesianEstimates: {},
         errorPrediction: 0,
     },
+    vectorClock: {},
+    isSyncing: false,
+    syncError: null,
+    deviceId: typeof window !== 'undefined' && crypto && crypto.randomUUID ? crypto.randomUUID() : 'default-device',
 
     recordKeystroke: async (keystroke, context, mlWorker) => {
         // 1. Update Core Stats (Synchronous)
@@ -139,6 +155,40 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
                 console.warn('[MLWorker] inference failed:', error);
             }
         }
+    },
+
+    mergeRemoteData: (remoteData: AnalyticsPayload) => {
+        set(state => ({
+            keyStats: { ...state.keyStats, ...remoteData.keyStats } as any,
+            bigramStats: { ...state.bigramStats, ...remoteData.bigramStats } as any,
+            trigramStats: { ...state.trigramStats, ...remoteData.trigramStats } as any,
+            fingerStats: { ...state.fingerStats, ...remoteData.fingerStats } as any,
+            mlResults: {
+                skillStates: { ...state.mlResults.skillStates, ...remoteData.hmmStates } as any,
+                bayesianEstimates: { ...state.mlResults.bayesianEstimates, ...remoteData.bayesianStates } as any,
+                errorPrediction: remoteData.fatigue?.fatigueLevel || state.mlResults.errorPrediction,
+            },
+            vectorClock: {}, 
+            lastSyncedAt: Date.now(),
+        }));
+    },
+
+    setSyncStatus: (isSyncing: boolean, syncError: string | null) => set({ isSyncing, syncError }),
+    
+    markSynced: () => set({ lastSyncedAt: Date.now(), isSyncing: false, syncError: null }),
+
+    getAnalyticsPayload: () => {
+        const state = get();
+        return {
+            keyStats: state.keyStats as any,
+            fingerStats: state.fingerStats as any,
+            bigramStats: state.bigramStats as any,
+            trigramStats: state.trigramStats as any,
+            bayesianStates: state.mlResults.bayesianEstimates as any,
+            hmmStates: state.mlResults.skillStates as any,
+            fatigue: { fatigueLevel: state.mlResults.errorPrediction, estimatedTimeUntilFatigue: 60 },
+            syncMeta: { deviceId: state.deviceId, lastSync: state.lastSyncedAt || Date.now() },
+        };
     },
 
     clearSession: () => set({ sessionKeystrokes: [], mlResults: { skillStates: {}, bayesianEstimates: {}, errorPrediction: 0 } }),

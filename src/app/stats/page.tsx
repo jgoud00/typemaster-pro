@@ -51,9 +51,9 @@ export default function StatsPage() {
         resetGame();
         clearSession();
         setShowResetModal(false);
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('ngram-analytics');
-            localStorage.removeItem('analytics-store');
+        if (typeof globalThis.window !== 'undefined') {
+            globalThis.localStorage.removeItem('ngram-analytics');
+            globalThis.localStorage.removeItem('analytics-store');
         }
         router.refresh();
     };

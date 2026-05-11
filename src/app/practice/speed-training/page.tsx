@@ -186,8 +186,22 @@ function BurstMode() {
                             className="space-y-8 py-4"
                         >
                             <div className="text-center space-y-2">
-                                <div className="text-6xl font-black text-primary">{startWpm}</div>
-                                <div className="text-lg text-muted-foreground">Starting WPM Target</div>
+                                <div className="text-xs text-text-muted uppercase tracking-widest font-bold">Starting Target</div>
+                                <div className="h-[72px] overflow-hidden flex items-center justify-center relative">
+                                    <AnimatePresence mode="popLayout">
+                                        <motion.div 
+                                            className="text-6xl font-black text-primary absolute"
+                                            key={startWpm}
+                                            initial={{ y: 50, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: -50, opacity: 0 }}
+                                            transition={{ type: 'spring', bounce: 0.2 }}
+                                        >
+                                            {startWpm}
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
+                                <div className="text-xs text-text-muted">WPM</div>
                             </div>
 
                             <div className="max-w-sm mx-auto space-y-2">

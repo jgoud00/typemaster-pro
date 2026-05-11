@@ -77,14 +77,14 @@ export class TypingAreaPage extends AppPage {
     const wpmEl = this.page.locator('[data-testid="wpm"], [aria-label*="WPM"], [aria-label*="words per minute"]').first();
     await expect(wpmEl).toBeVisible({ timeout: 10000 });
     const text = await wpmEl.innerText();
-    return parseInt(text.replace(/\D/g, ""), 10) || 0;
+    return Number.parseInt(text.replace(/\D/g, ""), 10) || 0;
   }
-
+  
   async getAccuracy(): Promise<number> {
     const accEl = this.page.locator('[data-testid="accuracy"], [aria-label*="accuracy"]').first();
     await expect(accEl).toBeVisible({ timeout: 10000 });
     const text = await accEl.innerText();
-    return parseFloat(text.replace(/[^0-9.]/g, "")) || 0;
+    return Number.parseFloat(text.replace(/[^0-9.]/g, "")) || 0;
   }
 }
 

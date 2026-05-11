@@ -49,6 +49,9 @@ export default function LessonPage() {
         if (stars > 0) {
             setTimeout(() => fireStars(stars), 500);
         }
+
+        // Dispatch global event for sync
+        globalThis.window.dispatchEvent(new CustomEvent('lesson-complete'));
     }, [fireLessonComplete, fireStars]);
 
     // Callback for combo milestones

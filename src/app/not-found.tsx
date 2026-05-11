@@ -34,7 +34,7 @@ export default function NotFound() {
                                 Back to Dashboard
                             </Link>
                         </Button>
-                        <Button variant="outline" size="lg" className="gap-2" onClick={() => window.history.back()}>
+                        <Button variant="outline" size="lg" className="gap-2" onClick={() => globalThis.window.history.back()}>
                             <Search className="w-4 h-4" />
                             Go Back
                         </Button>

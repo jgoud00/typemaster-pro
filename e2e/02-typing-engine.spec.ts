@@ -54,7 +54,7 @@ test.describe("Typing Area Rendering", () => {
     ).first();
     if (await wpmEl.isVisible({ timeout: 3000 }).catch(() => false)) {
       const text = await wpmEl.innerText();
-      const num = parseInt(text.replace(/\D/g, ""), 10);
+      const num = Number.parseInt(text.replace(/\D/g, ""), 10);
       expect(num).toBe(0);
     }
   });
@@ -66,7 +66,7 @@ test.describe("Typing Area Rendering", () => {
     ).first();
     if (await accEl.isVisible({ timeout: 3000 }).catch(() => false)) {
       const text = await accEl.innerText();
-      const num = parseFloat(text.replace(/[^0-9.]/g, ""));
+      const num = Number.parseFloat(text.replace(/[^0-9.]/g, ""));
       expect(num).toBeGreaterThanOrEqual(99);
     }
   });
@@ -257,7 +257,7 @@ test.describe("Progress Bar", () => {
     if (await bar.isVisible({ timeout: 3000 }).catch(() => false)) {
       const val = await bar.getAttribute("aria-valuenow");
       if (val !== null) {
-        expect(parseFloat(val)).toBeLessThanOrEqual(5);
+        expect(Number.parseFloat(val)).toBeLessThanOrEqual(5);
       }
     }
   });
