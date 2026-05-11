@@ -3,7 +3,8 @@
 import { create } from 'zustand';
 import { KeystrokeEvent, KeyStat, BigramStat, TrigramStat, WeaknessProfile, Finger } from '@/types';
 import type { Remote } from 'comlink';
-import type { MLWorkerAPI, SkillState, BayesianResult } from '../workers/ml.worker';
+import type { MLWorkerAPI } from '../workers/ml.worker';
+import type { BayesianState, HMMState } from '@/types/analytics';
 import type { AnalyticsPayload } from '@/types/analytics';
 
 interface AnalyticsStore {
@@ -18,8 +19,8 @@ interface AnalyticsStore {
 
     // ML Results
     mlResults: {
-        skillStates: Record<string, SkillState>;
-        bayesianEstimates: Record<string, BayesianResult>;
+        skillStates: Record<string, HMMState>;
+        bayesianEstimates: Record<string, BayesianState>;
         errorPrediction: number;
     };
 

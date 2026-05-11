@@ -324,7 +324,8 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
     // To get elapsedTime for history, we need to import useTypingStore.
 
-    const { getElapsedTime, state } = useTypingStore();
+    const { getWpm, getElapsedTime, state } = useTypingStore();
+    const wpm = getWpm();
     const accuracy = useTypingStore().getAccuracy();
     const elapsedTime = getElapsedTime();
     const errorIndices = state.errorIndices;

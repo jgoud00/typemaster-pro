@@ -1,6 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 /* Safelist for keyboard heatmap colors (Tailwind 4) */
 @source inline("fill-emerald-500/20 stroke-emerald-500/50 fill-green-500/20 stroke-green-500/50 fill-yellow-500/20 stroke-yellow-500/50 fill-orange-500/20 stroke-orange-500/50 fill-red-500/20 stroke-red-500/50");
