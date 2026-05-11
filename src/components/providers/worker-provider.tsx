@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as Comlink from 'comlink';
 import { getMLProxy } from '@/workers/ml-worker-instance';
-import type { MLWorkerAPI } from '@/workers/ml.worker';
+import type { MLWorkerAPI } from '@/workers/ml-worker';
 
 const WorkerContext = createContext<Comlink.Remote<MLWorkerAPI> | null>(null);
 
