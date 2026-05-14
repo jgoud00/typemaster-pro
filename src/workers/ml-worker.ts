@@ -55,7 +55,7 @@ export const mlWorker: MLWorkerAPI = {
             accuracy: mean, // Adding accuracy field as expected by tests
             lowerBound: mean - 1.96 * sd,
             upperBound: mean + 1.96 * sd,
-        } as any; 
+        } as BayesianState; 
     },
 
     predictNextError(context: { wpm: number; accuracy: number; recentErrors: number; fatigue: number }): number {

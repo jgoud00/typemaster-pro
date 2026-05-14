@@ -23,6 +23,7 @@ export interface BayesianState {
   alpha: number;
   beta: number;
   mean: number;
+  accuracy: number;
   lowerBound: number;
   upperBound: number;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mlWorker } from './ml.worker';
+import { mlWorker } from './ml-worker';
 import { KeystrokeEvent, KeyStat } from '../types';
 
 describe('ML Worker Algorithms', () => {
