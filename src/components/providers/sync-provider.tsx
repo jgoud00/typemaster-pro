@@ -19,7 +19,7 @@ const SYNC_DEBOUNCE_MS = 30_000; // Sync every 30 seconds of changes
  * - Page unload (beforeunload)
  * - Debounced interval while changes accumulate
  */
-export function SyncProvider({ children }: { children: React.ReactNode }) {
+export function SyncProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const userRef = useRef<User | null>(null);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isSyncingRef = useRef(false);
@@ -114,7 +114,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
-      const prevUser = userRef.current;
       userRef.current = user;
 
       if (event === 'SIGNED_IN' && user) {

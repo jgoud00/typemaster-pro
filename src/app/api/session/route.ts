@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomBytes, createHmac } from 'crypto';
+import { randomBytes, createHmac } from 'node:crypto';
 
 import { TIMERS } from '@/lib/config/constants';
 
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 // Global variable for interval to survive HMR in dev
-const globalWithCleanup = global as typeof globalThis & { cleanupInterval?: NodeJS.Timeout };
+const globalWithCleanup = globalThis as typeof globalThis & { cleanupInterval?: NodeJS.Timeout };
 
 if (!globalWithCleanup.cleanupInterval) {
   globalWithCleanup.cleanupInterval = setInterval(() => {

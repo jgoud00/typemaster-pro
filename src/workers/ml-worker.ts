@@ -1,6 +1,6 @@
 import * as Comlink from 'comlink';
 import { KeystrokeEvent, KeyStat } from '../types';
-import { BayesianState, HMMState, HMMKeyState } from '../types/analytics';
+import { BayesianState, HMMState } from '../types/analytics';
 
 export interface MLWorkerAPI {
     calculateHMMState(history: KeystrokeEvent[], key: string): HMMState;
@@ -55,7 +55,7 @@ export const mlWorker: MLWorkerAPI = {
             accuracy: mean, // Adding accuracy field as expected by tests
             lowerBound: mean - 1.96 * sd,
             upperBound: mean + 1.96 * sd,
-        } as BayesianState; 
+        };
     },
 
     predictNextError(context: { wpm: number; accuracy: number; recentErrors: number; fatigue: number }): number {

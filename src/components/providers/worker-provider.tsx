@@ -7,7 +7,7 @@ import type { MLWorkerAPI } from '@/workers/ml-worker';
 
 const WorkerContext = createContext<Comlink.Remote<MLWorkerAPI> | null>(null);
 
-export function WorkerProvider({ children }: { children: React.ReactNode }) {
+export function WorkerProvider({ children }: Readonly<{ children: React.ReactNode }>) {
     const [proxy, setProxy] = useState<Comlink.Remote<MLWorkerAPI> | null>(null);
 
     useEffect(() => {

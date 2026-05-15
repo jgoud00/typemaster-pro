@@ -1,9 +1,8 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PerformanceRecord } from '@/types';
+
 import {
-    LineChart,
     Line,
     XAxis,
     YAxis,
@@ -19,7 +18,7 @@ interface ResultChartProps {
     data: { timestamp: number; wpm: number; errors: number }[];
 }
 
-export function ResultChart({ data }: Pick<ResultChartProps, 'data'>) {
+export function ResultChart({ data }: Readonly<ResultChartProps>) {
     if (!data || data.length === 0) return null;
 
     return (
@@ -96,7 +95,7 @@ interface WeaknessAnalysisProps {
     errorBreakdown: Map<string, number>;
 }
 
-export function WeaknessAnalysis({ errorBreakdown }: WeaknessAnalysisProps) {
+export function WeaknessAnalysis({ errorBreakdown }: Readonly<WeaknessAnalysisProps>) {
     const sortedErrors = Array.from(errorBreakdown.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);

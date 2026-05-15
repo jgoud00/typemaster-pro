@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, memo } from 'react';
+import { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Achievement } from '@/lib/achievements';
+
 import { useAchievementStore } from '@/stores/achievement-store';
 import { useConfetti } from '@/hooks/use-confetti';
 

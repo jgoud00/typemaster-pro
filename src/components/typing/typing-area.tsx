@@ -15,7 +15,7 @@ interface TypingAreaProps {
 }
 
 // Isolated sub-component: subscribes to wpm/accuracy/combo without re-rendering parent
-function SrOnlyStats({ progress }: { progress: number }) {
+function SrOnlyStats({ progress }: Readonly<{ progress: number }>) {
     const wpm = useTypingStore(s => s.getWpm());
     const accuracy = useTypingStore(s => s.getAccuracy());
     const combo = useGameStore(s => s.game.combo);
@@ -35,7 +35,7 @@ function TypingAreaComponent({
     const { settings } = useSettingsStore();
     const { cursorStyle } = settings;
 
-    const hasMounted = typeof window !== 'undefined';
+    const hasMounted = typeof globalThis.window !== 'undefined';
 
     // Connect to stores
     const text = useTypingStore(s => s.state.text);
@@ -142,6 +142,7 @@ function TypingAreaComponent({
                 role="region"
                 aria-label="Typing practice area"
                 onClick={focusInput}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') focusInput(); }}
                 className={cn(
                     'relative bg-white/5 backdrop-blur-2xl rounded-2xl border p-8 shadow-2xl overflow-hidden cursor-text transition-all duration-300',
                     isFocused ? 'border-primary/50 ring-4 ring-primary/10' : 'border-white/15',

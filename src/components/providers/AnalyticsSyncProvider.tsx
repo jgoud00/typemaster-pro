@@ -8,7 +8,7 @@ import type { User } from '@supabase/supabase-js';
 
 const SYNC_DEBOUNCE_MS = 60_000; // Sync analytics every minute
 
-export function AnalyticsSyncProvider({ children }: { children: React.ReactNode }) {
+export function AnalyticsSyncProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const userRef = useRef<User | null>(null);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isSyncingRef = useRef(false);

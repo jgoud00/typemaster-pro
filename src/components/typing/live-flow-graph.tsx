@@ -13,10 +13,10 @@ interface HistoryPoint {
 export function LiveFlowGraph({ 
     history, 
     trend 
-}: { 
+}: Readonly<{ 
     history: HistoryPoint[]; 
     trend: 'rising' | 'falling' | 'stable' 
-}) {
+}>) {
     // Smoothing (Moving average, window=3)
     const smoothedData = useMemo(() => {
         return history.map((point, i) => {
@@ -80,8 +80,8 @@ export function LiveFlowGraph({
 
                 {/* Current point indicator */}
                 <motion.circle
-                    cx={(smoothedData.length - 1) / (smoothedData.length - 1) * width}
-                    cy={height - (smoothedData[smoothedData.length - 1] / maxWpm) * height}
+                    cx={width}
+                    cy={height - ((smoothedData.at(-1) ?? 0) / maxWpm) * height}
                     r="3"
                     className={cn(trendColor, "fill-background")}
                     strokeWidth="2"

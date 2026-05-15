@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+
 import { cn } from '@/lib/utils';
 import { Trophy, Clock, Target, Zap, Star, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ export function LessonComplete({
     onRestart,
     onNext,
     onHome,
-}: LessonCompleteProps) {
+}: Readonly<LessonCompleteProps>) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
             <div className="w-full max-w-md mx-4 p-8 bg-card rounded-2xl border shadow-2xl">
@@ -113,7 +113,7 @@ interface StatItemProps {
     value: string;
 }
 
-function StatItem({ icon, label, value }: StatItemProps) {
+function StatItem({ icon, label, value }: Readonly<StatItemProps>) {
     return (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
             {icon}

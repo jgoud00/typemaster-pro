@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 import { typingBus } from '@/lib/events/typing-bus';
@@ -7,7 +7,7 @@ import { antiCheatCollector, analyzeSession } from '@/lib/anti-cheat';
 import { PracticeMode, PerformanceRecord } from '@/types';
 
 // Run once safely
-if (typeof window !== 'undefined') {
+if (typeof globalThis.window !== 'undefined') {
     initializeTypingListeners();
 }
 
@@ -125,7 +125,7 @@ export function useTypingController({
 
         const isInputTarget = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
-            if (target.hasAttribute('data-typing-shim')) return false;
+            if (target.dataset.typingShim !== undefined) return false;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return true;
             if (document.activeElement?.closest('[role="dialog"]')) return true;
             return false;

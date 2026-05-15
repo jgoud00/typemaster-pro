@@ -114,7 +114,9 @@ export const useTypingStore = create<TypingStore>()(
 
             const hesitationMs = lastKeystrokeTime
                 ? now - lastKeystrokeTime
-                : (state.startTime ? now - state.startTime : 0);
+                : state.startTime
+                    ? now - state.startTime
+                    : 0;
 
             const layoutName = useSettingsStore.getState().settings.keyboardLayout;
             const keyData = getKeyData(expected, layoutName);

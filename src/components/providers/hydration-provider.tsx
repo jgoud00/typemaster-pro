@@ -14,7 +14,7 @@ import { useAchievementStore } from '@/stores/achievement-store';
  * before rendering the application. This prevents "all-zeros" state
  * bugs and hydration mismatches.
  */
-export function HydrationProvider({ children }: { children: React.ReactNode }) {
+export function HydrationProvider({ children }: Readonly<{ children: React.ReactNode }>) {
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {

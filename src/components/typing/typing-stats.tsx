@@ -47,7 +47,7 @@ export const TypingStats = memo(function TypingStats({
         return () => clearInterval(interval);
     }, [startTime, isComplete, isPaused]);
 
-    const { game } = useGameStore();
+    const game = useGameStore(s => s.game);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -55,7 +55,7 @@ export const TypingStats = memo(function TypingStats({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const displayWpm = wpm > 0 ? wpm : (startTime ? 0 : '--');
+    const displayWpm = wpm > 0 ? wpm : (startTime ? 0 : '--');  // eslint-disable-line @typescript-eslint/no-unused-vars -- used in JSX
     const displayAcc = `${accuracy}%`;
     const displayTime = formatTime(remainingTime ?? elapsedTime);
 

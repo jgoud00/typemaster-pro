@@ -1,5 +1,5 @@
 import { KeyData, Finger } from '@/types';
-import { getLayout, LayoutName, KeyboardKey } from './keyboard-layouts';
+import { getLayout, LayoutName } from './keyboard-layouts';
 
 // Finger color mapping for visual keyboard
 export const fingerColors: Record<Finger, { bg: string; border: string; text: string }> = {

@@ -5,7 +5,7 @@ import { KeystrokeEvent, KeyStat } from '../types';
 describe('ML Worker Algorithms', () => {
     describe('calculateHMMState', () => {
         const createHistory = (key: string, isCorrect: boolean, count: number): KeystrokeEvent[] => {
-            return Array(count).fill(null).map(() => ({
+            return new Array(count).fill(null).map(() => ({
                 key,
                 expected: key,
                 isCorrect,
@@ -64,7 +64,7 @@ describe('ML Worker Algorithms', () => {
         it('returns value between 0 and 1', () => {
             const contexts = [
                 { wpm: 10, accuracy: 0.99, recentErrors: 0, fatigue: 0 },
-                { wpm: 150, accuracy: 0.70, recentErrors: 5, fatigue: 1 },
+                { wpm: 150, accuracy: 0.7, recentErrors: 5, fatigue: 1 },
                 { wpm: 60, accuracy: 0.95, recentErrors: 1, fatigue: 0.5 }
             ];
 

@@ -7,7 +7,7 @@ import {
   Zap, Rocket, BookOpen, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Progress } from '@/components/ui/progress'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
@@ -18,7 +18,7 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 
 export default function HomePage() {
   const { progress } = useProgressStore();
-  const { game } = useGameStore();
+  const game = useGameStore(s => s.game);
 
   const completedCount = progress.completedLessons.length;
   const totalLessons = lessons.length;

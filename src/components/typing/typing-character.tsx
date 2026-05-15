@@ -23,16 +23,20 @@ export const TypingCharacter = memo(function TypingCharacter({
     cursorStyle,
     smoothCaret,
     ref
-}: TypingCharacterProps) {
+}: Readonly<TypingCharacterProps>) {
+    // Extract animation logic to reduce cognitive complexity
+    const getAnimation = () => {
+        if (isError && isCurrent) return { x: [-2, 2, -2, 2, 0], color: '#f87171' };
+        if (isTyped && !isError) return { scale: [1, 1.05, 1] };
+        return {};
+    };
+
     return (
         <motion.span
             ref={isCurrent ? ref : undefined}
             aria-current={isCurrent ? 'location' : undefined}
             aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
-            animate={
-                isError && isCurrent ? { x: [-2, 2, -2, 2, 0], color: '#f87171' } :
-                    isTyped && !isError ? { scale: [1, 1.05, 1] } : {}
-            }
+            animate={getAnimation()}
             transition={{ duration: 0.15 }}
             className={cn(
                 'relative inline-block transition-colors duration-75',

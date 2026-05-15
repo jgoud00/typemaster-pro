@@ -5,7 +5,7 @@ let worker: Worker | null = null;
 let proxy: Comlink.Remote<MLWorkerAPI> | null = null;
 
 export function getMLProxy(): Comlink.Remote<MLWorkerAPI> | null {
-    if (typeof window === 'undefined') return null;
+    if (typeof globalThis.window === 'undefined') return null;
 
     if (!proxy) {
         try {

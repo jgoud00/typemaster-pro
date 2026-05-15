@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, memo } from 'react';
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { keyboardLayout as qwertyLayout, fingerColors } from '@/lib/keyboard-data';
@@ -111,7 +111,7 @@ function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKey
             )}
 
             {currentLayout.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex justify-center gap-1.5">
+                <div key={`row-${rowIndex}`} className="flex justify-center gap-1.5">
                     {row.map((keyData, keyIndex) => (
                         <MemoizedKey
                             key={`${rowIndex}-${keyIndex}`}
@@ -155,7 +155,6 @@ const MemoizedKey = memo(function Key({ keyData, isActive, showHeatmap, accuracy
     const colors = fingerColors[finger];
 
     // Width calculation (base width is 48px)
-    const widthClass = width === 1 ? 'w-12' : `w-[${width * 48 + (width - 1) * 6}px]`;
     const widthStyle = width !== 1 ? { width: `${width * 48 + (width - 1) * 6}px` } : undefined;
 
     // Get display label

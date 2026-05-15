@@ -6,10 +6,7 @@ import { motion } from 'framer-motion';
 import {
     ArrowLeft,
     Trophy,
-    TrendingUp,
-    Target,
     BarChart3,
-    Activity,
     RotateCcw,
     AlertTriangle,
 } from 'lucide-react';
@@ -42,7 +39,8 @@ function getAccuracyColor(accuracy: number | null): string {
 export default function StatsPage() {
     const router = useRouter();
     const { progress, resetProgress } = useProgressStore();
-    const { game, resetGame } = useGameStore();
+    const game = useGameStore(s => s.game);
+    const resetGame = useGameStore(s => s.resetGame);
     const { keyStats, clearSession } = useAnalyticsStore();
     const [showResetModal, setShowResetModal] = useState(false);
 
@@ -51,7 +49,7 @@ export default function StatsPage() {
         resetGame();
         clearSession();
         setShowResetModal(false);
-        if (typeof globalThis.window !== 'undefined') {
+        if (globalThis.window !== undefined) {
             globalThis.localStorage.removeItem('ngram-analytics');
             globalThis.localStorage.removeItem('analytics-store');
         }
@@ -78,7 +76,11 @@ export default function StatsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Close modal"
                         onClick={() => setShowResetModal(false)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowResetModal(false); }}
                     />
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}

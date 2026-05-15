@@ -4,8 +4,7 @@ import { create } from 'zustand';
 import { KeystrokeEvent, KeyStat, BigramStat, TrigramStat, WeaknessProfile, Finger } from '@/types';
 import type { Remote } from 'comlink';
 import type { MLWorkerAPI } from '@/workers/ml-worker';
-import type { BayesianState, HMMState } from '@/types/analytics';
-import type { AnalyticsPayload } from '@/types/analytics';
+import type { BayesianState, HMMState, AnalyticsPayload } from '@/types/analytics';
 
 interface AnalyticsStore {
     // Session analytics
@@ -76,7 +75,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
     vectorClock: {},
     isSyncing: false,
     syncError: null,
-    deviceId: typeof window !== 'undefined' && crypto && crypto.randomUUID ? crypto.randomUUID() : 'default-device',
+    deviceId: typeof globalThis.window !== 'undefined' && crypto?.randomUUID ? crypto.randomUUID() : 'default-device',
 
     recordKeystroke: async (keystroke, context, mlWorker) => {
         // 1. Update Core Stats (Synchronous)
