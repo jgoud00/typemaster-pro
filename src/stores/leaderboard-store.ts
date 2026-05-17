@@ -1,3 +1,12 @@
+/**
+ * Leaderboard Store — Client-side State & Cache
+ *
+ * Owns: local leaderboard entries (anonymous/offline), global cache,
+ * loading state, and cache invalidation.
+ *
+ * Does NOT own: Supabase I/O — all remote operations are delegated
+ * to `lib/supabase/leaderboard.ts`.
+ */
 'use client';
 
 import { create } from 'zustand';
@@ -60,7 +69,7 @@ export const useLeaderboardStore = create<LeaderboardStore>()(
         }),
         { 
             name: 'aloo-leaderboard',
-            skipHydration: false,
+            skipHydration: true,
             partialize: (state) => ({
                 entries: state.entries,
                 // Don't persist global entries — always fetch fresh

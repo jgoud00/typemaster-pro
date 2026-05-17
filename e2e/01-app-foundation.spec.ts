@@ -118,6 +118,10 @@ test.describe("Client-side Navigation", () => {
  
   test("404 page shows friendly message", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-xyz");
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('Initializing'),
+      { timeout: 15000 }
+    );
     const body = await page.locator("body").innerText();
     expect(body).toMatch(/not found|404|missing/i);
   });

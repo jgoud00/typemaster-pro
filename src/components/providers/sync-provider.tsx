@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { useProgressStore } from '@/stores/progress-store';
 import { useUserStore } from '@/stores/user-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { fetchProgress, pushProgress, mergeProgress, syncAchievements, fetchAchievements } from '@/lib/supabase/sync';
 import { fetchSettings, pushSettings } from '../../lib/supabase/settings';
+import { useSupabaseUser } from '@/hooks/use-supabase-user';
 import type { User } from '@supabase/supabase-js';
 
 const SYNC_DEBOUNCE_MS = 30_000; // Sync every 30 seconds of changes
@@ -98,35 +98,27 @@ export function SyncProvider({ children }: Readonly<{ children: React.ReactNode 
     }, SYNC_DEBOUNCE_MS);
   }, [performSync]);
 
+  // Shared auth listener — one getUser() call across all providers
+  useSupabaseUser(useCallback((user: User | null) => {
+    const prev = userRef.current;
+    userRef.current = user;
+
+    if (user && !prev) {
+      // Newly signed in
+      useUserStore.getState().loadProfile();
+      performSync(user.id);
+    } else if (user && prev && user.id !== prev.id) {
+      // Account switch
+      useUserStore.getState().loadProfile();
+      performSync(user.id);
+    } else if (!user && prev) {
+      // Signed out
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    }
+  }, [performSync]));
+
   useEffect(() => {
-    const supabase = createClient();
-
-    // Initial auth check + sync
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      userRef.current = user;
-      if (user) {
-        // Load profile + initial sync
-        useUserStore.getState().loadProfile();
-        performSync(user.id);
-      }
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const user = session?.user ?? null;
-      userRef.current = user;
-
-      if (event === 'SIGNED_IN' && user) {
-        useUserStore.getState().loadProfile();
-        performSync(user.id);
-      } else if (event === 'SIGNED_OUT') {
-        // Clear sync timeout
-        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-      }
-    });
-
     // Periodic sync — every 60s while user is authenticated
-    // (Replaces store subscription which could cascade into update loops)
     const syncIntervalRef = setInterval(() => {
       if (userRef.current && Date.now() - lastSyncRef.current > 55_000) {
         performSync(userRef.current.id);
@@ -136,26 +128,18 @@ export function SyncProvider({ children }: Readonly<{ children: React.ReactNode 
     // Sync on page unload
     const handleBeforeUnload = () => {
       if (userRef.current && Date.now() - lastSyncRef.current > 5000) {
-        // Use sendBeacon for reliable fire-and-forget
-        // For complex syncs, we just push the current state
-        const userId = userRef.current.id;
-        const progress = useProgressStore.getState().progress;
-        
-        // Best-effort push via navigator.sendBeacon isn't possible with Supabase client
-        // Instead, just do a quick push (may not complete)
-        pushProgress(userId, progress).catch(() => {});
+        pushProgress(userRef.current.id, useProgressStore.getState().progress).catch(() => {});
       }
     };
 
     globalThis.window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      subscription.unsubscribe();
       clearInterval(syncIntervalRef);
       globalThis.window.removeEventListener('beforeunload', handleBeforeUnload);
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     };
-  }, [performSync, scheduleSync]);
+  }, [performSync]);
 
   return <>{children}</>;
 }

@@ -22,7 +22,23 @@ export type TypingEvents = {
     'TYPING_RESUMED': { elapsedTime: number };
     'TYPING_COMPLETED': { wpm: number; accuracy: number; totalErrors: number; valid?: boolean };
     'COMBO_ACHIEVED': { combo: number };
-    'COMBO_BROKEN': void;
+    'COMBO_BROKEN': { lastCombo: number };
 };
 
-export const typingBus = mitt<TypingEvents>();
+const _bus = typeof window !== 'undefined' ? mitt<TypingEvents>() : null;
+
+export const typingBus = {
+    on: (type: any, handler: any) => {
+        if (typeof window === 'undefined') return;
+        _bus?.on(type, handler);
+    },
+    off: (type: any, handler: any) => {
+        if (typeof window === 'undefined') return;
+        _bus?.off(type, handler);
+    },
+    emit: (type: any, event?: any) => {
+        if (typeof window === 'undefined') return;
+        _bus?.emit(type, event);
+    },
+    all: _bus?.all || new Map()
+} as unknown as ReturnType<typeof mitt<TypingEvents>>;

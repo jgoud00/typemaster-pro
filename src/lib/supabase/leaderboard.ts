@@ -1,3 +1,17 @@
+/**
+ * Leaderboard Supabase I/O — Data Access Layer
+ *
+ * Owns: all Supabase queries for leaderboard and typing sessions
+ * (fetch global, get rank, submit session).
+ *
+ * IMPORTANT: Leaderboard upserts are performed server-side via the
+ * `upsert_leaderboard` RPC (DB-side MAX) in `/api/submit-score`.
+ * Client code must NOT write to the leaderboard table directly to
+ * prevent TOCTOU races and fake score injection.
+ *
+ * Does NOT own: client-side caching or UI state — that belongs to
+ * `stores/leaderboard-store.ts`.
+ */
 import { createClient } from '@/lib/supabase/client';
 
 export interface GlobalLeaderboardEntry {
@@ -54,7 +68,14 @@ export async function getUserRank(userId: string): Promise<number | null> {
 }
 
 /**
- * Submit a typing session result and update the leaderboard.
+ * Insert a typing session result on the client.
+ *
+ * Leaderboard upsert is intentionally NOT performed here — it is
+ * executed atomically by `/api/submit-score` after server-side
+ * validation and cheat detection. This prevents:
+ *   - TOCTOU races (read-then-write on client)
+ *   - Fake score injection via direct Supabase writes
+ *   - Bypassing cheat_score / is_valid checks
  */
 export async function submitSessionToSupabase(
   userId: string,
@@ -74,7 +95,6 @@ export async function submitSessionToSupabase(
 ): Promise<boolean> {
   const supabase = createClient();
 
-  // 1. Insert the typing session
   const { error: sessionError } = await supabase
     .from('typing_sessions')
     .insert({
@@ -94,40 +114,6 @@ export async function submitSessionToSupabase(
 
   if (sessionError) {
     console.error('[Leaderboard] Failed to submit session:', sessionError.message);
-    return false;
-  }
-
-  // 2. Update leaderboard entry (upsert with best values)
-  const { data: currentLeaderboard } = await supabase
-    .from('leaderboard')
-    .select('best_wpm, best_accuracy, total_sessions, total_practice_time')
-    .eq('user_id', userId)
-    .single();
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('user_id', userId)
-    .single();
-
-  const newBestWpm = Math.max(currentLeaderboard?.best_wpm || 0, session.wpm);
-  const newBestAccuracy = Math.max(currentLeaderboard?.best_accuracy || 0, session.accuracy);
-  const newTotalSessions = (currentLeaderboard?.total_sessions || 0) + 1;
-  const newTotalTime = (currentLeaderboard?.total_practice_time || 0) + session.duration;
-
-  const { error: leaderboardError } = await supabase
-    .from('leaderboard')
-    .upsert({
-      user_id: userId,
-      username: profile?.username || null,
-      best_wpm: newBestWpm,
-      best_accuracy: newBestAccuracy,
-      total_sessions: newTotalSessions,
-      total_practice_time: newTotalTime,
-    }, { onConflict: 'user_id' });
-
-  if (leaderboardError) {
-    console.error('[Leaderboard] Failed to update leaderboard:', leaderboardError.message);
     return false;
   }
 

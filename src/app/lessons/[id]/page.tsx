@@ -190,11 +190,7 @@ export default function LessonPage() {
             </main>
 
             {/* Combo popup */}
-            <ComboPopup
-                combo={comboPopup.combo}
-                show={comboPopup.show}
-                level={comboPopup.level}
-            />
+            <ComboPopup />
 
             {/* Lesson complete modal */}
             {showComplete && completedRecord && (

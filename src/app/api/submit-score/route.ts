@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import { sessions } from '../session/route';
-import { createClient } from '@/lib/supabase/server';
+import { verifySessionToken } from '../session/helper';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const MAX_VALID_WPM = 300;
+const MAX_KEYSTROKES = 5000;
+// Separate rate limit for score submission (tighter than session creation)
+const SUBMIT_RATE_LIMIT_MAX = 20;
+const SUBMIT_RATE_WINDOW_MS = 300_000; // 5 minutes
 
 interface Keystroke {
   t: number;
@@ -10,114 +14,170 @@ interface Keystroke {
 }
 
 interface SubmitScoreBody {
-  sid: string;
   token: string;
   keystrokes: Keystroke[];
+  mode?: string;
 }
 
 export async function POST(req: Request) {
   try {
     const body: SubmitScoreBody = await req.json();
-    const { sid, token, keystrokes } = body;
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    const { token, keystrokes, mode = 'speed-test' } = body;
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? '127.0.0.1';
 
-    if (!sid || !token || !Array.isArray(keystrokes)) {
+    if (!token || !Array.isArray(keystrokes)) {
       return NextResponse.json({ ok: false, reason: 'Invalid payload' }, { status: 400 });
     }
-    
-    const sess = sessions.get(sid);
-    if (!sess || sess.token !== token) {
-      return NextResponse.json({ ok: false, reason: 'Unauthorized session' }, { status: 401 });
+
+    if (keystrokes.length < 5 || keystrokes.length > MAX_KEYSTROKES) {
+      return NextResponse.json({ ok: false, reason: 'Invalid keystroke count' }, { status: 400 });
     }
-    
-    // IP verification (skip in dev)
+
+    // ── Submit-level rate limiting ────────────────────────────────────────────
+    // Session creation is already rate-limited, but an attacker with a valid
+    // token could resubmit scores in bulk. Guard separately here.
+    try {
+      const svc = createServiceClient();
+      const windowStart = new Date(Date.now() - SUBMIT_RATE_WINDOW_MS).toISOString();
+      const { count } = await svc
+        .from('session_rate_limit')
+        .select('*', { count: 'exact', head: true })
+        .eq('ip', ip)
+        .gte('created_at', windowStart);
+
+      if ((count ?? 0) >= SUBMIT_RATE_LIMIT_MAX) {
+        return NextResponse.json(
+          { ok: false, reason: 'Rate limit exceeded' },
+          { status: 429, headers: { 'Retry-After': '300' } }
+        );
+      }
+    } catch {
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ ok: false, reason: 'Service unavailable' }, { status: 503 });
+      }
+    }
+
+    // verifySessionToken performs jti replay check atomically
+    const sess = await verifySessionToken(token);
+    if (!sess) {
+      return NextResponse.json({ ok: false, reason: 'Unauthorized or replayed session' }, { status: 401 });
+    }
+
     if (process.env.NODE_ENV !== 'development' && sess.ip !== ip) {
       return NextResponse.json({ ok: false, reason: 'IP mismatch' }, { status: 401 });
     }
 
-    // Session timeout (6 minutes)
-    if ((Date.now() - sess.startTime) > 360000) { 
-      sessions.delete(sid); 
-      return NextResponse.json({ ok: false, reason: 'Session expired' }, { status: 401 }); 
+    const startTime = sess.startTime;
+    const now = Date.now();
+    const sessionEndMax = startTime + (360 + 10) * 1000; // JWT TTL + 10s clock skew
+
+    // ── Timestamp validation ──────────────────────────────────────────────────
+    // All timestamps must be numbers, monotonically ordered, within session window.
+    // Also reject implausible same-millisecond streaks (>3 consecutive identical
+    // timestamps indicate fabricated data).
+    let sameTimestampRun = 0;
+    for (let i = 0; i < keystrokes.length; i++) {
+      const k = keystrokes[i];
+      if (typeof k.t !== 'number' || k.t < startTime - 1000 || k.t > Math.min(now + 1000, sessionEndMax)) {
+        return NextResponse.json({ ok: false, reason: 'Invalid timestamps' }, { status: 400 });
+      }
+      if (i > 0) {
+        if (k.t < keystrokes[i - 1].t) {
+          return NextResponse.json({ ok: false, reason: 'Non-monotonic timestamps' }, { status: 400 });
+        }
+        sameTimestampRun = k.t === keystrokes[i - 1].t ? sameTimestampRun + 1 : 0;
+        if (sameTimestampRun > 3) {
+          return NextResponse.json({ ok: false, reason: 'Fabricated timestamps' }, { status: 400 });
+        }
+      }
     }
 
-    // Validate timestamp ordering and bounds
-    const sorted = keystrokes.every((k, i) => i === 0 || k.t >= keystrokes[i - 1].t);
-    if (!sorted || keystrokes.some(k => typeof k.t !== 'number' || k.t > Date.now() + 1000 || k.t < sess.startTime - 1000)) {
-      return NextResponse.json({ ok: false, reason: 'Invalid timestamps' }, { status: 400 });
-    }
-
-    if (keystrokes.length < 5) {
-      return NextResponse.json({ ok: false, reason: 'Too few keystrokes' }, { status: 400 });
-    }
-
-    // Server-side WPM/Accuracy calculation
+    // ── Server-side metric derivation ─────────────────────────────────────────
     const validKs = keystrokes.filter(k => k.correct);
     const ksDuration = Math.max(1, (keystrokes[keystrokes.length - 1].t - keystrokes[0].t) / 1000);
     const sWpm = (validKs.length / 5) / (ksDuration / 60);
     const sAcc = (validKs.length / keystrokes.length) * 100;
 
-    // Macro Detection (Advanced)
-    const ivs = keystrokes.slice(1).map((k, i) => k.t - keystrokes[i].t);
-    const avg = ivs.reduce((a, b) => a + b, 0) / ivs.length;
-    const variance = ivs.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / ivs.length;
-    const normalizedVariance = variance / (avg || 1);
-    
-    // 1. Extreme speed check
-    // 2. Too perfect rhythm (normalized variance < 0.2)
-    // 3. Humanly impossible average latency (< 30ms)
-    if (ivs.length > 20 && (avg < 30 || normalizedVariance < 0.2 || sWpm > MAX_VALID_WPM)) {
-      return NextResponse.json({ ok: false, reason: 'Unnatural typing detected' }, { status: 403 });
+    // ── Bot / macro detection ─────────────────────────────────────────────────
+    const ivs = keystrokes.slice(1).map((k, i) => k.t - keystrokes[i].t).filter(v => v >= 0);
+    let serverCheatScore = 0;
+
+    if (ivs.length > 20) {
+      const avg = ivs.reduce((a, b) => a + b, 0) / ivs.length;
+      const variance = ivs.reduce((a, b) => a + (b - avg) ** 2, 0) / ivs.length;
+      // Correct normalization: divide variance by avg² (coefficient of variation squared)
+      const cv2 = avg > 0 ? variance / (avg * avg) : 0;
+      const cv = Math.sqrt(cv2);
+
+      // Median for superhuman speed check
+      const sorted = [...ivs].sort((a, b) => a - b);
+      const medianIv = sorted[Math.floor(sorted.length / 2)];
+
+      // Sub-2ms ratio (fabricated timestamps)
+      const zeroRatio = ivs.filter(v => v <= 2).length / ivs.length;
+
+      // WPM hard cap
+      if (sWpm > MAX_VALID_WPM) {
+        return NextResponse.json({ ok: false, reason: 'WPM exceeds physical maximum' }, { status: 403 });
+      }
+      // Superhuman median interval
+      if (medianIv < 16) serverCheatScore += 25;
+      // Robot-like rhythm (CV < 10%)
+      if (cv < 0.10) serverCheatScore += 20;
+      // Near-zero delay saturation
+      if (zeroRatio > 0.08) serverCheatScore += 20;
+      // Raw avg < 30ms (impossible sustained speed)
+      if (avg < 30) serverCheatScore += 15;
+
+      if (serverCheatScore >= 40) {
+        return NextResponse.json({ ok: false, reason: 'Unnatural typing detected' }, { status: 403 });
+      }
     }
 
-    sessions.delete(sid); // Consume session
+    // Perfect accuracy at high WPM
+    if (sAcc >= 100 && sWpm > 95) serverCheatScore += 15;
+    const finalIsValid = serverCheatScore < 40;
 
-    // Persist to Supabase if user is authenticated
+    const finalWpm = Math.min(MAX_VALID_WPM, Math.round(sWpm));
+    const finalAcc = Math.round(sAcc);
+
     try {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
+
       if (user) {
-        // Insert typing session
         await supabase.from('typing_sessions').insert({
           user_id: user.id,
-          wpm: Math.min(MAX_VALID_WPM, Math.round(sWpm)),
-          accuracy: Math.round(sAcc),
+          wpm: finalWpm,
+          accuracy: finalAcc,
           duration: Math.round(ksDuration),
-          mode: 'speed-test',
+          mode: typeof mode === 'string' && mode.length <= 32 ? mode : 'speed-test',
           max_combo: 0,
           score: 0,
           total_chars: keystrokes.length,
           errors: keystrokes.filter(k => !k.correct).length,
-          cheat_score: 0,
-          is_valid: true,
+          // Use server-derived cheat score — never trust client-supplied value
+          cheat_score: serverCheatScore,
+          is_valid: finalIsValid,
         });
 
-        // Update leaderboard
-        const { data: current } = await supabase
-          .from('leaderboard')
-          .select('best_wpm, best_accuracy, total_sessions, total_practice_time')
-          .eq('user_id', user.id)
-          .single();
-
-        await supabase.from('leaderboard').upsert({
-          user_id: user.id,
-          best_wpm: Math.max(current?.best_wpm || 0, Math.round(sWpm)),
-          best_accuracy: Math.max(current?.best_accuracy || 0, Math.round(sAcc)),
-          total_sessions: (current?.total_sessions || 0) + 1,
-          total_practice_time: (current?.total_practice_time || 0) + Math.round(ksDuration),
-        }, { onConflict: 'user_id' });
+        if (finalIsValid) {
+          // Atomic upsert using DB-side MAX to prevent race conditions and
+          // ensure only valid sessions can affect the leaderboard.
+          await createServiceClient().rpc('upsert_leaderboard', {
+            p_user_id: user.id,
+            p_wpm: finalWpm,
+            p_accuracy: finalAcc,
+            p_duration: Math.round(ksDuration),
+          });
+        }
       }
     } catch (e) {
-      // Non-blocking: don't fail the response if Supabase write fails
       console.error('[SubmitScore] Supabase persistence failed:', e);
     }
 
-    return NextResponse.json({ 
-      ok: true, 
-      wpm: Math.min(MAX_VALID_WPM, Math.round(sWpm)), 
-      accuracy: Math.round(sAcc) 
-    });
-  } catch (e) { 
-    return NextResponse.json({ ok: false, error: 'Internal validation error' }, { status: 500 }); 
+    return NextResponse.json({ ok: true, wpm: finalWpm, accuracy: finalAcc, valid: finalIsValid });
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Internal validation error' }, { status: 500 });
   }
 }

@@ -2,14 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 import { typingBus } from '@/lib/events/typing-bus';
-import { initializeTypingListeners } from '@/lib/events/typing-listeners';
-import { antiCheatCollector, analyzeSession } from '@/lib/anti-cheat';
+import { initializeTypingListeners, disposeTypingListeners } from '@/lib/events/typing-listeners';
+import { createAntiCheatCollector, analyzeSession, generateIntegrityHashAsync } from '@/lib/anti-cheat';
+import { useSettingsStore } from '@/stores/settings-store';
+import { getKeystrokeBuffer } from '@/stores/typing-store';
 import { PracticeMode, PerformanceRecord } from '@/types';
-
-// Run once safely
-if (typeof globalThis.window !== 'undefined') {
-    initializeTypingListeners();
-}
 
 interface UseTypingControllerOptions {
     text: string;
@@ -49,6 +46,15 @@ export function useTypingController({
 
     const completionStateRef = useRef<CompletionState>({ completed: false, reason: null });
     const rafIdRef = useRef<number>(0);
+    // Per-session collector: isolated from other sessions/HMR resets
+    const collectorRef = useRef(createAntiCheatCollector());
+
+    // Initialize listeners once per hook mount; clean up on unmount to prevent
+    // stale listeners on the typingBus after HMR or route changes.
+    useEffect(() => {
+        initializeTypingListeners();
+        return () => disposeTypingListeners();
+    }, []);
 
     // Link milestone events
     useEffect(() => {
@@ -79,17 +85,18 @@ export function useTypingController({
 
     // Anti-cheat: Block paste, drop, and autofill
     useEffect(() => {
+        const collector = collectorRef.current;
         const blockPaste = (e: ClipboardEvent) => {
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
             e.preventDefault();
-            antiCheatCollector.recordPasteAttempt();
+            collector.recordPasteAttempt();
         };
         const blockDrop = (e: DragEvent) => {
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
             e.preventDefault();
-            antiCheatCollector.recordDropAttempt();
+            collector.recordDropAttempt();
         };
         globalThis.window.addEventListener('paste', blockPaste);
         globalThis.window.addEventListener('drop', blockDrop);
@@ -131,20 +138,22 @@ export function useTypingController({
             return false;
         };
 
-        const isInvalidState = (s: any, e: KeyboardEvent) => {
-            if (s.state.isComplete || s.state.isPaused || document.hidden || !e.isTrusted) return true;
+        const isInvalidState = (s: ReturnType<typeof useTypingStore.getState>, e: KeyboardEvent) => {
+            if (s.state.isComplete || s.state.isPaused || document.hidden) return true;
+            // Do NOT gate on !e.isTrusted here — untrusted events are recorded
+            // as suspicious by the collector but must still flow through to count.
             if (timeLimitSeconds && s.state.startTime) {
                 const pauseAdj = s.state.pausedMs + (s.state.pauseStart ? Date.now() - s.state.pauseStart : 0);
                 if ((Date.now() - s.state.startTime - pauseAdj) / 1000 >= timeLimitSeconds) return true;
             }
-            const lastKey = s.state.keystrokes[s.state.keystrokes.length - 1];
-            if (lastKey && Date.now() - lastKey.timestamp < 10) return true;
             return false;
         };
 
-        const processKeystroke = (key: string, isTrusted: boolean) => {
-            antiCheatCollector.recordKeystroke(Date.now(), isTrusted);
-            const keystroke = handleKeystroke(key);
+        const processKeystroke = (key: string, isTrusted: boolean, eventTimestamp: number) => {
+            // Use high-resolution event timestamp (performance.now()-relative) for accuracy
+            collectorRef.current.recordKeystroke(eventTimestamp, isTrusted);
+            const layout = useSettingsStore.getState().settings.keyboardLayout;
+            const keystroke = handleKeystroke(key, layout);
             
             if (keystroke) {
                 const freshState = useTypingStore.getState();
@@ -172,7 +181,7 @@ export function useTypingController({
 
             if (e.key.length === 1) {
                 e.preventDefault();
-                processKeystroke(e.key, e.isTrusted);
+                processKeystroke(e.key, e.isTrusted, e.timeStamp);
             }
         };
 
@@ -192,8 +201,11 @@ export function useTypingController({
         const freshErrors = store.state.errorIndices.length;
         const maxCombo = useGameStore.getState().game.maxCombo;
 
-        const integrity = analyzeSession(antiCheatCollector, wpm, accuracy);
+        const integrity = analyzeSession(collectorRef.current, wpm, accuracy);
+        const collectorData = collectorRef.current.getData();
 
+        // Build record synchronously first so onComplete fires immediately,
+        // then upgrade the hash asynchronously (server validates independently).
         const record: PerformanceRecord = {
             id: crypto.randomUUID(),
             lessonId,
@@ -212,7 +224,15 @@ export function useTypingController({
         };
 
         typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid });
-        onComplete?.(record);
+
+        // Upgrade to async SHA-256 hash before calling onComplete
+        generateIntegrityHashAsync(wpm, accuracy, integrity.cheatScore, collectorData.totalKeyEvents, collectorData.intervals)
+            .then(strongHash => {
+                onComplete?.({ ...record, integrityHash: strongHash });
+            })
+            .catch(() => {
+                onComplete?.(record);
+            });
     }, [lessonId, mode, onComplete]);
 
     // Time limit check
@@ -241,7 +261,8 @@ export function useTypingController({
 
     const handleReset = useCallback(() => {
         reset();
-        antiCheatCollector.reset();
+        // Replace with a fresh instance — never reuse across sessions
+        collectorRef.current = createAntiCheatCollector();
         completionStateRef.current = { completed: false, reason: null };
     }, [reset]);
 

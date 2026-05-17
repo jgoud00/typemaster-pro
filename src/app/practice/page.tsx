@@ -17,6 +17,9 @@ import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
 import { useUserStore } from '@/stores/user-store';
 import { useLeaderboardStore } from '@/stores/leaderboard-store';
+import { useSettingsStore } from '@/stores/settings-store';
+import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
+import { ComboPopup, StreakBreakPopup } from '@/components/gamification/combo-popup';
 import { LiveFlowGraph } from '@/components/typing/live-flow-graph';
 import { generateAdaptiveText, getRandomQuote, getRandomParagraph } from '@/lib/practice-texts';
 import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
@@ -201,6 +204,9 @@ function Leaderboard() {
 
 function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode }) {
     const router = useRouter();
+    const settings = useSettingsStore(s => s.settings);
+    // Removed granular combo selectors to avoid render cascades.
+    // Combo overlays are now self-contained and listen via stores/buses directly.
     const [mode, setMode] = useState<PracticeMode>(initialMode);
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
     const [customText, setCustomText] = useState('');
@@ -316,46 +322,27 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     });
 
 
-    // We can get it from store directly in the effect.
-
-    // Correction: page.tsx NEEDS frequent updates for ghostIndex (targetWpm) and history chart.
-    // If we want to optimize, we must move ghostIndex calculation and history tracking into separate components 
-    // or accept that page will still re-render for those features.
-
-    // To get elapsedTime for history, we need to import useTypingStore.
-
-    const { getWpm, getElapsedTime, state } = useTypingStore();
-    const wpm = getWpm();
-    const accuracy = useTypingStore().getAccuracy();
-    const elapsedTime = getElapsedTime();
-    const errorIndices = state.errorIndices;
-
-    // Task 5: Flow Intelligence Analysis
+    // FIX: Read store imperatively inside interval — zero reactive subscriptions.
+    // This prevents StandardPracticeInterface from re-rendering on every keystroke.
     const { flowScore, trend } = useMemo(() => {
         if (history.length < 2) return { flowScore: 0, trend: 'stable' as const };
-        
         const wpms = history.map(h => Math.min(250, h.wpm));
-        
-        // Smoothing for trend (window=3)
         const getSmoothed = (arr: number[], idx: number) => {
             if (idx < 2) return arr[idx];
             return (arr[idx-2] + arr[idx-1] + arr[idx]) / 3;
         };
-        
         const currentSmoothed = getSmoothed(wpms, wpms.length - 1);
         const prevSmoothed = getSmoothed(wpms, wpms.length - 2);
-        
         let detectedTrend: 'rising' | 'falling' | 'stable' = 'stable';
         if (currentSmoothed > prevSmoothed + 0.5) detectedTrend = 'rising';
         else if (currentSmoothed < prevSmoothed - 0.5) detectedTrend = 'falling';
-        
-        return {
-            flowScore: calculateFlowScore(wpms, accuracy),
-            trend: detectedTrend
-        };
-    }, [history, accuracy]);
+        const lastAccuracy = history.at(-1)?.wpm != null
+            ? useTypingStore.getState().getAccuracy()
+            : 100;
+        return { flowScore: calculateFlowScore(wpms, lastAccuracy), trend: detectedTrend };
+    }, [history]);
 
-    // Task 6: Adaptive difficulty (Debounced to avoid jumps)
+    // Adaptive difficulty (debounced)
     useEffect(() => {
         const timeout = setTimeout(() => {
             if (flowScore > 80) setDifficulty('hard');
@@ -365,7 +352,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         return () => clearTimeout(timeout);
     }, [flowScore]);
 
-    // Task 3 & 4: Dynamic text generation & Smooth transition
+    // Dynamic text extension — reads currentIndex from store imperatively to avoid subscription
     useEffect(() => {
         if (!hasStarted || isComplete) return;
         const remainingChars = text.length - currentIndex;
@@ -373,28 +360,18 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             setText(prev => prev + ' ' + generateAdaptiveText(20, difficulty));
         }
     }, [currentIndex, text.length, difficulty, hasStarted, isComplete]);
-    
-    // Track history every second (refs to avoid interval thrashing)
-    const wpmRef = useRef(wpm);
-    const elapsedRef = useRef(elapsedTime);
-    const errorsRef = useRef(errorIndices.length);
-    useEffect(() => {
-        wpmRef.current = wpm;
-        elapsedRef.current = elapsedTime;
-        errorsRef.current = errorIndices.length;
-    }, [wpm, elapsedTime, errorIndices.length]);
 
+    // History tracking: getState() inside interval — no reactive deps on wpm/elapsedTime/errorIndices
     useEffect(() => {
         if (!hasStarted || isPaused || isComplete) return;
-
         const interval = setInterval(() => {
+            const s = useTypingStore.getState();
             setHistory(prev => [...prev, {
-                timestamp: elapsedRef.current,
-                wpm: wpmRef.current,
-                errors: errorsRef.current
+                timestamp: s.getElapsedTime(),
+                wpm: s.getWpm(),
+                errors: s.state.errorIndices.length,
             }]);
         }, TIMERS.POLLING_INTERVAL_MS);
-
         return () => clearInterval(interval);
     }, [hasStarted, isPaused, isComplete]);
 
@@ -445,12 +422,18 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Calculate error breakdown
-    const errorBreakdown = new Map<string, number>();
-    errorIndices.forEach(idx => {
-        const char = text[idx]?.toLowerCase();
-        if (char) errorBreakdown.set(char, (errorBreakdown.get(char) || 0) + 1);
-    });
+    // Error breakdown computed imperatively — only needed at results time
+    const errorBreakdown = useMemo(() => {
+        const map = new Map<string, number>();
+        if (!isComplete) return map;
+        const errorIndices = useTypingStore.getState().state.errorIndices;
+        errorIndices.forEach(idx => {
+            const char = text[idx]?.toLowerCase();
+            if (char) map.set(char, (map.get(char) || 0) + 1);
+        });
+        return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isComplete, text]);
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
@@ -576,6 +559,22 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
                         {/* Typing area */}
                         <TypingArea />
+
+                        {/* Virtual keyboard */}
+                        {settings.showVirtualKeyboard && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="mt-8 w-full"
+                            >
+                                <VirtualKeyboard showHeatmap={false} />
+                            </motion.div>
+                        )}
+                        
+                        {/* Combo popup */}
+                        <ComboPopup />
+                        <StreakBreakPopup />
                     </div>
                     </>
                 ) : (

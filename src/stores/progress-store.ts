@@ -234,6 +234,8 @@ export const useProgressStore = create<ProgressStore>()(
             },
 
             exportData: () => {
+                if (typeof document === 'undefined') return;
+
                 const state = get();
                 const data = {
                     version: '1.0',
@@ -252,7 +254,9 @@ export const useProgressStore = create<ProgressStore>()(
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `typemaster-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
                 a.click();
+                document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             },
 
@@ -289,7 +293,7 @@ export const useProgressStore = create<ProgressStore>()(
         }),
         {
             name: 'typing-progress',
-            skipHydration: false,
+            skipHydration: true,
             merge: (persistedState: unknown, currentState: ProgressStore): ProgressStore => {
                 const persisted = persistedState as Partial<ProgressStore> | undefined;
                 if (!persisted?.progress) return currentState;

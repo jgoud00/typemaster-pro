@@ -39,7 +39,12 @@ export const useGameStore = create<GameStore>()(
             incrementCombo: () => {
                 set(state => {
                     const newCombo = state.game.combo + 1;
-                    const newMultiplier = get().getMultiplierForCombo(newCombo);
+                    // Compute multiplier inline from state — avoids get() inside set() antipattern
+                    const newMultiplier =
+                        newCombo >= COMBO_THRESHOLDS.LEVEL_4.combo ? COMBO_THRESHOLDS.LEVEL_4.multiplier :
+                        newCombo >= COMBO_THRESHOLDS.LEVEL_3.combo ? COMBO_THRESHOLDS.LEVEL_3.multiplier :
+                        newCombo >= COMBO_THRESHOLDS.LEVEL_2.combo ? COMBO_THRESHOLDS.LEVEL_2.multiplier :
+                        newCombo >= COMBO_THRESHOLDS.LEVEL_1.combo ? COMBO_THRESHOLDS.LEVEL_1.multiplier : 1;
 
                     return {
                         game: {
@@ -129,7 +134,7 @@ export const useGameStore = create<GameStore>()(
         }),
         {
             name: 'typing-game',
-            skipHydration: false
+            skipHydration: true
         }
     )
 );

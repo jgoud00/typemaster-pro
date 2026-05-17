@@ -74,7 +74,7 @@ export const useUserStore = create<UserStore>()(
         }),
         { 
             name: 'aloo-user',
-            skipHydration: false 
+            skipHydration: true 
         }
     )
 );

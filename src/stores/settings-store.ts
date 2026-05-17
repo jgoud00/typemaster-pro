@@ -96,7 +96,7 @@ export const useSettingsStore = create<SettingsStore>()(
         }),
         {
             name: 'typemaster-settings',
-            skipHydration: false
+            skipHydration: true
         }
     )
 );

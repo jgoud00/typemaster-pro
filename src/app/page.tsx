@@ -7,7 +7,6 @@ import {
   Zap, Rocket, BookOpen, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';

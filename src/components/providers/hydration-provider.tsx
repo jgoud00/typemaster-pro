@@ -18,9 +18,7 @@ export function HydrationProvider({ children }: Readonly<{ children: React.React
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-        const timeout = setTimeout(() => {
-            setHydrated(true);
-        }, 2000);
+        let cancelled = false;
 
         const hydrateAll = async () => {
             try {
@@ -34,15 +32,14 @@ export function HydrationProvider({ children }: Readonly<{ children: React.React
                     useAchievementStore.persist.rehydrate(),
                 ]);
             } catch (e) {
-                console.error("Hydration error:", e);
+                console.error('Hydration error:', e);
             } finally {
-                clearTimeout(timeout);
-                setHydrated(true);
+                if (!cancelled) setHydrated(true);
             }
         };
 
         hydrateAll();
-        return () => clearTimeout(timeout);
+        return () => { cancelled = true; };
     }, []);
 
     if (!hydrated) {

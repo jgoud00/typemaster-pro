@@ -131,7 +131,7 @@ export const useAchievementStore = create<AchievementStore>()(
         }),
         {
             name: 'typing-achievements',
-            skipHydration: false
+            skipHydration: true
         }
     )
 );

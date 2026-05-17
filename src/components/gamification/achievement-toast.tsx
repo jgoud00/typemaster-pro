@@ -9,27 +9,21 @@ import { useAchievementStore } from '@/stores/achievement-store';
 import { useConfetti } from '@/hooks/use-confetti';
 
 function AchievementToastComponent() {
-    const { state, clearRecentUnlock } = useAchievementStore();
+    const achievement = useAchievementStore(s => s.state.recentUnlock);
+    const clearRecentUnlock = useAchievementStore(s => s.clearRecentUnlock);
     const { fireConfetti } = useConfetti();
 
     useEffect(() => {
-        if (state.recentUnlock) {
+        if (achievement) {
             fireConfetti({ particleCount: 50, spread: 60 });
-
-            const timer = setTimeout(() => {
-                clearRecentUnlock();
-            }, 4000);
-
+            const timer = setTimeout(() => { clearRecentUnlock(); }, 4000);
             return () => clearTimeout(timer);
         }
-    }, [state.recentUnlock, clearRecentUnlock, fireConfetti]);
-
-    const visible = !!state.recentUnlock;
-    const achievement = state.recentUnlock;
+    }, [achievement, clearRecentUnlock, fireConfetti]);
 
     return (
         <AnimatePresence>
-            {visible && achievement && (
+            {achievement && (
                 <motion.div
                     className="fixed top-4 right-4 z-50"
                     initial={{ opacity: 0, x: 100, scale: 0.8 }}

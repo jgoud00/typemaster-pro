@@ -1,42 +1,40 @@
 // src/lib/events/typing-listeners.ts
 import { typingBus } from './typing-bus';
-import { useAnalyticsStore } from '@/stores/analytics-store';
+import { recordTypingKeystroke } from '@/lib/analytics/analytics-recorder';
 import { useGameStore } from '@/stores/game-store';
 import { useProgressStore } from '@/stores/progress-store';
 import { useAchievementStore } from '@/stores/achievement-store';
 import { ngramAnalyzer } from '@/lib/ngram-analyzer';
 import { soundEngine } from '@/lib/sound-engine';
-import { getMLProxy } from '@/workers/ml-worker-instance';
+import { terminateMLWorker } from '@/workers/ml-worker-instance';
 
-let listenersInitialized = false;
+// Use a WeakRef-safe symbol so HMR module replacement fully resets this flag.
+const _INIT_KEY = '__typingListenersInitialized__';
 
-export function initializeTypingListeners() {
-    if (listenersInitialized) return;
-    listenersInitialized = true;
+function isInitialized(): boolean {
+    return (globalThis as Record<string, unknown>)[_INIT_KEY] === true;
+}
+
+function setInitialized(value: boolean): void {
+    (globalThis as Record<string, unknown>)[_INIT_KEY] = value;
+}
+
+export function disposeTypingListeners(): void {
+    typingBus.all.clear();
+    terminateMLWorker();
+    setInitialized(false);
+}
+
+export function initializeTypingListeners(): void {
+    if (isInitialized()) return;
+    setInitialized(true);
 
     // 1. Keystroke Processor (Analytics & Gamification)
+    // ngramAnalyzer deferred via queueMicrotask — keeps this handler off the
+    // synchronous keystroke hot path. Runs before next frame, not blocking input.
     typingBus.on('KEYSTROKE_REGISTERED', (ctx) => {
-        // FIX: Null guard — worker may not be ready on first keystroke
-        const proxy = getMLProxy();
-        useAnalyticsStore.getState().recordKeystroke(
-            {
-                key: ctx.key,
-                expected: ctx.expectedChar,
-                isCorrect: ctx.isCorrect,
-                timestamp: ctx.timestamp,
-                hesitationMs: ctx.delayFromLastKey,
-                finger: ctx.finger,
-                previousKey: ctx.previousKey,
-            },
-            { wpm: ctx.wpm, accuracy: ctx.accuracy },
-            proxy ?? null  // safe: recordKeystroke must handle null proxy
-        );
+        recordTypingKeystroke(ctx);
 
-        // Ngrams
-        ngramAnalyzer.recordKeystroke(ctx.key, ctx.timestamp, ctx.isCorrect);
-
-        // Gamification Combos
-        // FIX: was [gameState.game](http://gameState.game) — markdown artifact, invalid JS
         const gameState = useGameStore.getState();
         if (ctx.isCorrect) {
             gameState.incrementCombo();
@@ -46,11 +44,16 @@ export function initializeTypingListeners() {
                 typingBus.emit('COMBO_ACHIEVED', { combo: gameState.game.combo });
             }
         } else {
-            if (gameState.game.combo > 10) {
-                typingBus.emit('COMBO_BROKEN');
+            if (gameState.game.combo >= 10) {
+                typingBus.emit('COMBO_BROKEN', { lastCombo: gameState.game.combo });
             }
             gameState.breakCombo();
         }
+
+        // Defer ngram analysis — non-critical, dequeued after current call stack.
+        queueMicrotask(() => {
+            ngramAnalyzer.recordKeystroke(ctx.key, ctx.timestamp, ctx.isCorrect);
+        });
     });
 
     // 2. Completion Processor
@@ -58,10 +61,8 @@ export function initializeTypingListeners() {
         const gameState = useGameStore.getState();
         const progress = useProgressStore.getState();
 
-        // FIX: was [soundEngine.play](http://soundEngine.play) — markdown artifact
         soundEngine.play('complete');
 
-        // Anti-cheat: Only update leaderboards and personal bests if session is valid
         if (stats.valid !== false) {
             progress.updatePersonalBests(stats.wpm, stats.accuracy, gameState.game.maxCombo);
             useAchievementStore.getState().checkAchievements(
@@ -76,17 +77,24 @@ export function initializeTypingListeners() {
             );
         }
 
-        // Keystrokes accumulate regardless to reflect practice effort
         progress.addKeystrokes(stats.wpm * 5);
     });
 
     // 3. Combo Processors
-    // FIX: was [soundEngine.play](http://soundEngine.play) — markdown artifact
     typingBus.on('COMBO_ACHIEVED', () => {
         soundEngine.play('combo-1');
     });
 
-    typingBus.on('COMBO_BROKEN', () => {
-        // Optional penalty sound here if desired
+    typingBus.on('COMBO_BROKEN', (payload) => {
+        if (payload?.lastCombo >= 10) {
+            soundEngine.play('error');
+        }
+    });
+}
+
+// HMR: tear down listeners on module replacement so re-import starts clean.
+if (typeof module !== 'undefined' && (module as NodeModule & { hot?: { dispose: (fn: () => void) => void } }).hot) {
+    (module as NodeModule & { hot?: { dispose: (fn: () => void) => void } }).hot!.dispose(() => {
+        disposeTypingListeners();
     });
 }

@@ -211,4 +211,54 @@
   .subheading { @apply text-content-primary font-semibold; }
   .body-text { @apply text-content-secondary; }
   .caption { @apply text-content-muted text-xs; }
+  .text-text-muted { color: hsl(var(--muted-foreground)); }
+
+  /* ── Typing area word opacity — will-change promotes to compositor layer ── */
+  .word-active  { opacity: 1;    will-change: opacity; }
+  .word-inactive { opacity: 0.3; will-change: opacity; }
+
+  /* ── Scroll container — promote once, translateY on compositor ── */
+  .typing-scroll-container {
+    will-change: transform;
+    transition: transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* ── Focus overlay fade-in — CSS only, no Framer AnimatePresence ── */
+  .typing-overlay-enter {
+    animation: overlayFadeIn 0.2s ease forwards;
+  }
+}
+
+/* ── Keyframes — defined outside @layer to ensure global scope ── */
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Caret blink — opacity only, compositor-composited, no layout/paint */
+@keyframes caretBlink {
+  0%, 100% { opacity: 0.9; }
+  50%       { opacity: 0;   }
+}
+
+/* Error shake — translateX only, compositor-composited */
+@keyframes charShake {
+  0%        { transform: translateX(0); }
+  20%       { transform: translateX(-2px); }
+  40%       { transform: translateX(2px); }
+  60%       { transform: translateX(-2px); }
+  80%       { transform: translateX(2px); }
+  100%      { transform: translateX(0); }
+}
+
+@layer utilities {
+  .caret-blink {
+    animation: caretBlink 1.2s ease-in-out infinite;
+    will-change: opacity;
+  }
+
+  .animate-char-shake {
+    animation: charShake 0.15s ease-out forwards;
+    will-change: transform;
+  }
 }

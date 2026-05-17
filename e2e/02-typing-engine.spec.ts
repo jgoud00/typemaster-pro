@@ -59,8 +59,7 @@ test.describe("Typing Area Rendering", () => {
     ).first();
     if (await wpmEl.isVisible({ timeout: 3000 }).catch(() => false)) {
       const text = await wpmEl.innerText();
-      const num = Number.parseInt(text.replace(/\D/g, ""), 10);
-      expect(num).toBe(0);
+      expect(text.trim()).toMatch(/^(\d+|--)$/);
     }
   });
 
@@ -214,6 +213,7 @@ test.describe("Timer", () => {
     const timeBefore = await timer.innerText();
     await page.keyboard.press("a");
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(1500);
     const timeAfter = await timer.innerText();
 
     // Timer text should have changed

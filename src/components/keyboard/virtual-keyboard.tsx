@@ -198,14 +198,9 @@ const MemoizedKey = memo(function Key({ keyData, isActive, showHeatmap, accuracy
                 {displayLabel}
             </span>
 
-            {/* Active indicator glow */}
+            {/* Active indicator glow — CSS-only, compositor thread, no JS RAF */}
             {isActive && (
-                <motion.div
-                    className={cn('absolute inset-0 rounded-lg', colors.bg)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: [0.5, 0.8, 0.5] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                />
+                <div className={cn('absolute inset-0 rounded-lg animate-pulse', colors.bg)} />
             )}
         </motion.div>
     );

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useProgressStore } from '@/stores/progress-store';
 import { useUserStore } from '@/stores/user-store';
+import { useDiagnosticStore } from '@/stores/diagnostic-store';
 
 export function WelcomeModal() {
     const [open, setOpen] = useState(false);
@@ -30,6 +31,8 @@ export function WelcomeModal() {
 
     const handleStart = () => {
         setHasSeenWelcome(true);
+        // Activate the diagnostic store
+        useDiagnosticStore.setState({ hasTakenDiagnostic: true, diagnosticResult: null });
         setOpen(false);
     };
 

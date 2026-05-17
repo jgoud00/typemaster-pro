@@ -1,27 +1,47 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import * as Comlink from 'comlink';
-import { getMLProxy } from '@/workers/ml-worker-instance';
+import { getMLProxy, terminateMLWorker } from '@/workers/ml-worker-instance';
 import type { MLWorkerAPI } from '@/workers/ml-worker';
 
-const WorkerContext = createContext<Comlink.Remote<MLWorkerAPI> | null>(null);
+type MLProxyRef = Comlink.Remote<MLWorkerAPI> | null;
+
+const WorkerContext = createContext<MLProxyRef>(null);
 
 export function WorkerProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-    const [proxy, setProxy] = useState<Comlink.Remote<MLWorkerAPI> | null>(null);
+    // Use ref so the proxy value never triggers a re-render on its own.
+    const proxyRef = useRef<MLProxyRef>(null);
+    // A single state boolean only to trigger first-mount context propagation.
+    const [ready, setReady] = React.useState(false);
 
     useEffect(() => {
-        const p = getMLProxy();
-        if (p) {
-            setProxy(p);
-        }
+        // Defer past React Strict Mode double-invoke and HMR settle window.
+        const id = setTimeout(() => {
+            if (proxyRef.current) return; // already initialized in this effect cycle
+            const p = getMLProxy();
+            proxyRef.current = p;
+            if (p) setReady(true);
+        }, 0);
+
+        return () => {
+            clearTimeout(id);
+            // Only terminate if this effect truly "owns" the instance.
+            // The singleton's own HMR guard handles HMR teardown;
+            // here we only clean up when the provider unmounts for real.
+            if (proxyRef.current) {
+                terminateMLWorker();
+                proxyRef.current = null;
+            }
+        };
+        // empty dep-array: mount once per provider lifetime
     }, []);
 
     return (
-        <WorkerContext.Provider value={proxy}>
+        <WorkerContext.Provider value={ready ? proxyRef.current : null}>
             {children}
         </WorkerContext.Provider>
     );
 }
 
-export const useMLWorker = () => useContext(WorkerContext);
+export const useMLWorker = (): MLProxyRef => useContext(WorkerContext);

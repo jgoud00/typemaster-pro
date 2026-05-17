@@ -39,7 +39,7 @@ export function HeroBanner({
 
             <div className="relative rounded-2xl border border-white/10 bg-black/30 backdrop-blur-xl overflow-hidden">
                 {/* Top accent line */}
-                <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-primary to-transparent opacity-70" />
+                <div className="h-[2px] w-full bg-linear-to-r from-transparent via-primary to-transparent opacity-70" />
 
                 <div className="p-6 md:p-8">
                     <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
@@ -70,14 +70,14 @@ export function HeroBanner({
                                     {nextLesson ? (
                                         <>
                                             Up next:{' '}
-                                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">
+                                            <span className="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-400">
                                                 {nextLesson.title}
                                             </span>
                                         </>
                                     ) : (
                                         <>
                                             All lessons{' '}
-                                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500">
+                                            <span className="text-transparent bg-clip-text bg-linear-to-r from-green-400 to-emerald-500">
                                                 complete!
                                             </span>
                                         </>
@@ -134,7 +134,7 @@ export function HeroBanner({
                                 <Progress
                                     value={overallProgress}
                                     className="h-2 bg-white/5"
-                                    indicatorClassName="bg-gradient-to-r from-primary to-purple-500"
+                                    indicatorClassName="bg-linear-to-r from-primary to-purple-500"
                                 />
 
                                 <div className="flex justify-between text-xs text-muted-foreground">

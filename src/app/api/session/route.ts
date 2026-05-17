@@ -1,45 +1,54 @@
 import { NextResponse } from 'next/server';
-import { randomBytes, createHmac } from 'node:crypto';
+import { SignJWT, type JWTPayload } from 'jose';
+import { createServiceClient } from '@/lib/supabase/server';
+import { getJwtSecret, SESSION_TTL_SECONDS, type SessionPayload } from './helper';
 
-import { TIMERS } from '@/lib/config/constants';
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 10; // max sessions per IP per window
 
-const secret = process.env.NEXTAUTH_SECRET || process.env.SESSION_SECRET || randomBytes(32).toString("hex");
-
-// In Next.js, we can't use a simple Map for sessions if we scale, but for now this is the local state.
-// Note: In production Next.js, this would need Redis or a Database.
-export interface Session {
-  startTime: number;
-  ip: string;
-  token: string;
-}
-
-const rateLimit = new Map<string, number>();
-const sessions = new Map<string, Session>();
-
-const getIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+const getIp = (req: Request) =>
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? '127.0.0.1';
 
 export async function GET(req: Request) {
-  const ip = getIp(req);
-  const now = Date.now();
-  if ((rateLimit.get(ip) || 0) > now) return NextResponse.json({ ok: false, error: 'Rate limit exceeded' }, { status: 429 });
-  rateLimit.set(ip, now + TIMERS.RATE_LIMIT_COOLDOWN_MS);
-
-  const sid = randomBytes(16).toString('hex');
-  const token = createHmac('sha256', secret).update(sid + now).digest('hex');
-  sessions.set(sid, { startTime: now, ip, token });
-  return NextResponse.json({ sessionId: sid, startTime: now, token });
-}
-
-// Global variable for interval to survive HMR in dev
-const globalWithCleanup = globalThis as typeof globalThis & { cleanupInterval?: NodeJS.Timeout };
-
-if (!globalWithCleanup.cleanupInterval) {
-  globalWithCleanup.cleanupInterval = setInterval(() => {
+    const ip = getIp(req);
     const now = Date.now();
-    for (const [id, s] of sessions) if (now - s.startTime > TIMERS.SESSION_EXPIRY_MS) sessions.delete(id);
-    for (const [ip, exp] of rateLimit) if (exp < now) rateLimit.delete(ip);
-  }, TIMERS.CLEANUP_INTERVAL_MS);
+
+    // Supabase-backed rate limiting — survives serverless cold starts
+    try {
+        const supabase = createServiceClient();
+        const windowStart = new Date(now - RATE_LIMIT_WINDOW_MS).toISOString();
+
+        const { count } = await supabase
+            .from('session_rate_limit')
+            .select('*', { count: 'exact', head: true })
+            .eq('ip', ip)
+            .gte('created_at', windowStart);
+
+        if ((count ?? 0) >= RATE_LIMIT_MAX) {
+            return NextResponse.json(
+                { ok: false, reason: 'Rate limit exceeded' },
+                { status: 429, headers: { 'Retry-After': '60' } }
+            );
+        }
+
+        await supabase.from('session_rate_limit').insert({ ip, created_at: new Date(now).toISOString() });
+    } catch {
+        // Non-fatal: if rate-limit table is missing, degrade gracefully in dev
+        if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json({ ok: false, reason: 'Service unavailable' }, { status: 503 });
+        }
+    }
+
+    // jti = cryptographically random 16-byte nonce for single-use enforcement
+    const jti = crypto.randomUUID();
+
+    const token = await new SignJWT({ ip, startTime: now, jti } satisfies Omit<SessionPayload, keyof JWTPayload>)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setJti(jti)
+        .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
+        .sign(getJwtSecret());
+
+    return NextResponse.json({ token, startTime: now });
 }
 
-// Export sessions for the submit-score route to share
-export { sessions };

@@ -7,6 +7,11 @@ import { memo, useState, useEffect } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 
+// Module-scope selectors — stable references, never recreated per render.
+const selectStartTime = (s: ReturnType<typeof useTypingStore.getState>) => s.state.startTime;
+const selectIsComplete = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isComplete;
+const selectIsPaused = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isPaused;
+
 export const TypingStats = memo(function TypingStats({
     remainingTime,
     className,
@@ -14,40 +19,31 @@ export const TypingStats = memo(function TypingStats({
     readonly remainingTime?: number | null;
     readonly className?: string;
 }) {
-    // FIX: Replaced `useTypingStore()` (full store subscription — re-renders on every
-    // keystroke) with granular selectors for the three fields needed to gate the interval.
-    const startTime = useTypingStore(s => s.state.startTime);
-    const isComplete = useTypingStore(s => s.state.isComplete);
-    const isPaused = useTypingStore(s => s.state.isPaused);
+    // Primitive selectors — re-renders only when these values change.
+    const startTime = useTypingStore(selectStartTime);
+    const isComplete = useTypingStore(selectIsComplete);
+    const isPaused = useTypingStore(selectIsPaused);
 
-    // FIX: Computed values (wpm, accuracy, elapsedTime) are read via getState() inside
-    // a 500ms interval — zero reactive subscriptions, no per-keystroke re-renders.
+    // Polled via interval — zero reactive subscriptions during typing.
     const [wpm, setWpm] = useState(0);
     const [accuracy, setAccuracy] = useState(100);
     const [elapsedTime, setElapsedTime] = useState(0);
 
     useEffect(() => {
-        // Snapshot once immediately when typing starts
-        if (startTime && !isComplete && !isPaused) {
+        const active = !!startTime && !isComplete && !isPaused;
+        if (!active) return;
+
+        // Immediate read on activation — no separate eager-set path.
+        const tick = () => {
             const s = useTypingStore.getState();
             setWpm(s.getWpm());
             setAccuracy(s.getAccuracy());
             setElapsedTime(s.getElapsedTime());
-        }
-
-        if (!startTime || isComplete || isPaused) return;
-
-        const interval = setInterval(() => {
-            const s = useTypingStore.getState();
-            setWpm(s.getWpm());
-            setAccuracy(s.getAccuracy());
-            setElapsedTime(s.getElapsedTime());
-        }, 500);
-
-        return () => clearInterval(interval);
+        };
+        tick();
+        const id = setInterval(tick, 500);
+        return () => clearInterval(id);
     }, [startTime, isComplete, isPaused]);
-
-    const game = useGameStore(s => s.game);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -55,7 +51,7 @@ export const TypingStats = memo(function TypingStats({
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const displayWpm = wpm > 0 ? wpm : (startTime ? 0 : '--');  // eslint-disable-line @typescript-eslint/no-unused-vars -- used in JSX
+    const displayWpm = wpm > 0 ? wpm : 0;
     const displayAcc = `${accuracy}%`;
     const displayTime = formatTime(remainingTime ?? elapsedTime);
 
@@ -88,15 +84,14 @@ function ComboDisplay({ combo, multiplier }: ComboDisplayProps) {
     const isOnFire = combo >= 10;
 
     return (
-        <motion.div
+        <div
             className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur',
+                // CSS-only pulse on fire — runs on compositor, no JS RAF
                 isOnFire
-                    ? 'bg-linear-to-r from-orange-500/20 to-red-500/20 border-orange-500/50'
+                    ? 'bg-linear-to-r from-orange-500/20 to-red-500/20 border-orange-500/50 animate-pulse'
                     : 'bg-card/50'
             )}
-            animate={isOnFire ? { scale: [1, 1.02, 1] } : {}}
-            transition={{ duration: 0.5, repeat: Infinity }}
         >
             <div className={cn(
                 'p-2 rounded-lg',
@@ -126,7 +121,7 @@ function ComboDisplay({ combo, multiplier }: ComboDisplayProps) {
                     )}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
 

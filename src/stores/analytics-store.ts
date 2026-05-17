@@ -7,30 +7,25 @@ import type { MLWorkerAPI } from '@/workers/ml-worker';
 import type { BayesianState, HMMState, AnalyticsPayload } from '@/types/analytics';
 
 interface AnalyticsStore {
-    // Session analytics
     sessionKeystrokes: KeystrokeEvent[];
-
-    // Cumulative stats
     keyStats: Record<string, KeyStat>;
     bigramStats: Record<string, BigramStat>;
     trigramStats: Record<string, TrigramStat>;
     fingerStats: Record<Finger, { correct: number; total: number }>;
 
-    // ML Results
     mlResults: {
         skillStates: Record<string, HMMState>;
         bayesianEstimates: Record<string, BayesianState>;
         errorPrediction: number;
     };
 
-    // Sync state
     lastSyncedAt?: number;
     isSyncing: boolean;
     syncError: string | null;
     vectorClock: Record<string, number>;
     deviceId: string;
 
-    // Actions
+    initDeviceId: () => void;
     recordKeystroke: (
         keystroke: KeystrokeEvent,
         context: { wpm: number; accuracy: number },
@@ -40,8 +35,7 @@ interface AnalyticsStore {
     mergeRemoteData: (remoteData: AnalyticsPayload) => void;
     setSyncStatus: (isSyncing: boolean, error: string | null) => void;
     markSynced: () => void;
-    
-    // Analytics getters
+
     getAnalyticsPayload: () => AnalyticsPayload;
     getWeaknessProfile: () => WeaknessProfile;
     getKeyAccuracy: (key: string) => number;
@@ -61,164 +55,247 @@ const initialFingerStats: Record<Finger, { correct: number; total: number }> = {
     'thumb': { correct: 0, total: 0 },
 };
 
-export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
-    sessionKeystrokes: [],
-    keyStats: {},
-    bigramStats: {},
-    trigramStats: {},
-    fingerStats: { ...initialFingerStats },
-    mlResults: {
-        skillStates: {},
-        bayesianEstimates: {},
-        errorPrediction: 0,
-    },
-    vectorClock: {},
-    isSyncing: false,
-    syncError: null,
-    deviceId: typeof globalThis.window !== 'undefined' && crypto?.randomUUID ? crypto.randomUUID() : 'default-device',
+const MAX_SESSION_KEYSTROKES = 200;
 
-    recordKeystroke: async (keystroke, context, mlWorker) => {
-        // 1. Update Core Stats (Synchronous)
-        set(state => {
-            const newSessionKeystrokes = [...state.sessionKeystrokes, keystroke];
-            const keyStats = { ...state.keyStats };
-            const existing = keyStats[keystroke.expected] || {
-                totalAttempts: 0,
-                errors: 0,
-                totalHesitation: 0,
-                averageSpeed: 0,
-            };
+// External session buffer — mirrors typing-store pattern.
+// Avoids reactive array churn in the store on every keystroke.
+const _sessionBuffer: KeystrokeEvent[] = [];
 
-            const updatedKeyStat = {
-                totalAttempts: existing.totalAttempts + 1,
-                errors: existing.errors + (keystroke.isCorrect ? 0 : 1),
-                totalHesitation: existing.totalHesitation + keystroke.hesitationMs,
-                averageSpeed: (existing.totalHesitation + keystroke.hesitationMs) / (existing.totalAttempts + 1),
-            };
+function getSessionBuffer(): KeystrokeEvent[] {
+    return _sessionBuffer;
+}
 
-            keyStats[keystroke.expected] = updatedKeyStat;
+function clearSessionBuffer(): void {
+    _sessionBuffer.length = 0;
+}
 
-            const bigramStats = { ...state.bigramStats };
-            if (keystroke.previousKey) {
-                const bigram = keystroke.previousKey + keystroke.expected;
-                const existingB = bigramStats[bigram] || { bigram, totalAttempts: 0, errors: 0, averageTime: 0 };
-                bigramStats[bigram] = {
-                    ...existingB,
-                    totalAttempts: existingB.totalAttempts + 1,
-                    errors: existingB.errors + (keystroke.isCorrect ? 0 : 1),
-                    averageTime: (existingB.averageTime * existingB.totalAttempts + keystroke.hesitationMs) / (existingB.totalAttempts + 1),
+function pushSessionKeystroke(ks: KeystrokeEvent): void {
+    if (_sessionBuffer.length >= MAX_SESSION_KEYSTROKES) {
+        _sessionBuffer.shift();
+    }
+    _sessionBuffer.push(ks);
+}
+
+// Running hesitation accumulator — avoids O(n) scan in getAverageHesitation.
+let _hesitationTotal = 0;
+let _hesitationCount = 0;
+
+export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
+    let _mlCallCounter = 0;
+    let _mlPending = false;
+
+    return {
+        // sessionKeystrokes kept in store for external consumers (ML slice reads),
+        // but updated lazily — only when ML batch fires (every 5 keystrokes).
+        sessionKeystrokes: [],
+        keyStats: {},
+        bigramStats: {},
+        trigramStats: {},
+        fingerStats: { ...initialFingerStats },
+        mlResults: {
+            skillStates: {},
+            bayesianEstimates: {},
+            errorPrediction: 0,
+        },
+        vectorClock: {},
+        isSyncing: false,
+        syncError: null,
+        deviceId: '',
+
+        initDeviceId: () => set(s => ({
+            deviceId: s.deviceId || (typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Math.random().toString(36).slice(2) + Date.now().toString(36)),
+        })),
+
+        recordKeystroke: async (keystroke, context, mlWorker) => {
+            // Push to external buffer — no reactive state write per keystroke.
+            pushSessionKeystroke(keystroke);
+            _hesitationTotal += keystroke.hesitationMs;
+            _hesitationCount++;
+
+            _mlCallCounter++;
+            const shouldFireML = mlWorker && !_mlPending && _mlCallCounter % 5 === 0;
+
+            // Synchronous stat update — single set() call, minimal diff.
+            set(state => {
+                const prevKeyStat = state.keyStats[keystroke.expected];
+                const existing = prevKeyStat ?? {
+                    totalAttempts: 0, errors: 0, totalHesitation: 0, averageSpeed: 0,
                 };
-            }
+                const newTotalAttempts = existing.totalAttempts + 1;
+                const newTotalHesitation = existing.totalHesitation + keystroke.hesitationMs;
 
-            const fingerStats = { ...state.fingerStats };
-            const currentFinger = fingerStats[keystroke.finger];
-            if (currentFinger) {
-                fingerStats[keystroke.finger] = {
-                    correct: currentFinger.correct + (keystroke.isCorrect ? 1 : 0),
-                    total: currentFinger.total + 1,
+                const keyStats = {
+                    ...state.keyStats,
+                    [keystroke.expected]: {
+                        totalAttempts: newTotalAttempts,
+                        errors: existing.errors + (keystroke.isCorrect ? 0 : 1),
+                        totalHesitation: newTotalHesitation,
+                        averageSpeed: newTotalHesitation / newTotalAttempts,
+                    },
                 };
-            }
 
-            return {
-                sessionKeystrokes: newSessionKeystrokes,
-                keyStats,
-                bigramStats,
-                fingerStats,
-            };
-        });
+                let bigramStats = state.bigramStats;
+                if (keystroke.previousKey) {
+                    const bigram = keystroke.previousKey + keystroke.expected;
+                    const existingB = bigramStats[bigram] ?? {
+                        bigram, totalAttempts: 0, errors: 0, averageTime: 0,
+                    };
+                    bigramStats = {
+                        ...bigramStats,
+                        [bigram]: {
+                            bigram,
+                            totalAttempts: existingB.totalAttempts + 1,
+                            errors: existingB.errors + (keystroke.isCorrect ? 0 : 1),
+                            averageTime:
+                                (existingB.averageTime * existingB.totalAttempts + keystroke.hesitationMs) /
+                                (existingB.totalAttempts + 1),
+                        },
+                    };
+                }
 
-        // 2. Offload ML (Asynchronous via Worker)
-        if (mlWorker) {
+                const currentFinger = state.fingerStats[keystroke.finger];
+                const fingerStats = currentFinger
+                    ? {
+                        ...state.fingerStats,
+                        [keystroke.finger]: {
+                            correct: currentFinger.correct + (keystroke.isCorrect ? 1 : 0),
+                            total: currentFinger.total + 1,
+                        },
+                    }
+                    : state.fingerStats;
+
+                // Only sync sessionKeystrokes slice to state when ML will consume it.
+                // This eliminates the reactive array churn on every non-ML keystroke.
+                return shouldFireML
+                    ? { keyStats, bigramStats, fingerStats, sessionKeystrokes: [..._sessionBuffer] }
+                    : { keyStats, bigramStats, fingerStats };
+            });
+
+            if (!shouldFireML || !mlWorker) return;
+
+            _mlPending = true;
             try {
                 const state = get();
                 const currentStat = state.keyStats[keystroke.expected];
-                
+                if (!currentStat) return;
+
+                const tail = _sessionBuffer.slice(-10);
+                const errorCount = tail.reduce((n, k) => n + (k.isCorrect ? 0 : 1), 0);
+
                 const [bayesian, hmm, prediction] = await Promise.all([
                     mlWorker.updateBayesianModel(currentStat),
-                    mlWorker.calculateHMMState(state.sessionKeystrokes, keystroke.expected),
+                    mlWorker.calculateHMMState(tail, keystroke.expected),
                     mlWorker.predictNextError({
                         wpm: context.wpm,
                         accuracy: context.accuracy / 100,
-                        recentErrors: state.sessionKeystrokes.slice(-10).filter(k => !k.isCorrect).length,
-                        fatigue: state.sessionKeystrokes.length / 500
-                    })
+                        recentErrors: errorCount,
+                        fatigue: _sessionBuffer.length / 500,
+                    }),
                 ]);
 
-                set(state => ({
+                set(prev => ({
                     mlResults: {
-                        skillStates: { ...state.mlResults.skillStates, [keystroke.expected]: hmm },
-                        bayesianEstimates: { ...state.mlResults.bayesianEstimates, [keystroke.expected]: bayesian },
+                        skillStates: { ...prev.mlResults.skillStates, [keystroke.expected]: hmm },
+                        bayesianEstimates: {
+                            ...prev.mlResults.bayesianEstimates,
+                            [keystroke.expected]: bayesian,
+                        },
                         errorPrediction: prediction,
-                    }
+                    },
                 }));
-            } catch (error) {
-                console.warn('[MLWorker] inference failed:', error);
+            } catch (err) {
+                console.warn('[MLWorker] inference failed:', err);
+            } finally {
+                _mlPending = false;
             }
-        }
-    },
+        },
 
-    mergeRemoteData: (remoteData: AnalyticsPayload) => {
-        set(state => ({
-            keyStats: { ...state.keyStats, ...remoteData.keyStats } as any,
-            bigramStats: { ...state.bigramStats, ...remoteData.bigramStats } as any,
-            trigramStats: { ...state.trigramStats, ...remoteData.trigramStats } as any,
-            fingerStats: { ...state.fingerStats, ...remoteData.fingerStats } as any,
-            mlResults: {
-                skillStates: { ...state.mlResults.skillStates, ...remoteData.hmmStates } as any,
-                bayesianEstimates: { ...state.mlResults.bayesianEstimates, ...remoteData.bayesianStates } as any,
-                errorPrediction: remoteData.fatigue?.fatigueLevel || state.mlResults.errorPrediction,
-            },
-            vectorClock: {}, 
-            lastSyncedAt: Date.now(),
-        }));
-    },
+        mergeRemoteData: (remoteData: AnalyticsPayload) => {
+            set(state => ({
+                keyStats: { ...state.keyStats, ...remoteData.keyStats } as any,
+                bigramStats: { ...state.bigramStats, ...remoteData.bigramStats } as any,
+                trigramStats: { ...state.trigramStats, ...remoteData.trigramStats } as any,
+                fingerStats: { ...state.fingerStats, ...remoteData.fingerStats } as any,
+                mlResults: {
+                    skillStates: { ...state.mlResults.skillStates, ...remoteData.hmmStates } as any,
+                    bayesianEstimates: {
+                        ...state.mlResults.bayesianEstimates, ...remoteData.bayesianStates,
+                    } as any,
+                    errorPrediction: remoteData.fatigue?.fatigueLevel ?? state.mlResults.errorPrediction,
+                },
+                vectorClock: {},
+                lastSyncedAt: Date.now(),
+            }));
+        },
 
-    setSyncStatus: (isSyncing: boolean, syncError: string | null) => set({ isSyncing, syncError }),
-    
-    markSynced: () => set({ lastSyncedAt: Date.now(), isSyncing: false, syncError: null }),
+        setSyncStatus: (isSyncing: boolean, syncError: string | null) =>
+            set({ isSyncing, syncError }),
 
-    getAnalyticsPayload: () => {
-        const state = get();
-        return {
-            keyStats: state.keyStats as any,
-            fingerStats: state.fingerStats as any,
-            bigramStats: state.bigramStats as any,
-            trigramStats: state.trigramStats as any,
-            bayesianStates: state.mlResults.bayesianEstimates as any,
-            hmmStates: state.mlResults.skillStates as any,
-            fatigue: { fatigueLevel: state.mlResults.errorPrediction, estimatedTimeUntilFatigue: 60 },
-            syncMeta: { deviceId: state.deviceId, lastSync: state.lastSyncedAt || Date.now() },
-        };
-    },
+        markSynced: () => set({ lastSyncedAt: Date.now(), isSyncing: false, syncError: null }),
 
-    clearSession: () => set({ sessionKeystrokes: [], mlResults: { skillStates: {}, bayesianEstimates: {}, errorPrediction: 0 } }),
+        getAnalyticsPayload: () => {
+            const state = get();
+            return {
+                keyStats: state.keyStats as any,
+                fingerStats: state.fingerStats as any,
+                bigramStats: state.bigramStats as any,
+                trigramStats: state.trigramStats as any,
+                bayesianStates: state.mlResults.bayesianEstimates as any,
+                hmmStates: state.mlResults.skillStates as any,
+                fatigue: {
+                    fatigueLevel: state.mlResults.errorPrediction,
+                    estimatedTimeUntilFatigue: 60,
+                },
+                syncMeta: { deviceId: state.deviceId, lastSync: state.lastSyncedAt ?? Date.now() },
+            };
+        },
 
-    getWeaknessProfile: () => {
-        const state = get();
-        return {
-            keyStats: state.keyStats,
-            bigramStats: state.bigramStats,
-            trigramStats: state.trigramStats,
-            fingerAccuracy: state.fingerStats,
-            averageHesitation: get().getAverageHesitation(),
-            problemKeys: get().getProblematicKeys(),
-        };
-    },
+        clearSession: () => {
+            clearSessionBuffer();
+            _hesitationTotal = 0;
+            _hesitationCount = 0;
+            _mlCallCounter = 0;
+            _mlPending = false;
+            set({
+                sessionKeystrokes: [],
+                mlResults: { skillStates: {}, bayesianEstimates: {}, errorPrediction: 0 },
+            });
+        },
 
-    getKeyAccuracy: (key: string) => {
-        const stat = get().keyStats[key];
-        return stat && stat.totalAttempts > 0 ? ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100 : 100;
-    },
+        getWeaknessProfile: () => {
+            const state = get();
+            return {
+                keyStats: state.keyStats,
+                bigramStats: state.bigramStats,
+                trigramStats: state.trigramStats,
+                fingerAccuracy: state.fingerStats,
+                // O(1) — running accumulator, no array scan.
+                averageHesitation: _hesitationCount > 0 ? _hesitationTotal / _hesitationCount : 0,
+                problemKeys: get().getProblematicKeys(),
+            };
+        },
 
-    getProblematicKeys: (threshold = 85) => {
-        const { keyStats } = get();
-        return Object.entries(keyStats)
-            .filter(([, s]) => s.totalAttempts >= 5 && ((s.totalAttempts - s.errors) / s.totalAttempts) * 100 < threshold)
-            .map(([k]) => k);
-    },
+        getKeyAccuracy: (key: string) => {
+            const stat = get().keyStats[key];
+            return stat && stat.totalAttempts > 0
+                ? ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100
+                : 100;
+        },
 
-    getAverageHesitation: () => {
-        const ks = get().sessionKeystrokes;
-        return ks.length === 0 ? 0 : ks.reduce((s, k) => s + k.hesitationMs, 0) / ks.length;
-    },
-}));
+        getProblematicKeys: (threshold = 85) => {
+            const { keyStats } = get();
+            return Object.entries(keyStats)
+                .filter(([, s]) =>
+                    s.totalAttempts >= 5 &&
+                    ((s.totalAttempts - s.errors) / s.totalAttempts) * 100 < threshold
+                )
+                .map(([k]) => k);
+        },
+
+        // O(1) via running accumulator — kept for interface compatibility.
+        getAverageHesitation: () =>
+            _hesitationCount > 0 ? _hesitationTotal / _hesitationCount : 0,
+    };
+});

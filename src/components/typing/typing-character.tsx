@@ -1,7 +1,5 @@
 import { memo } from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-
 
 interface TypingCharacterProps {
     char: string;
@@ -21,65 +19,43 @@ export const TypingCharacter = memo(function TypingCharacter({
     isError,
     isNext,
     cursorStyle,
-    smoothCaret,
-    ref
+    ref,
 }: Readonly<TypingCharacterProps>) {
-    // Extract animation logic to reduce cognitive complexity
-    const getAnimation = () => {
-        if (isError && isCurrent) return { x: [-2, 2, -2, 2, 0], color: '#f87171' };
-        if (isTyped && !isError) return { scale: [1, 1.05, 1] };
-        return {};
-    };
-
     return (
-        <motion.span
+        <span
             ref={isCurrent ? ref : undefined}
             aria-current={isCurrent ? 'location' : undefined}
             aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
-            animate={getAnimation()}
-            transition={{ duration: 0.15 }}
             className={cn(
-                'relative inline-block transition-colors duration-75',
-
-                // CURRENT CHARACTER (cursor position)
-                isCurrent && 'char-active',
-
-                // CORRECT TYPED TEXT
+                'relative inline-block',
+                // Error shake — pure CSS, no JS animation frame
+                isError && isCurrent && 'animate-char-shake',
+                // Correct flash — pure CSS keyframe, skipped for untouched chars
                 isTyped && !isError && 'char-correct',
-
-                // ERROR TEXT
+                isCurrent && 'char-active',
                 isTyped && isError && 'char-error',
-
-                // FUTURE TEXT (dim but readable)
-                !isTyped && !isCurrent && 'char-untyped'
+                !isTyped && !isCurrent && 'char-untyped',
             )}
         >
-            {/* The Cursor Element (Smooth animated caret) */}
+            {/* Caret — rendered only on the active character. No Framer overhead. */}
             {isCurrent && (
-                <motion.div
-                    layoutId={smoothCaret ? "caret" : undefined}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    className="absolute left-0 top-[10%] w-[3px] h-[80%] bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] opacity-90 animate-pulse"
-                    style={{ animationDuration: '1.2s' }}
+                <span
+                    className={cn(
+                        'absolute left-0 top-[10%] w-[3px] h-[80%] bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] caret-blink',
+                        cursorStyle === 'block' && 'w-full opacity-30',
+                        cursorStyle === 'underline' && 'top-auto bottom-0 h-[3px] w-full',
+                    )}
                 />
             )}
 
-
-
-            {/* Character */}
             {char === ' ' ? '\u00A0' : char}
-        </motion.span>
+        </span>
     );
-}, (prevProps, nextProps) => {
-    // Custom comparison function for performance
-    // Only re-render if any of these props change
-    return (
-        prevProps.isTyped === nextProps.isTyped &&
-        prevProps.isCurrent === nextProps.isCurrent &&
-        prevProps.isError === nextProps.isError &&
-        prevProps.isNext === nextProps.isNext &&
-        prevProps.cursorStyle === nextProps.cursorStyle &&
-        prevProps.smoothCaret === nextProps.smoothCaret &&
-        prevProps.char === nextProps.char
-    );
-});
+}, (prev, next) =>
+    prev.isTyped === next.isTyped &&
+    prev.isCurrent === next.isCurrent &&
+    prev.isError === next.isError &&
+    prev.isNext === next.isNext &&
+    prev.cursorStyle === next.cursorStyle &&
+    prev.char === next.char
+);

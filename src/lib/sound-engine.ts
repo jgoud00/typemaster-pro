@@ -44,6 +44,7 @@ class SoundEngine {
     private completeSynth: Tone.PolySynth | null = null;
 
     async initialize(): Promise<void> {
+        if (typeof window === 'undefined' || !window.AudioContext) return;
         if (this.initialized) return;
 
         try {
@@ -101,20 +102,31 @@ class SoundEngine {
     }
 
     private updateVolume(): void {
-        const vol = Tone.gainToDb(this.settings.volume * 0.3); // Scale down max volume
-        if (this.keystrokeSynth) this.keystrokeSynth.volume.value = vol;
-        if (this.errorSynth) this.errorSynth.volume.value = vol - 5; // Error quieter
-        if (this.comboSynth) this.comboSynth.volume.value = vol;
-        if (this.completeSynth) this.completeSynth.volume.value = vol + 3; // Completion louder
+        if (typeof window === 'undefined' || !window.AudioContext) return;
+        try {
+            const vol = Tone.gainToDb(this.settings.volume * 0.3); // Scale down max volume
+            if (this.keystrokeSynth) this.keystrokeSynth.volume.value = vol;
+            if (this.errorSynth) this.errorSynth.volume.value = vol - 5; // Error quieter
+            if (this.comboSynth) this.comboSynth.volume.value = vol;
+            if (this.completeSynth) this.completeSynth.volume.value = vol + 3; // Completion louder
+        } catch (error) {
+            console.warn('Failed to update volume:', error);
+        }
     }
 
     updateSettings(settings: Partial<SoundSettings>): void {
-        this.settings = { ...this.settings, ...settings };
-        this.updateVolume();
-        this.saveSettings();
+        if (typeof window === 'undefined' || !window.AudioContext) return;
+        try {
+            this.settings = { ...this.settings, ...settings };
+            this.updateVolume();
+            this.saveSettings();
+        } catch (error) {
+            console.warn('Failed to update settings:', error);
+        }
     }
 
     getSettings(): SoundSettings {
+        if (typeof window === 'undefined' || !window.AudioContext) return { ...this.settings };
         return { ...this.settings };
     }
 
@@ -127,6 +139,7 @@ class SoundEngine {
     }
 
     loadSettings(): void {
+        if (typeof window === 'undefined' || !window.AudioContext) return;
         const isMainThread = typeof globalThis.window !== 'undefined' && typeof globalThis.document !== 'undefined';
         const safeStorage = (globalThis as any).localStorage;
         if (isMainThread && safeStorage) {
@@ -142,6 +155,7 @@ class SoundEngine {
     }
 
     play(type: SoundType): void {
+        if (typeof window === 'undefined' || !window.AudioContext) return;
         if (!this.settings.enabled) return;
 
         // Check category settings
@@ -155,89 +169,98 @@ class SoundEngine {
             this.initialize().catch(console.error);
         }
 
-        const now = Tone.now();
-        const profile = this.settings.keyboardSound;
+        try {
+            const now = Tone.now();
+            const profile = this.settings.keyboardSound;
 
-        switch (type) {
-            case 'keystroke':
-                if (profile === 'none') return;
+            switch (type) {
+                case 'keystroke':
+                    if (profile === 'none') return;
 
-                if (profile === 'typewriter') {
-                    // High-pitched "ping"
-                    this.keystrokeSynth?.triggerAttackRelease('C6', '32n', now, 0.5);
-                    // Add mechanical thud
-                    this.keystrokeSynth?.triggerAttackRelease('C2', '32n', now, 0.3);
-                } else if (profile === 'digital') {
-                    // Electronic blip
-                    this.keystrokeSynth?.triggerAttackRelease('E5', '64n', now);
-                } else {
-                    // Mechanical (Standard) - Thocky
-                    // Random pitch for variety
-                    const pitches = ['C3', 'D3', 'E3']; // Lower pitch for "thock"
-                    const pitch = pitches[Math.floor(Math.random() * pitches.length)];
-                    this.keystrokeSynth?.triggerAttackRelease(pitch, '16n', now);
-                }
-                break;
+                    if (profile === 'typewriter') {
+                        // High-pitched "ping"
+                        this.keystrokeSynth?.triggerAttackRelease('C6', '32n', now, 0.5);
+                        // Add mechanical thud
+                        this.keystrokeSynth?.triggerAttackRelease('C2', '32n', now, 0.3);
+                    } else if (profile === 'digital') {
+                        // Electronic blip
+                        this.keystrokeSynth?.triggerAttackRelease('E5', '64n', now);
+                    } else {
+                        // Mechanical (Standard) - Thocky
+                        // Random pitch for variety
+                        const pitches = ['C3', 'D3', 'E3']; // Lower pitch for "thock"
+                        const pitch = pitches[Math.floor(Math.random() * pitches.length)];
+                        this.keystrokeSynth?.triggerAttackRelease(pitch, '16n', now);
+                    }
+                    break;
 
-            case 'error':
-                if (profile === 'digital') {
-                    this.errorSynth?.triggerAttackRelease('32n', now);
-                } else {
-                    this.errorSynth?.triggerAttackRelease('16n', now);
-                }
-                break;
+                case 'error':
+                    if (profile === 'digital') {
+                        this.errorSynth?.triggerAttackRelease('32n', now);
+                    } else {
+                        this.errorSynth?.triggerAttackRelease('16n', now);
+                    }
+                    break;
 
-            case 'combo-1':
-                this.comboSynth?.triggerAttackRelease(['C4', 'E4', 'G4'], '8n', now);
-                break;
+                case 'combo-1':
+                    this.comboSynth?.triggerAttackRelease(['C4', 'E4', 'G4'], '8n', now);
+                    break;
 
-            case 'combo-2':
-                this.comboSynth?.triggerAttackRelease(['D4', 'F#4', 'A4'], '8n', now);
-                this.comboSynth?.triggerAttackRelease(['D5', 'F#5', 'A5'], '8n', now + 0.1);
-                break;
+                case 'combo-2':
+                    this.comboSynth?.triggerAttackRelease(['D4', 'F#4', 'A4'], '8n', now);
+                    this.comboSynth?.triggerAttackRelease(['D5', 'F#5', 'A5'], '8n', now + 0.1);
+                    break;
 
-            case 'combo-3':
-                this.comboSynth?.triggerAttackRelease(['E4', 'G#4', 'B4'], '8n', now);
-                this.comboSynth?.triggerAttackRelease(['E5', 'G#5', 'B5'], '8n', now + 0.1);
-                this.comboSynth?.triggerAttackRelease(['E6'], '4n', now + 0.2);
-                break;
+                case 'combo-3':
+                    this.comboSynth?.triggerAttackRelease(['E4', 'G#4', 'B4'], '8n', now);
+                    this.comboSynth?.triggerAttackRelease(['E5', 'G#5', 'B5'], '8n', now + 0.1);
+                    this.comboSynth?.triggerAttackRelease(['E6'], '4n', now + 0.2);
+                    break;
 
-            case 'combo-4':
-                // Epic combo sound
-                const epicChord = ['C4', 'E4', 'G4', 'B4'];
-                this.comboSynth?.triggerAttackRelease(epicChord, '4n', now);
-                this.comboSynth?.triggerAttackRelease(['C5', 'E5', 'G5'], '4n', now + 0.15);
-                this.comboSynth?.triggerAttackRelease(['C6'], '2n', now + 0.3);
-                break;
+                case 'combo-4':
+                    // Epic combo sound
+                    const epicChord = ['C4', 'E4', 'G4', 'B4'];
+                    this.comboSynth?.triggerAttackRelease(epicChord, '4n', now);
+                    this.comboSynth?.triggerAttackRelease(['C5', 'E5', 'G5'], '4n', now + 0.15);
+                    this.comboSynth?.triggerAttackRelease(['C6'], '2n', now + 0.3);
+                    break;
 
-            case 'complete':
-                // Victory fanfare
-                this.completeSynth?.triggerAttackRelease(['C4', 'E4'], '8n', now);
-                this.completeSynth?.triggerAttackRelease(['E4', 'G4'], '8n', now + 0.15);
-                this.completeSynth?.triggerAttackRelease(['G4', 'C5', 'E5'], '4n', now + 0.3);
-                break;
+                case 'complete':
+                    // Victory fanfare
+                    this.completeSynth?.triggerAttackRelease(['C4', 'E4'], '8n', now);
+                    this.completeSynth?.triggerAttackRelease(['E4', 'G4'], '8n', now + 0.15);
+                    this.completeSynth?.triggerAttackRelease(['G4', 'C5', 'E5'], '4n', now + 0.3);
+                    break;
 
-            case 'achievement':
-                // Special achievement sound
-                this.comboSynth?.triggerAttackRelease(['G4', 'B4', 'D5'], '8n', now);
-                this.comboSynth?.triggerAttackRelease(['A4', 'C5', 'E5'], '8n', now + 0.15);
-                this.comboSynth?.triggerAttackRelease(['B4', 'D5', 'G5'], '4n', now + 0.3);
-                this.comboSynth?.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '2n', now + 0.5);
-                break;
+                case 'achievement':
+                    // Special achievement sound
+                    this.comboSynth?.triggerAttackRelease(['G4', 'B4', 'D5'], '8n', now);
+                    this.comboSynth?.triggerAttackRelease(['A4', 'C5', 'E5'], '8n', now + 0.15);
+                    this.comboSynth?.triggerAttackRelease(['B4', 'D5', 'G5'], '4n', now + 0.3);
+                    this.comboSynth?.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '2n', now + 0.5);
+                    break;
+            }
+        } catch (error) {
+            console.warn('Failed to play tone:', error);
         }
     }
 
     dispose(): void {
-        this.keystrokeSynth?.dispose();
-        this.errorSynth?.dispose();
-        this.comboSynth?.dispose();
-        this.completeSynth?.dispose();
-        
+        if (typeof window === 'undefined' || !window.AudioContext) return;
         try {
-            Tone.Transport.stop();
-            Tone.Transport.cancel();
-        } catch (e) {
-            console.warn('Tone.Transport cleanup failed', e);
+            this.keystrokeSynth?.dispose();
+            this.errorSynth?.dispose();
+            this.comboSynth?.dispose();
+            this.completeSynth?.dispose();
+            
+            try {
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+            } catch (e) {
+                console.warn('Tone.Transport cleanup failed', e);
+            }
+        } catch (error) {
+            console.warn('Failed to dispose sound engine:', error);
         }
         
         this.initialized = false;

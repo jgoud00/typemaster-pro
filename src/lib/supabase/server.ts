@@ -18,12 +18,28 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Called from Server Component — safe to ignore; middleware handles refresh.
           }
         },
       },
+    }
+  );
+}
+
+/**
+ * Service-role client — bypasses RLS for internal server operations
+ * (rate limiting, replay token tables). Never expose to client.
+ */
+export function createServiceClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for service operations');
+  }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    {
+      cookies: { getAll: () => [], setAll: () => {} },
     }
   );
 }

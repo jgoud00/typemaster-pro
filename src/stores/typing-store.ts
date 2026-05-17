@@ -4,12 +4,9 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { TypingState, KeystrokeEvent, Finger } from '@/types';
 import { getKeyData } from '@/lib/keyboard-data';
-import { useSettingsStore } from './settings-store';
+import type { LayoutName } from '@/lib/keyboard-layouts';
 
 // ─── Keystroke buffer (outside reactive state — no re-renders) ───────────────
-// Keystrokes are write-only during a session and only read at submission.
-// Keeping them in Zustand state caused a new array reference on every keypress,
-// triggering re-renders in every subscribed component.
 const MAX_KEYSTROKES_BUFFER = 1000;
 const _keystrokeBuffer: KeystrokeEvent[] = [];
 
@@ -22,10 +19,19 @@ function clearKeystrokeBuffer() {
 }
 
 function pushKeystroke(event: KeystrokeEvent) {
-    _keystrokeBuffer.push(event);
-    if (_keystrokeBuffer.length > MAX_KEYSTROKES_BUFFER) {
+    if (_keystrokeBuffer.length >= MAX_KEYSTROKES_BUFFER) {
         _keystrokeBuffer.shift();
     }
+    _keystrokeBuffer.push(event);
+}
+
+// ─── Error index Set (outside reactive state) ─────────────────────────────────
+// Mirrors errorIndices for O(1) membership test, eliminating the O(n)
+// .includes() scan and [...spread] allocation on every incorrect keystroke.
+const _errorSet = new Set<number>();
+
+function clearErrorSet() {
+    _errorSet.clear();
 }
 
 // ─── Store interface ──────────────────────────────────────────────────────────
@@ -41,7 +47,7 @@ interface TypingStore {
 
     // Actions
     setText: (text: string) => void;
-    handleKeystroke: (key: string) => KeystrokeEvent | null;
+    handleKeystroke: (key: string, layoutName?: LayoutName) => KeystrokeEvent | null;
     reset: () => void;
     pause: () => void;
     resume: () => void;
@@ -85,6 +91,7 @@ export const useTypingStore = create<TypingStore>()(
         // ── setText ──────────────────────────────────────────────────────────
         setText: (text: string) => {
             clearKeystrokeBuffer();
+            clearErrorSet();
             set({
                 state: { ...initialState, text },
                 activeKey: text.length > 0 ? text[0] : null,
@@ -98,7 +105,7 @@ export const useTypingStore = create<TypingStore>()(
         // FIX: keystrokes pushed to external buffer, not into state.
         // This eliminates the [...state.keystrokes, keystroke] allocation that
         // previously forced a new `state` object reference on every keypress.
-        handleKeystroke: (key: string): KeystrokeEvent | null => {
+        handleKeystroke: (key: string, layoutName?: LayoutName): KeystrokeEvent | null => {
             const { state, lastKeystrokeTime, correctCount, totalCount } = get();
 
             if (state.isComplete || state.isPaused || state.text.length === 0) {
@@ -118,8 +125,7 @@ export const useTypingStore = create<TypingStore>()(
                     ? now - state.startTime
                     : 0;
 
-            const layoutName = useSettingsStore.getState().settings.keyboardLayout;
-            const keyData = getKeyData(expected, layoutName);
+            const keyData = getKeyData(expected, layoutName ?? 'qwerty');
             const finger: Finger = keyData?.finger ?? 'right-index';
 
             const keystroke: KeystrokeEvent = {
@@ -138,12 +144,12 @@ export const useTypingStore = create<TypingStore>()(
             const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
             const isComplete = newIndex >= state.text.length;
 
-            // Only build a new errorIndices array if an error actually occurred
-            const newErrorIndices = isCorrect
-                ? state.errorIndices
-                : state.errorIndices.includes(state.currentIndex)
-                    ? state.errorIndices
-                    : [...state.errorIndices, state.currentIndex];
+            // O(1) Set lookup — no array scan, no spread allocation on error.
+            let newErrorIndices = state.errorIndices;
+            if (!isCorrect && !_errorSet.has(state.currentIndex)) {
+                _errorSet.add(state.currentIndex);
+                newErrorIndices = [...state.errorIndices, state.currentIndex];
+            }
 
             set({
                 state: {
@@ -168,6 +174,7 @@ export const useTypingStore = create<TypingStore>()(
         reset: () => {
             const { state } = get();
             clearKeystrokeBuffer();
+            clearErrorSet();
             set({
                 state: { ...initialState, text: state.text },
                 activeKey: state.text.length > 0 ? state.text[0] : null,

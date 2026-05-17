@@ -1,12 +1,10 @@
 'use client';
 
 import { useRef, useEffect, useState, memo, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '@/stores/settings-store';
 import { cn } from '@/lib/utils';
 import { TypingCharacter } from './typing-character';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 
@@ -14,126 +12,141 @@ interface TypingAreaProps {
     readonly className?: string;
 }
 
-// Isolated sub-component: subscribes to wpm/accuracy/combo without re-rendering parent
-function SrOnlyStats({ progress }: Readonly<{ progress: number }>) {
-    const wpm = useTypingStore(s => s.getWpm());
-    const accuracy = useTypingStore(s => s.getAccuracy());
-    const combo = useGameStore(s => s.game.combo);
+// Selectors extracted to module-scope — stable references, never recreated.
+const selectCombo = (s: ReturnType<typeof useGameStore.getState>) => s.game.combo;
+const selectHasStarted = (s: ReturnType<typeof useTypingStore.getState>) =>
+    s.state.startTime !== null;
+const selectIsComplete = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isComplete;
+
+// Isolated sub-component: polls wpm/accuracy at 500 ms via getState() — no selector subscription.
+const SrOnlyStats = memo(function SrOnlyStats({ progress }: Readonly<{ progress: number }>) {
+    const [wpm, setWpm] = useState(0);
+    const [accuracy, setAccuracy] = useState(100);
+    const combo = useGameStore(selectCombo);
+    const hasStarted = useTypingStore(selectHasStarted);
+    const isComplete = useTypingStore(selectIsComplete);
+
+    useEffect(() => {
+        if (!hasStarted || isComplete) return;
+        const id = setInterval(() => {
+            const s = useTypingStore.getState();
+            setWpm(s.getWpm());
+            setAccuracy(s.getAccuracy());
+        }, 500);
+        return () => clearInterval(id);
+    }, [hasStarted, isComplete]);
+
     return (
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {`Speed: ${wpm} words per minute. Accuracy: ${accuracy} percent. Combo: ${combo}. Progress: ${progress} percent complete.`}
         </div>
     );
-}
+});
 
-function TypingAreaComponent({
-    className
-}: TypingAreaProps) {
+// Settings selectors — granular to avoid rerender on unrelated settings changes.
+const selectCursorStyle = (s: ReturnType<typeof useSettingsStore.getState>) =>
+    s.settings.cursorStyle;
+const selectSmoothCaret = (s: ReturnType<typeof useSettingsStore.getState>) =>
+    s.settings.smoothCaret;
+
+function TypingAreaComponent({ className }: TypingAreaProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const cursorRef = useRef<HTMLSpanElement>(null);
     const hiddenInputRef = useRef<HTMLInputElement>(null);
-    const { settings } = useSettingsStore();
-    const { cursorStyle } = settings;
+    const scrollRafRef = useRef<number>(0);
+    const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const hasMounted = typeof globalThis.window !== 'undefined';
+    // Granular settings selectors — no full-object re-subscription.
+    const cursorStyle = useSettingsStore(selectCursorStyle);
+    const smoothCaret = useSettingsStore(selectSmoothCaret);
 
-    // Connect to stores
+    // Primitive store slices only.
     const text = useTypingStore(s => s.state.text);
     const currentIndex = useTypingStore(s => s.state.currentIndex);
     const errorIndices = useTypingStore(s => s.state.errorIndices);
-    const hasStarted = useTypingStore(s => s.state.startTime !== null);
-    const isComplete = useTypingStore(s => s.state.isComplete);
+    const hasStarted = useTypingStore(selectHasStarted);
+    const isComplete = useTypingStore(selectIsComplete);
 
-    // Focus state for "Click to Focus" overlay
     const [isFocused, setIsFocused] = useState(true);
 
-    // Auto-scroll to keep cursor visible
+    // rAF-gated auto-scroll, cancelled on cleanup.
     useEffect(() => {
-        if (cursorRef.current && containerRef.current) {
-            const cursor = cursorRef.current;
-            const container = containerRef.current;
-
-            const cursorRect = cursor.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
-
-            // Scroll if cursor is near bottom
-            if (cursorRect.bottom > containerRect.bottom - 50) {
-                cursor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = requestAnimationFrame(() => {
+            if (cursorRef.current && containerRef.current) {
+                const cursorRect = cursorRef.current.getBoundingClientRect();
+                const containerRect = containerRef.current.getBoundingClientRect();
+                if (cursorRect.bottom > containerRect.bottom - 50) {
+                    cursorRef.current.scrollIntoView({ behavior: 'instant', block: 'center' });
+                }
             }
-        }
+        });
+        return () => cancelAnimationFrame(scrollRafRef.current);
     }, [currentIndex]);
 
-    // Keep hidden input focused for mobile keyboard capture
     const focusInput = useCallback(() => {
         hiddenInputRef.current?.focus();
         setIsFocused(true);
     }, []);
 
-    // Auto-focus on mount and on click
-    useEffect(() => {
-        focusInput();
-    }, [focusInput]);
+    useEffect(() => { focusInput(); }, [focusInput]);
 
-    // Track focus/blur on the container
+    // Stable event handlers allocated once — no closure recreation on render.
     useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
         const handleFocus = () => setIsFocused(true);
         const handleBlur = () => {
-            // Small delay to avoid flash when clicking within the container
-            setTimeout(() => {
+            if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+            blurTimerRef.current = setTimeout(() => {
                 if (!containerRef.current?.contains(document.activeElement)) {
                     setIsFocused(false);
                 }
             }, 100);
         };
 
-        const container = containerRef.current;
-        if (container) {
-            container.addEventListener('focusin', handleFocus);
-            container.addEventListener('focusout', handleBlur);
-            return () => {
-                container.removeEventListener('focusin', handleFocus);
-                container.removeEventListener('focusout', handleBlur);
-            };
-        }
+        container.addEventListener('focusin', handleFocus);
+        container.addEventListener('focusout', handleBlur);
+        return () => {
+            container.removeEventListener('focusin', handleFocus);
+            container.removeEventListener('focusout', handleBlur);
+            if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+        };
     }, []);
 
-    const errorSet = useMemo(() => new Set(errorIndices), [errorIndices]);
+    // errorSet: only rebuild when errorIndices array length changes. Contents
+    // only grow (no item removed mid-session), so length equality guards suffice.
+    const errorCount = errorIndices.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const errorSet = useMemo(() => new Set(errorIndices), [errorCount]);
+
     const progress = text.length > 0 ? Math.round((currentIndex / text.length) * 100) : 0;
-    
-    // Group characters into words for focus effect
+
+    // Word grouping — only recompute when text changes, not on every keystroke.
     const words = useMemo(() => {
-        const result = [];
-        let currentWord = [];
+        const result: { char: string; index: number }[][] = [];
+        let current: { char: string; index: number }[] = [];
         for (let i = 0; i < text.length; i++) {
-            currentWord.push({ char: text[i], index: i });
-            if (text[i] === ' ') {
-                result.push(currentWord);
-                currentWord = [];
-            }
+            current.push({ char: text[i], index: i });
+            if (text[i] === ' ') { result.push(current); current = []; }
         }
-        if (currentWord.length > 0) result.push(currentWord);
+        if (current.length > 0) result.push(current);
         return result;
     }, [text]);
 
+    // O(n) word index scan — still needed per keystroke but kept minimal.
+    // Optimized: early exit when space count reaches target.
     const currentWordIdx = useMemo(() => {
-        return text.slice(0, currentIndex).split(' ').length - 1;
+        let count = 0;
+        for (let i = 0; i < currentIndex; i++) {
+            if (text[i] === ' ') count++;
+        }
+        return count;
     }, [text, currentIndex]);
-    
-    // Calculate line index approximately based on word index for smooth scrolling
+
     const currentLineIndex = Math.floor(currentWordIdx / 10);
-
-    // Show overlay only when: has started, not complete, and not focused
     const showFocusOverlay = hasStarted && !isComplete && !isFocused;
-
-    if (!hasMounted) {
-        return (
-            <div className={cn('relative bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/15 min-h-[180px]', className)}>
-                <div className="flex items-center justify-center h-full">
-                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-            </div>
-        );
-    }
 
     return (
         <ErrorBoundary>
@@ -144,12 +157,11 @@ function TypingAreaComponent({
                 onClick={focusInput}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') focusInput(); }}
                 className={cn(
-                    'relative bg-white/5 backdrop-blur-2xl rounded-2xl border p-8 shadow-2xl overflow-hidden cursor-text transition-all duration-300',
+                    'relative bg-white/5 backdrop-blur-2xl rounded-2xl border p-8 shadow-2xl overflow-hidden cursor-text transition-colors duration-300',
                     isFocused ? 'border-primary/50 ring-4 ring-primary/10' : 'border-white/15',
                     className
                 )}
             >
-                {/* Hidden input for mobile keyboard capture */}
                 <input
                     ref={hiddenInputRef}
                     type="text"
@@ -161,13 +173,10 @@ function TypingAreaComponent({
                     spellCheck={false}
                     className="absolute w-0 h-0 opacity-0 pointer-events-none"
                     tabIndex={0}
-                    onKeyDown={(e) => {
-                        // Prevent default scrolling for space
-                        if (e.key === ' ') e.preventDefault();
-                    }}
+                    onKeyDown={(e) => { if (e.key === ' ') e.preventDefault(); }}
                     onBlur={() => {
-                        // Re-focus if user clicked within the typing area
-                        setTimeout(() => {
+                        if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+                        blurTimerRef.current = setTimeout(() => {
                             if (containerRef.current?.contains(document.activeElement)) {
                                 focusInput();
                             }
@@ -175,53 +184,49 @@ function TypingAreaComponent({
                     }}
                 />
 
-                {/* Background glow */}
+                {/* Background glow — pointer-events-none, no JS */}
                 <div className="absolute top-0 left-1/4 w-1/2 h-full bg-primary/5 blur-[100px] pointer-events-none" />
 
-                {/* Screen reader live region */}
                 <SrOnlyStats progress={progress} />
 
-                {/* CLICK TO FOCUS overlay */}
-                <AnimatePresence>
-                    {showFocusOverlay && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl cursor-pointer"
-                            onClick={focusInput}
-                        >
-                            <div className="text-center space-y-2">
-                                <div className="text-2xl font-bold text-white">Click to resume</div>
-                                <div className="text-sm text-text-secondary">Timer is paused</div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {/* Focus overlay — CSS-only opacity transition, no Framer AnimatePresence. */}
+                {showFocusOverlay && (
+                    <div
+                        className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl cursor-pointer typing-overlay-enter"
+                        onClick={focusInput}
+                    >
+                        <div className="text-center space-y-2">
+                            <div className="text-2xl font-bold text-white">Click to resume</div>
+                            <div className="text-sm text-text-secondary">Timer is paused</div>
+                        </div>
+                    </div>
+                )}
 
-                {/* Text content area - Minimal & Large */}
+                {/* Text content area */}
                 <div
                     aria-label="Text to type"
                     role="status"
                     aria-live="polite"
                     className={cn(
-                        'relative',
-                        'min-h-[180px] overflow-hidden',
+                        'relative min-h-[180px] overflow-hidden',
                         'text-[2.5rem] leading-relaxed font-mono text-center focus:outline-none',
                         showFocusOverlay && 'blur-sm select-none'
                     )}
                 >
-                    <motion.div 
-                        className="flex flex-wrap justify-center gap-x-1 gap-y-2"
-                        animate={{ y: -(currentLineIndex * 60) }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    {/* CSS transform — compositor-only, no Framer spring overhead. */}
+                    <div
+                        className="flex flex-wrap justify-center gap-x-1 gap-y-2 typing-scroll-container"
+                        style={{ transform: `translateY(${-(currentLineIndex * 60)}px)` }}
                     >
                         {words.map((word, wIdx) => (
-                            <div key={`word-${word[0]?.index ?? wIdx}`} className={cn(
-                                "inline-block whitespace-nowrap transition-opacity duration-200",
-                                wIdx === currentWordIdx ? "opacity-100" : "opacity-30"
-                            )}>
+                            <div
+                                key={`w-${word[0]?.index ?? wIdx}`}
+                                className={cn(
+                                    'inline-block whitespace-nowrap',
+                                    // CSS-only opacity — no Framer, no transition-opacity repaint cascade.
+                                    wIdx === currentWordIdx ? 'word-active' : 'word-inactive'
+                                )}
+                            >
                                 {word.map(({ char, index }) => {
                                     const isTyped = index < currentIndex;
                                     const isCurrent = index === currentIndex;
@@ -229,21 +234,21 @@ function TypingAreaComponent({
                                     const isNext = index === currentIndex + 1;
                                     return (
                                         <TypingCharacter
-                                            key={`char-${index}`}
+                                            key={`c-${index}`}
                                             char={char}
                                             isTyped={isTyped}
                                             isCurrent={isCurrent}
                                             isError={isError}
                                             isNext={isNext}
                                             cursorStyle={cursorStyle}
-                                            smoothCaret={settings.smoothCaret}
+                                            smoothCaret={smoothCaret}
                                             ref={cursorRef}
                                         />
                                     );
                                 })}
                             </div>
                         ))}
-                    </motion.div>
+                    </div>
                 </div>
             </div>
         </ErrorBoundary>
