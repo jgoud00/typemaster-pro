@@ -16,11 +16,16 @@ import {
 //  LOCAL STORAGE
 // ─────────────────────────────────────────────
 test.describe("LocalStorage", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("progress is saved to localStorage after first session", async ({
     page,
   }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Type a few characters to trigger a save
     const input = page
@@ -30,10 +35,10 @@ test.describe("LocalStorage", () => {
       await input.click();
       for (const c of "hello ") {
         await page.keyboard.press(c === " " ? "Space" : c);
-        await page.waitForTimeout(60);
+        await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       }
     }
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() => {
       const keys = Object.keys(localStorage);
@@ -54,7 +59,7 @@ test.describe("LocalStorage", () => {
       );
     });
     await page.reload();
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const stored = await page.evaluate(() =>
       localStorage.getItem("typemaster-settings")
@@ -74,7 +79,7 @@ test.describe("LocalStorage", () => {
       localStorage.setItem("typemaster-progress", "{ invalid json ===");
     });
     await page.goto("/");
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // App should recover gracefully
     const body = await page.locator("body").isVisible();
@@ -91,7 +96,7 @@ test.describe("LocalStorage", () => {
       localStorage.removeItem("typemaster-progress");
     });
     await page.goto("/");
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -102,7 +107,7 @@ test.describe("LocalStorage", () => {
     await seedUserProgress(page, { totalSessions: 99 });
     await page.goto(ROUTES.dashboard);
     await page.reload();
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() =>
       localStorage.getItem("typemaster-progress")
@@ -128,7 +133,7 @@ test.describe("IndexedDB", () => {
     });
 
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -144,10 +149,10 @@ test.describe("IndexedDB", () => {
       await input.click();
       for (const c of "hello world ") {
         await page.keyboard.press(c === " " ? "Space" : c);
-        await page.waitForTimeout(70);
+        await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       }
     }
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const dbs = await page.evaluate(() => indexedDB.databases?.() ?? []);
     expect(Array.isArray(dbs)).toBe(true);
@@ -163,7 +168,7 @@ test.describe("IndexedDB", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -174,9 +179,9 @@ test.describe("IndexedDB", () => {
     // Write data, reload, verify
     await seedUserProgress(page, { averageWPM: 72 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     await page.reload();
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() =>
       localStorage.getItem("typemaster-progress")
@@ -196,7 +201,7 @@ test.describe("Zustand Serialization", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const keys = await page.evaluate(() => Object.keys(localStorage));
     // At minimum, the app should create at least one localStorage key
@@ -206,9 +211,9 @@ test.describe("Zustand Serialization", () => {
   test("state is rehydrated correctly on page reload", async ({ page }) => {
     await seedUserProgress(page, { currentStreak: 13, level: 7 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     await page.reload();
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() =>
       localStorage.getItem("typemaster-progress")
@@ -227,7 +232,7 @@ test.describe("Zustand Serialization", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Fire multiple rapid storage events to simulate concurrent mutations
     await page.evaluate(() => {
@@ -235,7 +240,7 @@ test.describe("Zustand Serialization", () => {
         window.dispatchEvent(new StorageEvent("storage", { key: "typemaster-progress" }));
       }
     });
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -246,7 +251,7 @@ test.describe("Zustand Serialization", () => {
     const app = new AppPage(page);
     await app.clearAllStorage();
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() =>
       localStorage.getItem("typemaster-progress")
@@ -295,7 +300,7 @@ test.describe("Storage Resilience", () => {
     });
 
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // App should not show an error page
     const title = await page.title();
@@ -311,7 +316,7 @@ test.describe("Storage Resilience", () => {
 
     await seedUserProgress(page);
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Simulate another tab writing to storage
     const page2 = await context.newPage();
@@ -324,7 +329,7 @@ test.describe("Storage Resilience", () => {
       window.dispatchEvent(new StorageEvent("storage"));
     });
     await page2.close();
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });

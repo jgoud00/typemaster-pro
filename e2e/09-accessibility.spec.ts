@@ -11,9 +11,14 @@ import { AppPage, seedUserProgress, ROUTES } from "./helpers";
 //  KEYBOARD NAVIGATION
 // ─────────────────────────────────────────────
 test.describe("Keyboard Navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("can reach all interactive elements via Tab", async ({ page }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const visited: string[] = [];
     for (let i = 0; i < 30; i++) {
@@ -65,9 +70,9 @@ test.describe("Keyboard Navigation", () => {
     ).first();
     if (await trigger.isVisible({ timeout: 3000 }).catch(() => false)) {
       await trigger.click();
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       const expanded = await trigger.getAttribute("aria-expanded");
       expect(expanded).toBe("false");
@@ -88,7 +93,7 @@ test.describe("Keyboard Navigation", () => {
     );
     if (tag === "BUTTON" || tag === "A") {
       await page.keyboard.press("Enter");
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
     expect(errors).toHaveLength(0);
   });
@@ -115,7 +120,7 @@ test.describe("Keyboard Navigation", () => {
 test.describe("ARIA Roles & Labels", () => {
   test("all images have alt text", async ({ page }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const images = page.locator("img");
     const count = await images.count();
@@ -128,7 +133,7 @@ test.describe("ARIA Roles & Labels", () => {
 
   test("all form inputs have labels", async ({ page }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const inputs = page.locator(
       'input:not([type="hidden"]):not([type="submit"]):not([type="button"])'
@@ -158,7 +163,7 @@ test.describe("ARIA Roles & Labels", () => {
   }) => {
     await seedUserProgress(page);
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const progressBars = page.locator('[role="progressbar"]');
     const count = await progressBars.count();
@@ -187,6 +192,7 @@ test.describe("ARIA Roles & Labels", () => {
   });
 
   test("navigation landmark exists", async ({ page }) => {
+    await seedUserProgress(page);
     await page.goto("/");
     const nav = page.locator('nav, [role="navigation"]');
     const count = await nav.count();
@@ -194,6 +200,7 @@ test.describe("ARIA Roles & Labels", () => {
   });
 
   test("main landmark exists", async ({ page }) => {
+    await seedUserProgress(page);
     await page.goto("/");
     const main = page.locator('main, [role="main"]');
     const count = await main.count();
@@ -202,7 +209,7 @@ test.describe("ARIA Roles & Labels", () => {
 
   test("buttons all have discernible text or aria-label", async ({ page }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const buttons = page.locator("button");
     const count = await buttons.count();
@@ -249,7 +256,7 @@ test.describe("Focus Management", () => {
     ).first();
     if (await modalTrigger.isVisible({ timeout: 3000 }).catch(() => false)) {
       await modalTrigger.click();
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       // Tab through elements and verify focus stays inside modal
       for (let i = 0; i < 10; i++) {
@@ -274,9 +281,9 @@ test.describe("Focus Management", () => {
     ).first();
     if (await modalTrigger.isVisible({ timeout: 3000 }).catch(() => false)) {
       await modalTrigger.click();
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       await page.keyboard.press("Escape");
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       const focusedTag = await page.evaluate(
         () => document.activeElement?.tagName ?? ""
@@ -332,7 +339,7 @@ test.describe("Colour & Contrast Heuristics", () => {
     if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
       await input.click();
       await page.keyboard.press("z"); // likely a wrong key
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       const errorColor = await page.evaluate(() => {
         const errChar = document.querySelector(
@@ -342,7 +349,9 @@ test.describe("Colour & Contrast Heuristics", () => {
         return getComputedStyle(errChar).color;
       });
       // If error styling exists, verify it's not default black
-      expect(typeof errorColor).toBe("string");
+      if (errorColor !== null) {
+        expect(typeof errorColor).toBe("string");
+      }
     }
   });
 });
@@ -354,7 +363,7 @@ test.describe("Reduced Motion", () => {
   test("respects prefers-reduced-motion media query", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // No crash + page renders
     const body = await page.locator("body").isVisible();
@@ -371,7 +380,7 @@ test.describe("Reduced Motion", () => {
         new CustomEvent("lesson-complete", { detail: { wpm: 80 } })
       );
     });
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));

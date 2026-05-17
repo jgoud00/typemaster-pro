@@ -18,7 +18,7 @@ async function setupTypingTest(page: import("@playwright/test").Page) {
   await app.waitForHydration();
   
   // Wait for the typing area and ensure it has text
-  const textbox = page.locator('[role="textbox"][aria-label="Text to type"]');
+  const textbox = page.locator('[role="status"][aria-label="Text to type"], [role="textbox"][aria-label="Text to type"]');
   await textbox.waitFor({ state: 'attached', timeout: 30000 });
   await expect(textbox).not.toHaveText("", { timeout: 10000 });
 
@@ -29,10 +29,15 @@ async function setupTypingTest(page: import("@playwright/test").Page) {
 //  TYPING AREA RENDERING
 // ─────────────────────────────────────────────
 test.describe("Typing Area Rendering", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("typing area mounts and is visible", async ({ page }) => {
     await setupTypingTest(page);
     const area = page.locator(
-      '[role="textbox"][aria-label="Text to type"], [role="application"][aria-label="Typing practice area"]'
+      '[role="status"][aria-label="Text to type"], [role="textbox"][aria-label="Text to type"], [role="application"][aria-label="Typing practice area"]'
     ).first();
     await expect(area).toBeVisible({ timeout: 5000 });
   });
@@ -40,7 +45,7 @@ test.describe("Typing Area Rendering", () => {
   test("text to type is displayed", async ({ page }) => {
     await setupTypingTest(page);
     const textDisplay = page.locator(
-      '[role="textbox"][aria-label="Text to type"]'
+      '[role="status"][aria-label="Text to type"], [role="textbox"][aria-label="Text to type"]'
     ).first();
     await expect(textDisplay).toBeVisible({ timeout: 5000 });
     const text = await textDisplay.innerText();
@@ -83,13 +88,13 @@ test.describe("Keystroke Handling", () => {
     const body = page.locator('body');
     await body.click();
     await page.keyboard.press("a");
-    await page.waitForTimeout(200);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
   });
 
   test("correct keystrokes are highlighted green/correct", async ({ page }) => {
     await setupTypingTest(page);
     await page.keyboard.press("a");
-    await page.waitForTimeout(200);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Check for some kind of visual feedback on typed characters
     const correctChars = page.locator(
@@ -108,7 +113,7 @@ test.describe("Keystroke Handling", () => {
     await page.keyboard.press("a");
     await page.keyboard.press("b");
     await page.keyboard.press("Backspace");
-    await page.waitForTimeout(200);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // After backspace, state should roll back — just check no crash
     const alive = await page.locator("body").isVisible();
@@ -124,7 +129,7 @@ test.describe("Keystroke Handling", () => {
     await page.keyboard.press("Tab");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(300);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors).toHaveLength(0);
   });
@@ -140,7 +145,7 @@ test.describe("Keystroke Handling", () => {
     await setupTypingTest(page);
     for (const char of "hello") {
       await page.keyboard.press(char);
-      await page.waitForTimeout(50);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(rejections).toHaveLength(0);
@@ -157,9 +162,9 @@ test.describe("WPM & Accuracy Calculation", () => {
 
     for (const char of "the quick ") {
       await page.keyboard.press(char === " " ? "Space" : char);
-      await page.waitForTimeout(80);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const wpmAfter = await typingPage.getWPM();
     expect(wpmAfter).toBeGreaterThanOrEqual(wpmBefore);
@@ -171,9 +176,9 @@ test.describe("WPM & Accuracy Calculation", () => {
     // Spam wrong keys
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press("z");
-      await page.waitForTimeout(80);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const acc = await typingPage.getAccuracy();
     // After wrong keys, accuracy should have dropped or stayed at 100 if ignored
@@ -208,7 +213,7 @@ test.describe("Timer", () => {
     await expect(timer).toBeVisible({ timeout: 10000 });
     const timeBefore = await timer.innerText();
     await page.keyboard.press("a");
-    await page.waitForTimeout(2500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     const timeAfter = await timer.innerText();
 
     // Timer text should have changed
@@ -235,11 +240,11 @@ test.describe("Restart", () => {
     // Type something
     for (const c of "hello world") {
       await page.keyboard.press(c === " " ? "Space" : c);
-      await page.waitForTimeout(60);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     await restartBtn.click();
-    await page.waitForTimeout(400);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const wpm = await typingPage.getWPM();
     expect(wpm).toBe(0);

@@ -11,6 +11,11 @@ import { AppPage, seedUserProgress, ROUTES } from "./helpers";
 //  CORE WEB VITALS
 // ─────────────────────────────────────────────
 test.describe("Core Web Vitals", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("Largest Contentful Paint < 4000ms", async ({ page }) => {
     let lcp = 0;
     await page.addInitScript(() => {
@@ -25,7 +30,7 @@ test.describe("Core Web Vitals", () => {
     });
 
     await page.goto("/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     lcp = await page.evaluate(() => (window as any).__lcp ?? 0);
     // LCP should be under 4s (good: <2.5s, needs-improvement: <4s)
@@ -48,7 +53,7 @@ test.describe("Core Web Vitals", () => {
     });
 
     await page.goto("/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     cls = await page.evaluate(() => (window as any).__cls ?? 0);
     // CLS should be under 0.25 (good: <0.1, needs-improvement: <0.25)
@@ -84,7 +89,7 @@ test.describe("Core Web Vitals", () => {
     });
 
     await page.goto("/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(1500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const tasks = await page.evaluate(() => (window as any).__longTasks ?? []);
     const veryLong = tasks.filter((t: number) => t > 500);
@@ -100,7 +105,7 @@ test.describe("Memory Usage", () => {
     page,
   }) => {
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const measureHeap = () =>
       page.evaluate(() => {
@@ -124,7 +129,7 @@ test.describe("Memory Usage", () => {
       }
     }
 
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     const heapAfter = await measureHeap();
 
     // Heap growth should be < 50 MB for simple typing
@@ -150,14 +155,14 @@ test.describe("Memory Usage", () => {
 
     for (const n of [1, 2, 3, 4, 5]) {
       await page.goto(ROUTES.lesson(n));
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     // Force GC if exposed
     await page.evaluate(() => {
       if (typeof (window as any).gc === "function") (window as any).gc();
     });
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const after = await measureHeap();
     const growthMB = (after - before) / 1_048_576;
@@ -175,9 +180,9 @@ test.describe("Memory Usage", () => {
     // Mount and unmount lesson component multiple times
     for (let i = 0; i < 5; i++) {
       await page.goto(ROUTES.lesson(1));
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       await page.goBack();
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
@@ -213,10 +218,10 @@ test.describe("requestAnimationFrame (rAF) Loop", () => {
       await input.click();
       for (const c of "hello world ") {
         await page.keyboard.press(c === " " ? "Space" : c);
-        await page.waitForTimeout(50);
+        await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       }
     }
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     frameTimes = await page.evaluate(() => (window as any).__frames ?? []);
 
@@ -237,7 +242,7 @@ test.describe("requestAnimationFrame (rAF) Loop", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/");
-    await page.waitForTimeout(2000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -257,7 +262,7 @@ test.describe("Tone.js Audio System", () => {
     });
 
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors).toHaveLength(0);
   });
@@ -265,7 +270,7 @@ test.describe("Tone.js Audio System", () => {
   test("Tone.js AudioContext resumes on user interaction", async ({ page }) => {
     await page.goto("/");
     await page.click("body"); // user interaction needed to unlock AudioContext
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const audioState = await page.evaluate(async () => {
       const ctx = new AudioContext();
@@ -287,9 +292,9 @@ test.describe("Tone.js Audio System", () => {
       await metronomeToggle.isVisible({ timeout: 3000 }).catch(() => false)
     ) {
       await metronomeToggle.click(); // enable
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       await metronomeToggle.click(); // disable
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
@@ -319,7 +324,7 @@ test.describe("Tone.js Audio System", () => {
       for (let i = 0; i < 30; i++) {
         await page.keyboard.press("a");
       }
-      await page.waitForTimeout(500);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
@@ -339,7 +344,7 @@ test.describe("Mitt Event Bus", () => {
     // Navigate multiple times to ensure cleanup
     for (let i = 0; i < 5; i++) {
       await page.goto("/");
-      await page.waitForTimeout(200);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
@@ -367,7 +372,7 @@ test.describe("Bundle & Network", () => {
     });
 
     await page.goto("/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const totalMB = totalJS / 1_048_576;
     // 2MB is lenient for a full app with Tone.js, Recharts, framer-motion
@@ -385,7 +390,7 @@ test.describe("Bundle & Network", () => {
     });
 
     await page.goto("/");
-    await page.waitForTimeout(2000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Filter out expected 404s (like favicon)
     const realFailures = failures.filter(
@@ -453,7 +458,7 @@ test.describe("React 19 Concurrent Rendering", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto("/");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // React 19 Strict Mode runs effects twice — verify state is still sane
     const raw = await page.evaluate(() =>
@@ -482,7 +487,7 @@ test.describe("React 19 Concurrent Rendering", () => {
 
     await seedUserProgress(page);
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(2000); // let animations run
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 }); // let animations run
 
     const tasks = await page.evaluate(
       () => (window as any).__longTasksFromMotion ?? []

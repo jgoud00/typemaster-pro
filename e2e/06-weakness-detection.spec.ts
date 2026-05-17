@@ -10,12 +10,17 @@ import { AppPage, seedUserProgress, ROUTES } from "./helpers";
 //  WEAKNESS PANEL RENDERING
 // ─────────────────────────────────────────────
 test.describe("Weakness Panel Rendering", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("weakness panel is visible on dashboard with weak keys seeded", async ({
     page,
   }) => {
     await seedUserProgress(page, { weakKeys: ["q", "z", "x", "p", "b"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const panel = page.locator(
       '[data-testid="weakness-panel"], [aria-label*="weakness"], [aria-label*="weak keys"], .weakness-panel'
@@ -28,7 +33,7 @@ test.describe("Weakness Panel Rendering", () => {
   test("each weak key is rendered as a distinct element", async ({ page }) => {
     await seedUserProgress(page, { weakKeys: ["q", "z", "x"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const keys = page.locator(
       '[data-testid^="weak-key-"], [data-key], .key-chip, .keyboard-key'
@@ -43,7 +48,7 @@ test.describe("Weakness Panel Rendering", () => {
 
     await seedUserProgress(page, { weakKeys: [] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -59,7 +64,7 @@ test.describe("Weakness Panel Rendering", () => {
       );
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -77,7 +82,7 @@ test.describe("Keyboard Heatmap / Error Map", () => {
       keyErrorRates: { q: 0.35, w: 0.18, z: 0.42 },
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const heatmap = page.locator(
       '[data-testid="keyboard-heatmap"], [aria-label*="keyboard"], .heatmap, canvas, svg.keyboard'
@@ -92,7 +97,7 @@ test.describe("Keyboard Heatmap / Error Map", () => {
       keyErrorRates: { q: 0.8 },
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // A high-error key should have a distinct class/color
     const hotKey = page.locator('[data-key="q"][class*="hot"], [data-key="q"].error-high').first();
@@ -109,7 +114,7 @@ test.describe("Focused Drills", () => {
   test("'Practice weak keys' button is present", async ({ page }) => {
     await seedUserProgress(page, { weakKeys: ["q", "z"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const drillBtn = page.locator(
       'button:has-text("Practice"), button:has-text("Drill"), [data-testid="practice-weak"]'
@@ -124,14 +129,14 @@ test.describe("Focused Drills", () => {
   }) => {
     await seedUserProgress(page, { weakKeys: ["q"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const drillBtn = page.locator(
       'button:has-text("Practice"), button:has-text("Drill"), [data-testid="practice-weak"]'
     ).first();
     if (await drillBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await drillBtn.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       // The drill text should contain the weak key 'q'
       const textDisplay = page.locator(
@@ -150,19 +155,19 @@ test.describe("Focused Drills", () => {
 
     await seedUserProgress(page, { weakKeys: ["z"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const drillBtn = page.locator(
       'button:has-text("Practice"), button:has-text("Drill")'
     ).first();
     if (await drillBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await drillBtn.click();
-      await page.waitForTimeout(500);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       const restart = page.locator('button:has-text("Restart"), [data-testid="restart"]').first();
       if (await restart.isVisible({ timeout: 2000 }).catch(() => false)) {
         await restart.click();
-        await page.waitForTimeout(300);
+        await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       }
     }
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
@@ -186,7 +191,7 @@ test.describe("Weakness Detector Algorithm Stability", () => {
       );
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -211,7 +216,7 @@ test.describe("Weakness Detector Algorithm Stability", () => {
     });
 
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(2000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const longTasks = await page.evaluate(
       () => (window as any).__longTasks ?? []
@@ -228,7 +233,7 @@ test.describe("Weakness Detector Algorithm Stability", () => {
 
     await seedUserProgress(page, { weakKeys: [] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Inject new session data simulating errors on 'q' and 'z'
     await page.evaluate(() => {
@@ -239,7 +244,7 @@ test.describe("Weakness Detector Algorithm Stability", () => {
     });
 
     await page.reload();
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -259,7 +264,7 @@ test.describe("Weakness History", () => {
     }));
     await seedUserProgress(page, { sessions });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const chart = page.locator(
       '.recharts-wrapper, [data-testid="weakness-chart"]'

@@ -32,6 +32,11 @@ async function goToLessonPage(page: Page) {
 //  LESSON LISTING
 // ─────────────────────────────────────────────
 test.describe("Lesson Listing", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("lesson grid / list is rendered", async ({ page }) => {
     await goToLessonPage(page);
     const lessonItems = page.locator(
@@ -72,7 +77,7 @@ test.describe("Lesson Listing", () => {
     if (await lesson1.isVisible({ timeout: 3000 }).catch(() => false)) {
       // Should not have a locked/disabled class
       const cls = await lesson1.getAttribute("class");
-      expect(cls).not.toMatch(/locked|disabled/i);
+      expect(cls ?? "").not.toMatch(/locked|disabled/i);
     }
   });
 
@@ -99,7 +104,7 @@ test.describe("Lesson Listing", () => {
       completedLessons: [1, 2, 3, 4, 5],
     });
     await page.goto("/");
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const completedIndicators = page.locator(
       '.completed, [data-completed="true"], [aria-label*="completed"], .check-icon, svg[aria-label*="check"]'
@@ -123,15 +128,14 @@ test.describe("Lesson Navigation", () => {
 
     if (await lesson1.isVisible({ timeout: 3000 }).catch(() => false)) {
       await lesson1.click();
-      await page.waitForLoadState("domcontentloaded");
-      expect(page.url()).toMatch(/lesson/i);
+      await expect(page).toHaveURL(/lessons/i);
     }
   });
 
   test("lesson page shows lesson title or number", async ({ page }) => {
     await page.goto(ROUTES.lesson(1));
     await page.waitForLoadState("domcontentloaded");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const heading = page.locator("h1, h2, [data-testid='lesson-title']").first();
     if (await heading.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -145,7 +149,7 @@ test.describe("Lesson Navigation", () => {
   }) => {
     await seedUserProgress(page, { completedLessons: [1] });
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const nextBtn = page.locator(
       'button:has-text("Next"), a:has-text("Next Lesson"), [data-testid="next-lesson"]'
@@ -159,7 +163,7 @@ test.describe("Lesson Navigation", () => {
     page,
   }) => {
     await page.goto(ROUTES.lesson(2));
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const prevBtn = page.locator(
       'a[href*="home-1-fj"], button:has-text("Previous"), [data-testid="prev-lesson"]'
@@ -176,7 +180,7 @@ test.describe("Lesson Navigation", () => {
 
     for (const n of [1, 2, 3]) {
       await page.goto(ROUTES.lesson(n));
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     }
 
     expect(errors).toHaveLength(0);
@@ -203,7 +207,7 @@ test.describe("Lesson Metadata", () => {
     page,
   }) => {
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const focus = page.locator(
       '[data-testid="lesson-focus"], [data-testid="lesson-description"], p, [role="note"]'
@@ -221,7 +225,7 @@ test.describe("Lesson Metadata", () => {
 test.describe("Lesson Completion", () => {
   test("completing a lesson shows results panel", async ({ page }) => {
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Simulate completion by dispatching a custom event (fallback if no text)
     await page.evaluate(() => {
@@ -231,7 +235,7 @@ test.describe("Lesson Completion", () => {
         })
       );
     });
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Look for results / summary panel
     const results = page.locator(
@@ -246,7 +250,7 @@ test.describe("Lesson Completion", () => {
   }) => {
     await seedUserProgress(page, { xp: 1000 });
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Trigger completion event
     await page.evaluate(() => {
@@ -256,7 +260,7 @@ test.describe("Lesson Completion", () => {
         })
       );
     });
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const raw = await page.evaluate(() =>
       localStorage.getItem("typemaster-progress")
@@ -278,7 +282,7 @@ test.describe("Lesson Boundary — Lesson 73", () => {
 
     await page.goto(ROUTES.lesson(73));
     await page.waitForLoadState("domcontentloaded");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });

@@ -43,7 +43,7 @@ export class AppPage {
     const welcomeButton = this.page.locator('button:has-text("Start Learning!")');
     if (await welcomeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await welcomeButton.click({ force: true });
-      await this.page.waitForTimeout(500);
+      await expect(this.page.locator('body')).toBeVisible({ timeout: 10000 });
     }
   }
 
@@ -52,7 +52,7 @@ export class AppPage {
     await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
     await expect(this.page.locator('body')).toBeVisible({ timeout: 10000 });
     // Extra safety for React 19 hydration
-    await this.page.waitForTimeout(1000);
+    await expect(this.page.locator('body')).toBeVisible({ timeout: 10000 });
   }
 
   async clearAllStorage() {
@@ -137,7 +137,7 @@ export async function seedUserProgress(page: Page, options: any = {}) {
 }
 
 export async function completeTypingSession(page: Page) {
-  await page.waitForTimeout(1000);
+  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 }
 
 export function assertNoConsoleErrors(page: Page) {
@@ -149,7 +149,7 @@ export function assertNoConsoleErrors(page: Page) {
 }
 
 export async function waitForCharts(page: Page) {
-  await page.waitForTimeout(1000);
+  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 }
 
 export async function dumpIndexedDB(page: Page) {

@@ -15,10 +15,15 @@ import {
 //  XP & LEVELLING
 // ─────────────────────────────────────────────
 test.describe("XP & Level System", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("XP bar is visible on the dashboard", async ({ page }) => {
     await seedUserProgress(page, { xp: 2450, level: 5 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const xpBar = page.locator(
       '[data-testid="xp-bar"], [aria-label*="experience"], [aria-label*="XP"]'
@@ -31,7 +36,7 @@ test.describe("XP & Level System", () => {
   test("level badge shows correct seeded level", async ({ page }) => {
     await seedUserProgress(page, { level: 5 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const levelEl = page.locator(
       '[data-testid="level"], [aria-label*="level"], .level-badge'
@@ -45,7 +50,7 @@ test.describe("XP & Level System", () => {
   test("XP bar aria-valuenow reflects percentage filled", async ({ page }) => {
     await seedUserProgress(page, { xp: 500 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const xpBar = page.locator('[data-testid="xp-bar"][role="progressbar"]').first();
     if (await xpBar.isVisible({ timeout: 4000 }).catch(() => false)) {
@@ -62,7 +67,7 @@ test.describe("XP & Level System", () => {
   }) => {
     await seedUserProgress(page, { xp: 1000 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(400);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Dispatch XP gain event
     await page.evaluate(() => {
@@ -70,7 +75,7 @@ test.describe("XP & Level System", () => {
         new CustomEvent("xp-gained", { detail: { amount: 200 } })
       );
     });
-    await page.waitForTimeout(1000); // allow animation
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 }); // allow animation
 
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -83,14 +88,14 @@ test.describe("XP & Level System", () => {
     // Put XP near level boundary
     await seedUserProgress(page, { xp: 999, level: 1 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(400);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     await page.evaluate(() => {
       window.dispatchEvent(
         new CustomEvent("xp-gained", { detail: { amount: 1 } })
       );
     });
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const levelUpMsg = page.locator(
       '[data-testid="level-up"], [aria-live="assertive"], text=/level up/i'
@@ -112,7 +117,7 @@ test.describe("Badges & Achievements", () => {
       badges: ["first-lesson", "speed-demon", "accuracy-ace"],
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const badges = page.locator(
       '[data-testid^="badge-"], .badge, [aria-label*="badge"]'
@@ -126,7 +131,7 @@ test.describe("Badges & Achievements", () => {
   }) => {
     await seedUserProgress(page, { badges: [] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const lockedBadges = page.locator(
       '.badge-locked, [data-locked="true"], [aria-disabled="true"]'
@@ -138,12 +143,12 @@ test.describe("Badges & Achievements", () => {
   test("hovering a badge shows its description tooltip", async ({ page }) => {
     await seedUserProgress(page, { badges: ["first-lesson"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const badge = page.locator('[data-testid^="badge-"]').first();
     if (await badge.isVisible({ timeout: 3000 }).catch(() => false)) {
       await badge.hover();
-      await page.waitForTimeout(400);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
       const tooltip = page.locator(
         '[role="tooltip"], [data-testid="badge-tooltip"], .tooltip'
@@ -160,7 +165,7 @@ test.describe("Badges & Achievements", () => {
     const app = new AppPage(page);
     await app.clearAllStorage();
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(400);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     await page.evaluate(() => {
       window.dispatchEvent(
@@ -169,7 +174,7 @@ test.describe("Badges & Achievements", () => {
         })
       );
     });
-    await page.waitForTimeout(800);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const notification = page.locator(
       '[data-testid="achievement-toast"], [role="alert"], [aria-live="assertive"]'
@@ -187,7 +192,7 @@ test.describe("Streak System", () => {
   test("streak displays correctly from seeded data", async ({ page }) => {
     await seedUserProgress(page, { currentStreak: 7, longestStreak: 14 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const streak = page.locator(
       '[data-testid="streak"], [aria-label*="streak"]'
@@ -201,7 +206,7 @@ test.describe("Streak System", () => {
   test("longest streak is shown alongside current streak", async ({ page }) => {
     await seedUserProgress(page, { currentStreak: 5, longestStreak: 21 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const longestStreak = page.locator(
       '[data-testid="longest-streak"], [aria-label*="longest"]'
@@ -215,7 +220,7 @@ test.describe("Streak System", () => {
   test("streak freezes don't exceed available freezes", async ({ page }) => {
     await seedUserProgress(page, { streakFreezes: 2 });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const freezes = page.locator(
       '[data-testid="streak-freeze"], [aria-label*="freeze"]'
@@ -233,7 +238,7 @@ test.describe("Streak System", () => {
 test.describe("Confetti Animation", () => {
   test("canvas element exists on lesson completion", async ({ page }) => {
     await page.goto(ROUTES.lesson(1));
-    await page.waitForTimeout(400);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     await page.evaluate(() => {
       window.dispatchEvent(
@@ -242,7 +247,7 @@ test.describe("Confetti Animation", () => {
         })
       );
     });
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const canvas = page.locator("canvas");
     const count = await canvas.count();
@@ -261,7 +266,7 @@ test.describe("Confetti Animation", () => {
     });
 
     // UI should still respond after confetti fires
-    await page.waitForTimeout(1500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     const buttons = page.locator("button");
     const count = await buttons.count();
     expect(count).toBeGreaterThanOrEqual(0);
@@ -274,7 +279,7 @@ test.describe("Confetti Animation", () => {
 test.describe("Daily Challenges", () => {
   test("daily challenge card renders", async ({ page }) => {
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const challenge = page.locator(
       '[data-testid="daily-challenge"], [aria-label*="daily challenge"], .daily-challenge'
@@ -293,7 +298,7 @@ test.describe("Daily Challenges", () => {
       dailyChallengeCompleted: true,
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // Today's challenge should be available (not completed)
     const challengeComplete = page.locator(

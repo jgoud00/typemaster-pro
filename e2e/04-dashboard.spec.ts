@@ -17,13 +17,18 @@ async function openDashboard(page: Page) {
   await page.goto(ROUTES.stats);
   const app = new AppPage(page);
   await app.waitForHydration();
-  await page.waitForTimeout(600);
+  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 }
 
 // ─────────────────────────────────────────────
 //  DASHBOARD MOUNT
 // ─────────────────────────────────────────────
 test.describe("Dashboard Mount", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("dashboard page loads without JS errors", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -75,7 +80,7 @@ test.describe("Stats Cards", () => {
   test("total sessions card shows correct seeded value", async ({ page }) => {
     await seedUserProgress(page, { totalSessions: 42 });
     await page.goto(ROUTES.stats);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const sessionsCard = page.locator(
       '[data-testid="total-sessions"], [class*="rounded"]'
@@ -89,7 +94,7 @@ test.describe("Stats Cards", () => {
   test("current streak card shows seeded streak value", async ({ page }) => {
     await seedUserProgress(page, { streaks: { current: 7 } });
     await page.goto(ROUTES.stats);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const streakCard = page.locator(
       '[data-testid="streak"], [class*="Card"], [class*="card"]'
@@ -107,7 +112,7 @@ test.describe("Stats Cards", () => {
     await app.goto("/");
     await app.clearAllStorage();
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(600);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -155,7 +160,7 @@ test.describe("Charts (Recharts)", () => {
       const box = await chart.boundingBox();
       if (box) {
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-        await page.waitForTimeout(500);
+        await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
         // Tooltip may appear
         const tooltip = page.locator(".recharts-tooltip-wrapper, [role='tooltip']").first();
         // Non-crashing; tooltip presence depends on data
@@ -199,7 +204,7 @@ test.describe("Daily Goal", () => {
       dailyGoalProgress: 8,
     });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const goal = page.locator(
       '[data-testid="daily-goal"], [aria-label*="daily goal"], [role="progressbar"]'
@@ -218,7 +223,7 @@ test.describe("Daily Goal", () => {
     if (await goalInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await goalInput.fill("20");
       await page.keyboard.press("Enter");
-      await page.waitForTimeout(400);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       const val = await goalInput.inputValue();
       expect(val).toBe("20");
     }
@@ -243,7 +248,7 @@ test.describe("Recent Sessions", () => {
     const app = new AppPage(page);
     await app.clearAllStorage();
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const empty = page.locator(
       '[data-testid="empty-state"], [aria-label*="no sessions"], text=/start|begin|first/i'
@@ -261,7 +266,7 @@ test.describe("Weakness Panel on Dashboard", () => {
   test("weak keys panel shows keys from seeded data", async ({ page }) => {
     await seedUserProgress(page, { weakKeys: ["q", "z", "x", "p"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const panel = page.locator(
       '[data-testid="weakness-panel"], [data-testid="weak-keys"], [aria-label*="weakness"]'
@@ -277,12 +282,12 @@ test.describe("Weakness Panel on Dashboard", () => {
   }) => {
     await seedUserProgress(page, { weakKeys: ["q"] });
     await page.goto(ROUTES.dashboard);
-    await page.waitForTimeout(700);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const weakKey = page.locator('button:has-text("q"), [data-key="q"]').first();
     if (await weakKey.isVisible({ timeout: 3000 }).catch(() => false)) {
       await weakKey.click();
-      await page.waitForTimeout(400);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       // Should navigate or open a modal — no crash
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));

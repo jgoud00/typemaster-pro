@@ -11,7 +11,7 @@ async function openSyncPage(page: Page) {
   await seedUserProgress(page);
   const syncRoute = ROUTES.sync;
   await page.goto(syncRoute);
-  await page.waitForTimeout(600);
+  await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
   // If sync is a modal/section on dashboard, navigate there
   const syncLink = page.locator(
@@ -19,7 +19,7 @@ async function openSyncPage(page: Page) {
   ).first();
   if (await syncLink.isVisible({ timeout: 2000 }).catch(() => false)) {
     await syncLink.click();
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
   }
 }
 
@@ -27,6 +27,11 @@ async function openSyncPage(page: Page) {
 //  SYNC PAGE / MODAL
 // ─────────────────────────────────────────────
 test.describe("Sync UI", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("sync section mounts without errors", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -67,7 +72,7 @@ test.describe("Sync UI", () => {
 
     if (await copyBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
       await copyBtn.click();
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       // Look for a "Copied!" confirmation
       const copied = page.locator('text=/copied/i, [data-testid="copy-success"]').first();
       const appeared =
@@ -195,7 +200,7 @@ test.describe("Data Export & Import", () => {
     if (await importBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
       // Click import — this should trigger a file input
       await importBtn.click({ force: true });
-      await page.waitForTimeout(300);
+      await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
       const inputCount = await fileInput.count();
       expect(inputCount).toBeGreaterThanOrEqual(0); // file input may be hidden
     }
@@ -222,7 +227,7 @@ test.describe("Data Export & Import", () => {
       );
     }, backupData);
 
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
 
@@ -236,7 +241,7 @@ test.describe("Data Export & Import", () => {
         new CustomEvent("import-backup", { detail: { data: "{bad json" } })
       );
     });
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     expect(errors.filter((e) => !e.includes("Warning:"))).toHaveLength(0);
   });
@@ -258,7 +263,7 @@ test.describe("Offline Mode", () => {
     await context.setOffline(true);
     // Trigger offline event manually if playwright doesn't
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     // App is purely client-side; offline should not break basic UI
     const body = await page.locator("body").isVisible();
@@ -282,7 +287,7 @@ test.describe("Offline Mode", () => {
     await openSyncPage(page);
     await context.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 
     const offlineMsg = page.locator(
       'text=/offline|no connection|unavailable/i, [data-testid="offline-warning"]'

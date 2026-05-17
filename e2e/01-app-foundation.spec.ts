@@ -10,6 +10,11 @@ import { AppPage, ROUTES } from "./helpers";
 //  LAYOUT & ROOT RENDERING
 // ─────────────────────────────────────────────
 test.describe("App Layout & Root Rendering", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
   test("root '/' renders without a crash", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
@@ -53,7 +58,7 @@ test.describe("App Layout & Root Rendering", () => {
     });
     await page.goto("/");
     await page.waitForLoadState("load");
-    await page.waitForTimeout(1000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     expect(failedImages).toHaveLength(0);
   });
  
@@ -146,7 +151,7 @@ test.describe("React 19 Hydration", () => {
       }
     });
     await page.goto("/");
-    await page.waitForTimeout(2000);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     expect(hydrationErrors).toHaveLength(0);
   });
  
@@ -165,7 +170,7 @@ test.describe("React 19 Hydration", () => {
  
   test("Zustand state is initialised after hydration", async ({ page }) => {
     await page.goto("/");
-    await page.waitForTimeout(1500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
  
     const hasZustand = await page.evaluate(() => {
       // Zustand persists; check if localStorage key exists
@@ -202,7 +207,7 @@ test.describe("Theme System", () => {
       localStorage.setItem("typemaster-settings", JSON.stringify({ theme: "dark" }));
     });
     await page.reload();
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
  
     const htmlClass = await page.locator("html").getAttribute("class");
     const bodyClass = await page.locator("body").getAttribute("class");
@@ -219,7 +224,7 @@ test.describe("Responsive Layout", () => {
   test("renders on 375px mobile width without overflow", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
  
     const bodyWidth = await page.evaluate(
       () => document.body.scrollWidth
@@ -230,7 +235,7 @@ test.describe("Responsive Layout", () => {
   test("renders on 1440px desktop without layout shift", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
-    await page.waitForTimeout(500);
+    await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
  
     const hasHScroll = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth
