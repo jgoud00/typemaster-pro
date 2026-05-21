@@ -69,7 +69,7 @@ export function HeroBanner({
                                 </div>
 
                                 <div className="flex items-center gap-3 flex-wrap">
-                                    <Link href="/lessons/lesson-1">
+                                    <Link href="/lessons/home-1-fj">
                                         <Button
                                             size="lg"
                                             className="h-11 px-7 font-bold shadow-lg shadow-primary/25 hover:shadow-primary/50 transition-all duration-200"
