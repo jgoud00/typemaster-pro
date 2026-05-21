@@ -11,31 +11,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useGameStore } from '@/stores/game-store';
-import { createClient } from '@/lib/supabase/client';
-import { logout } from '@/app/auth/actions';
-import { User } from '@supabase/supabase-js';
 
 function SiteHeaderComponent() {
     const pathname = usePathname();
     const { game } = useGameStore();
     const [isMoreOpen, setIsMoreOpen] = useState(false);
     const moreRef = useRef<HTMLDivElement>(null);
-    const [user, setUser] = useState<User | null>(null);
-    const supabase = createClient();
 
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            setUser(user);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, [supabase.auth]);
-
-    // Close dropdown on click outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
@@ -62,7 +44,7 @@ function SiteHeaderComponent() {
                 {/* Navigation */}
                 <nav className="flex items-center gap-2 md:gap-4" aria-label="Main Navigation">
 
-                    {/* Streak Badge (Always visible) */}
+                    {/* Streak Badge */}
                     {game.dailyStreak > 0 && (
                         <div className="hidden md:flex items-center gap-1.5 text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 mr-2">
                             <Flame className="w-4 h-4 fill-current animate-pulse" />
@@ -130,30 +112,6 @@ function SiteHeaderComponent() {
                                         <DropdownItem href="/achievements" icon={<Star className="w-4 h-4" />} label="Achievements" onClick={() => setIsMoreOpen(false)} />
                                         <div className="h-px bg-white/10 my-1" />
                                         <DropdownItem href="/about" icon={<Info className="w-4 h-4" />} label="About" onClick={() => setIsMoreOpen(false)} />
-
-                                        {/* Mobile auth controls */}
-                                        <div className="md:hidden">
-                                            <div className="h-px bg-white/10 my-1" />
-                                            {user ? (
-                                                <>
-                                                    <div className="flex items-center gap-2 px-3 py-2">
-                                                        <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary uppercase">
-                                                            {(user.user_metadata?.username || user.email || '?')[0]}
-                                                        </div>
-                                                        <span className="text-sm font-medium text-white truncate">
-                                                            {user.user_metadata?.username || user.email?.split('@')[0] || 'User'}
-                                                        </span>
-                                                    </div>
-                                                    <form action={logout}>
-                                                        <button type="submit" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm text-red-400 w-full">
-                                                            Log Out
-                                                        </button>
-                                                    </form>
-                                                </>
-                                            ) : (
-                                                <DropdownItem href="/login" icon={<Settings className="w-4 h-4" />} label="Log In" onClick={() => setIsMoreOpen(false)} />
-                                            )}
-                                        </div>
                                     </div>
                                 </motion.div>
                             )}
@@ -161,34 +119,6 @@ function SiteHeaderComponent() {
                     </div>
 
                     <div className="w-px h-6 bg-white/10 mx-1" />
-
-                    {/* Auth Status */}
-                    {user ? (
-                        <div className="hidden md:flex items-center gap-2">
-                            <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/5 border border-white/10">
-                                <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary uppercase">
-                                    {(user.user_metadata?.username || user.email || '?')[0]}
-                                </div>
-                                <span className="text-xs font-medium text-white max-w-[100px] truncate">
-                                    {user.user_metadata?.username || user.email?.split('@')[0] || 'User'}
-                                </span>
-                            </div>
-                            <form action={logout}>
-                                <Button variant="ghost" size="sm" type="submit" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs px-2 focus-ring">
-                                    Log Out
-                                </Button>
-                            </form>
-                        </div>
-                    ) : (
-                        <Link href="/login" className="focus-ring rounded-md">
-                            <Button variant="default" size="sm" className="hidden md:flex">
-                                Log In
-                            </Button>
-                        </Link>
-                    )}
-
-                    {/* Divider before Settings */}
-                    <div className="hidden md:block w-px h-6 bg-white/10 ml-2" />
 
                     {/* Settings */}
                     <Link href="/settings" className="focus-ring rounded-md">

@@ -29,8 +29,7 @@ import toast from 'react-hot-toast';
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
 import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
-import { createClient } from '@/lib/supabase/client';
-import { submitSessionToSupabase } from '@/lib/supabase/leaderboard';
+
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
 // --- Practice Hub Component ---
@@ -242,30 +241,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             date: Date.now()
         });
 
-        // Submit to global leaderboard if authenticated
-        try {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                submitSessionToSupabase(user.id, {
-                    wpm: record.wpm,
-                    accuracy: record.accuracy,
-                    duration: record.duration,
-                    mode: mode || 'free',
-                    maxCombo: record.maxCombo,
-                    score: record.score,
-                    totalChars: record.totalChars,
-                    errors: record.errors,
-                    cheatScore: record.cheatScore,
-                    isValid: record.valid,
-                }).catch(e => console.error('[Practice] Failed to submit to global leaderboard:', e));
 
-                // Refresh global leaderboard
-                useLeaderboardStore.getState().fetchGlobalLeaderboard();
-            }
-        } catch (e) {
-            // Non-blocking
-        }
 
         setIsComplete(true);
         fireLessonComplete();
