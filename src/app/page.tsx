@@ -12,7 +12,7 @@ import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { cn } from '@/lib/utils';
-import { WelcomeModal } from '@/components/onboarding/WelcomeModal';
+
 import { HeroBanner } from '@/components/dashboard/HeroBanner';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
@@ -112,7 +112,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <WelcomeModal />
+
       <SiteHeader />
 
       <main className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
