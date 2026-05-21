@@ -48,6 +48,8 @@ const selectCursorStyle = (s: ReturnType<typeof useSettingsStore.getState>) =>
     s.settings.cursorStyle;
 const selectSmoothCaret = (s: ReturnType<typeof useSettingsStore.getState>) =>
     s.settings.smoothCaret;
+const selectFontSize = (s: ReturnType<typeof useSettingsStore.getState>) =>
+    s.settings.fontSize;
 
 function TypingAreaComponent({ className }: TypingAreaProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
     // Granular settings selectors — no full-object re-subscription.
     const cursorStyle = useSettingsStore(selectCursorStyle);
     const smoothCaret = useSettingsStore(selectSmoothCaret);
+    const fontSize = useSettingsStore(selectFontSize);
 
     // Primitive store slices only.
     const text = useTypingStore(s => s.state.text);
@@ -115,11 +118,7 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
         };
     }, []);
 
-    // errorSet: only rebuild when errorIndices array length changes. Contents
-    // only grow (no item removed mid-session), so length equality guards suffice.
-    const errorCount = errorIndices.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const errorSet = useMemo(() => new Set(errorIndices), [errorCount]);
+    const errorSet = useMemo(() => new Set(errorIndices), [errorIndices]);
 
     const progress = text.length > 0 ? Math.round((currentIndex / text.length) * 100) : 0;
 
@@ -209,7 +208,8 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                     aria-live="polite"
                     className={cn(
                         'relative min-h-[180px] overflow-hidden',
-                        'text-[2.5rem] leading-relaxed font-mono text-center focus:outline-none',
+                        'leading-relaxed font-mono text-center focus:outline-none',
+                        fontSize === 'small' ? 'text-[1.75rem]' : fontSize === 'large' ? 'text-[3rem]' : 'text-[2.5rem]',
                         showFocusOverlay && 'blur-sm select-none'
                     )}
                 >

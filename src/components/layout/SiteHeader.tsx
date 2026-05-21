@@ -49,14 +49,14 @@ function SiteHeaderComponent() {
     const isActive = (path: string) => pathname === path;
 
     return (
-        <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
+        <header className="glass-header sticky top-0 z-40 shadow-lg">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group focus-ring rounded-lg outline-none pr-2">
                     <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
                         <Keyboard className="w-6 h-6 text-primary" />
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight text-white">Aloo Type</h1>
+                    <span className="text-xl font-bold tracking-tight text-white">Aloo Type</span>
                 </Link>
 
                 {/* Navigation */}
@@ -72,14 +72,24 @@ function SiteHeaderComponent() {
 
                     {/* Primary Nav Items */}
                     <Link href="/lessons" className="focus-ring rounded-md">
-                        <Button variant={isActive('/lessons') ? "secondary" : "ghost"} size="sm" className="hidden md:flex text-white hover:text-white">
+                        <Button variant="ghost" size="sm" className={cn(
+                            "hidden md:flex",
+                            isActive('/lessons')
+                                ? "text-(--color-primary) bg-primary/10 hover:bg-primary/15"
+                                : "text-(--color-content-secondary) hover:text-(--color-content-primary)"
+                        )}>
                             <BookOpen className="w-4 h-4 mr-2" />
                             Lessons
                         </Button>
                     </Link>
 
                     <Link href="/stats" className="focus-ring rounded-md">
-                        <Button variant={isActive('/stats') ? "secondary" : "ghost"} size="sm" className="hidden md:flex text-white hover:text-white">
+                        <Button variant="ghost" size="sm" className={cn(
+                            "hidden md:flex",
+                            isActive('/stats')
+                                ? "text-(--color-primary) bg-primary/10 hover:bg-primary/15"
+                                : "text-(--color-content-secondary) hover:text-(--color-content-primary)"
+                        )}>
                             <TrendingUp className="w-4 h-4 mr-2" />
                             Stats
                         </Button>
@@ -91,7 +101,7 @@ function SiteHeaderComponent() {
                             variant="ghost"
                             size="sm"
                             aria-label="More Options"
-                            className={cn("gap-1 text-text-secondary text-sm hover:text-text-primary focus-ring", isMoreOpen && "bg-accent text-accent-foreground")}
+                            className={cn("gap-1 text-(--color-content-secondary) text-sm hover:text-(--color-content-primary) focus-ring", isMoreOpen && "bg-accent text-accent-foreground")}
                             onClick={() => setIsMoreOpen(!isMoreOpen)}
                         >
                             <span className="hidden md:inline">More</span>
@@ -120,6 +130,30 @@ function SiteHeaderComponent() {
                                         <DropdownItem href="/achievements" icon={<Star className="w-4 h-4" />} label="Achievements" onClick={() => setIsMoreOpen(false)} />
                                         <div className="h-px bg-white/10 my-1" />
                                         <DropdownItem href="/about" icon={<Info className="w-4 h-4" />} label="About" onClick={() => setIsMoreOpen(false)} />
+
+                                        {/* Mobile auth controls */}
+                                        <div className="md:hidden">
+                                            <div className="h-px bg-white/10 my-1" />
+                                            {user ? (
+                                                <>
+                                                    <div className="flex items-center gap-2 px-3 py-2">
+                                                        <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary uppercase">
+                                                            {(user.user_metadata?.username || user.email || '?')[0]}
+                                                        </div>
+                                                        <span className="text-sm font-medium text-white truncate">
+                                                            {user.user_metadata?.username || user.email?.split('@')[0] || 'User'}
+                                                        </span>
+                                                    </div>
+                                                    <form action={logout}>
+                                                        <button type="submit" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm text-red-400 w-full">
+                                                            Log Out
+                                                        </button>
+                                                    </form>
+                                                </>
+                                            ) : (
+                                                <DropdownItem href="/login" icon={<Settings className="w-4 h-4" />} label="Log In" onClick={() => setIsMoreOpen(false)} />
+                                            )}
+                                        </div>
                                     </div>
                                 </motion.div>
                             )}
@@ -159,7 +193,7 @@ function SiteHeaderComponent() {
                     {/* Settings */}
                     <Link href="/settings" className="focus-ring rounded-md">
                         <Button variant="ghost" size="icon" aria-label="Settings" className="hover:rotate-45 transition-transform duration-300">
-                            <Settings className="w-5 h-5 text-text-secondary hover:text-text-primary" />
+                            <Settings className="w-5 h-5 text-(--color-content-secondary) hover:text-(--color-content-primary)" />
                         </Button>
                     </Link>
                 </nav>

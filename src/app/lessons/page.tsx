@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronDown, BookOpen } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { cn } from '@/lib/utils';
 import { LessonPath } from '@/components/lessons/lesson-journey';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 
 export default function LessonsPage() {
     const { progress } = useProgressStore();
@@ -43,20 +43,15 @@ export default function LessonsPage() {
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-                    <Link href="/">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div className="flex items-center gap-3">
-                        <BookOpen className="w-6 h-6 text-primary" />
-                        <h1 className="text-xl font-bold">Lesson Curriculum</h1>
-                    </div>
-                </div>
-            </header>
+            {/* Global progress bar */}
+            <div className="fixed top-16 left-0 right-0 z-30 h-[3px] bg-(--color-border-subtle)">
+                <div
+                    className="h-full bg-(--color-primary) transition-all duration-700"
+                    style={{ width: `${overallProgress}%` }}
+                />
+            </div>
+
+            <SiteHeader />
 
             <main className="container mx-auto px-4 py-8 space-y-6">
                 {/* Progress Overview */}
@@ -68,7 +63,7 @@ export default function LessonsPage() {
                         <CardContent className="p-6">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-bold mb-1">
+                                    <h2 className="font-display text-2xl font-bold mb-1 text-(--color-content-primary)">
                                         {completedCount} of {totalLessons} Lessons Complete
                                     </h2>
                                     <p className="text-muted-foreground">
@@ -110,8 +105,11 @@ export default function LessonsPage() {
                                     isExpanded && 'ring-2 ring-primary/20'
                                 )}>
                                     <CardHeader
-                                        className="pb-3"
+                                        className="pb-3 cursor-pointer"
                                         onClick={() => toggleCategory(category.id)}
+                                        role="button"
+                                        aria-expanded={isExpanded}
+                                        aria-controls={`category-${category.id}`}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -148,6 +146,7 @@ export default function LessonsPage() {
                                     <AnimatePresence>
                                         {isExpanded && (
                                             <motion.div
+                                                id={`category-${category.id}`}
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
                                                 exit={{ height: 0, opacity: 0 }}
@@ -158,6 +157,10 @@ export default function LessonsPage() {
                                                         lessons={categoryLessons}
                                                         completedLessonIds={progress.completedLessons}
                                                         lessonScores={progress.lessonScores}
+                                                        categoryName={category.name}
+                                                        categoryIcon={category.icon}
+                                                        categoryLessonCount={categoryLessons.length}
+                                                        showHeader
                                                     />
                                                 </CardContent>
                                             </motion.div>

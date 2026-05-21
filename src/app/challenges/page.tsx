@@ -1,28 +1,16 @@
 'use client';
 
-import { ArrowLeft, Target } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SiteHeader } from '@/components/layout/SiteHeader';
+import { useRouter } from 'next/navigation';
 
 export default function ChallengesPage() {
     const router = useRouter();
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <Target className="w-6 h-6 text-primary" />
-                            <h1 className="text-xl font-bold">Challenges</h1>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <SiteHeader />
 
             <main className="container mx-auto px-4 py-32 flex flex-col items-center justify-center space-y-4">
                 <Target className="w-16 h-16 text-muted-foreground/50" />

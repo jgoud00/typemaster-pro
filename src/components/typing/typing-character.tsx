@@ -1,4 +1,6 @@
-import { memo } from 'react';
+'use client';
+
+import { memo, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface TypingCharacterProps {
@@ -21,6 +23,20 @@ export const TypingCharacter = memo(function TypingCharacter({
     cursorStyle,
     ref,
 }: Readonly<TypingCharacterProps>) {
+    const [showCorrectFlash, setShowCorrectFlash] = useState(false);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Trigger bounce when char transitions to correct
+    useEffect(() => {
+        if (isTyped && !isError) {
+            setShowCorrectFlash(true);
+            timerRef.current = setTimeout(() => setShowCorrectFlash(false), 120);
+        }
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, [isTyped, isError]);
+
     return (
         <span
             ref={isCurrent ? ref : undefined}
@@ -28,23 +44,26 @@ export const TypingCharacter = memo(function TypingCharacter({
             aria-label={isCurrent ? `Next character: ${char === ' ' ? 'space' : char}` : undefined}
             className={cn(
                 'relative inline-block',
-                // Error shake — pure CSS, no JS animation frame
                 isError && isCurrent && 'animate-char-shake',
-                // Correct flash — pure CSS keyframe, skipped for untouched chars
+                showCorrectFlash && 'animate-char-correct',
                 isTyped && !isError && 'char-correct',
                 isCurrent && 'char-active',
                 isTyped && isError && 'char-error',
                 !isTyped && !isCurrent && 'char-untyped',
             )}
         >
-            {/* Caret — rendered only on the active character. No Framer overhead. */}
+            {/* Caret — cyan glow pulse, no Framer overhead */}
             {isCurrent && (
                 <span
                     className={cn(
-                        'absolute left-0 top-[10%] w-[3px] h-[80%] bg-yellow-500 rounded-sm shadow-[0_0_8px_rgba(234,179,8,0.5)] caret-blink',
+                        'absolute left-0 top-[10%] w-[3px] h-[80%] rounded-sm caret-glow',
+                        'bg-(--color-primary)',
                         cursorStyle === 'block' && 'w-full opacity-30',
                         cursorStyle === 'underline' && 'top-auto bottom-0 h-[3px] w-full',
                     )}
+                    style={{
+                        boxShadow: '0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent)',
+                    }}
                 />
             )}
 

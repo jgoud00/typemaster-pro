@@ -3,145 +3,103 @@
 import { motion } from 'framer-motion';
 import { Lesson, LessonScore } from '@/types';
 import { cn } from '@/lib/utils';
-import { Star, Lock, Play, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Lock, Play } from 'lucide-react';
 import Link from 'next/link';
 import { getPreviousLesson } from '@/lib/lessons';
 
-// Full standard QWERTY layout for the mini preview
-const KEYBOARD_ROWS = [
-    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']'],
-    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"],
-    ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/']
-];
-
-interface MiniKeyboardPreviewProps {
-    activeKeys: string[];
-    className?: string; // Add className prop
-}
-
-function MiniKeyboardPreview({ activeKeys, className }: MiniKeyboardPreviewProps) { // Accept className
-    const activeSet = new Set(activeKeys.map(k => k.toLowerCase()));
-
-    return (
-        <div className={cn("flex flex-col gap-0.5 w-full max-w-[120px]", className)}> {/* Use className */}
-            {KEYBOARD_ROWS.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex justify-center gap-0.5">
-                    {row.map((key) => {
-                        const isActive = activeSet.has(key);
-                        return (
-                            <div
-                                key={key}
-                                className={cn(
-                                    "w-1.5 h-1.5 rounded-[1px] transition-colors",
-                                    isActive ? "bg-primary shadow-[0_0_4px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/20"
-                                )}
-                            />
-                        );
-                    })}
-                </div>
-            ))}
-            {/* Space bar */}
-            <div className="flex justify-center mt-0.5">
-                <div className={cn(
-                    "w-12 h-1.5 rounded-[1px] transition-colors",
-                    activeSet.has(' ') ? "bg-primary shadow-[0_0_4px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/20"
-                )} />
-            </div>
-        </div>
-    );
-}
-
-interface LessonNodeProps {
+interface LessonCardProps {
     lesson: Lesson;
     score?: LessonScore;
     isLocked: boolean;
     isCompleted: boolean;
+    isCurrent: boolean;
     index: number;
 }
 
-export function LessonNode({ lesson, score, isLocked, isCompleted, index }: LessonNodeProps) {
+function DifficultyDots({ level }: { level: number }) {
+    return (
+        <div className="flex items-center gap-1">
+            {[1, 2, 3].map((dot) => (
+                <div
+                    key={dot}
+                    className={cn(
+                        'w-2 h-2 rounded-full transition-colors',
+                        dot <= level
+                            ? 'bg-(--color-primary)'
+                            : 'bg-(--color-border-subtle)'
+                    )}
+                />
+            ))}
+        </div>
+    );
+}
+
+function LessonCard({ lesson, score, isLocked, isCompleted, isCurrent, index }: LessonCardProps) {
+    const difficulty = Math.min(3, Math.max(1, Math.ceil((index + 1) / 3)));
+
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            className="relative z-10"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.04, duration: 0.3 }}
         >
-            <Link href={isLocked ? '#' : `/lessons/${lesson.id}`}>
+            <Link href={isLocked ? '#' : `/lessons/${lesson.id}`} tabIndex={isLocked ? -1 : 0}>
                 <div className="relative group">
-                    {(!isLocked && !isCompleted) && (
-                        <motion.div 
-                            className="absolute -inset-1 rounded-xl border-2 border-primary/50 pointer-events-none"
-                            animate={{ scale: [1, 1.05, 1], opacity: [0.5, 0, 0.5] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                        />
+                    {/* Pulse ring for current lesson */}
+                    {isCurrent && (
+                        <div className="absolute inset-[-3px] rounded-xl ring-2 ring-primary/30 animate-pulse pointer-events-none" />
                     )}
-                    <div className="absolute -top-3 -left-3 z-20">
-                        <div className="w-6 h-6 rounded-full bg-background border flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-sm">
-                            {index + 1}
+
+                    {/* Completion badge */}
+                    {isCompleted && (
+                        <div className="absolute top-2.5 right-2.5 z-10 text-(--color-success)">
+                            <CheckCircle2 className="w-4 h-4" />
                         </div>
-                    </div>
-                    <div className={cn(
-                        "group relative w-64 p-4 rounded-xl border transition-all duration-300",
-                        isLocked
-                            ? "bg-slate-900 border-slate-700 opacity-50 cursor-not-allowed grayscale"
-                            : "bg-card/40 border-white/10 hover:border-primary/50 hover:bg-card/60 hover:shadow-lg hover:shadow-primary/5 cursor-pointer backdrop-blur-md",
-                        isCompleted && "border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:border-cyan-300"
-                    )}>
-                    {/* Status Badge */}
-                    <div className="absolute -top-3 -right-3">
-                        {isCompleted ? (
-                            <div className="bg-green-500 text-white p-1.5 rounded-full shadow-lg shadow-green-500/20">
-                                <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                        ) : isLocked ? (
-                            <div className="bg-muted-foreground/20 p-1.5 rounded-full backdrop-blur-md border border-white/10">
-                                <Lock className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                        ) : (
-                            <div className="bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg shadow-primary/20 animate-pulse">
-                                <Play className="w-4 h-4 fill-current" />
-                            </div>
+                    )}
+                    {isLocked && (
+                        <div className="absolute top-2.5 right-2.5 z-10 text-(--color-content-muted)">
+                            <Lock className="w-3.5 h-3.5" />
+                        </div>
+                    )}
+                    {isCurrent && !isCompleted && (
+                        <div className="absolute top-2.5 right-2.5 z-10 text-(--color-primary)">
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                        </div>
+                    )}
+
+                    <div
+                        className={cn(
+                            'p-4 rounded-xl border transition-all duration-200 cursor-pointer select-none',
+                            isCompleted && 'bg-success/10 border-success/30 hover:border-success/50',
+                            isCurrent && !isCompleted && 'bg-primary/10 border-2 border-(--color-primary) hover:bg-primary/15',
+                            isLocked && 'bg-(--color-surface-elevated) border-(--color-border-subtle) opacity-60 cursor-not-allowed',
+                            !isCompleted && !isCurrent && !isLocked && 'bg-(--color-surface-elevated) border-(--color-border-subtle) hover:border-primary/40 hover:bg-(--color-surface-elevated)/80'
                         )}
-                    </div>
+                    >
+                        <p
+                            className={cn(
+                                'font-semibold text-sm truncate pr-5',
+                                isCompleted ? 'text-(--color-success)' : 'text-(--color-content-primary)'
+                            )}
+                        >
+                            {lesson.title}
+                        </p>
+                        <p className="text-xs text-(--color-content-muted) line-clamp-2 mt-1 leading-relaxed">
+                            {lesson.description}
+                        </p>
 
-                    <div className="space-y-3">
-                        {/* Header */}
-                        <div>
-                            <h3 className={cn("font-bold truncate pr-4", isCompleted ? "text-green-400" : "text-foreground")}>
-                                {lesson.title}
-                            </h3>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{lesson.description}</p>
+                        <div className="flex items-center justify-between mt-3">
+                            <DifficultyDots level={difficulty} />
+                            {score ? (
+                                <span className="text-xs font-mono text-(--color-primary)">
+                                    {score.bestWpm} WPM
+                                </span>
+                            ) : (
+                                <span className="text-xs font-mono text-(--color-content-muted)">
+                                    Goal: {lesson.targetWpm}
+                                </span>
+                            )}
                         </div>
-
-                        {/* Keyboard Preview */}
-                        <div className="bg-background/30 p-2 rounded-lg border border-white/5">
-                            <MiniKeyboardPreview activeKeys={lesson.keys} />
-                        </div>
-
-                        {/* Stats / Goals */}
-                        <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1">
-                                {[1, 2, 3].map((star) => (
-                                    <Star
-                                        key={star}
-                                        className={cn(
-                                            "w-3 h-3 transition-colors",
-                                            score && star <= score.stars
-                                                ? "text-yellow-400 fill-yellow-400"
-                                                : "text-muted-foreground/20"
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                            <span className={cn(
-                                "font-mono opacity-80",
-                                score ? "text-primary" : "text-muted-foreground"
-                            )}>
-                                {score ? `${score.bestWpm} WPM` : `Goal: ${lesson.targetWpm} WPM`}
-                            </span>
-                        </div>
-                    </div>
                     </div>
                 </div>
             </Link>
@@ -153,59 +111,89 @@ interface LessonPathProps {
     lessons: Lesson[];
     completedLessonIds: string[];
     lessonScores: Record<string, LessonScore>;
+    categoryName?: string;
+    categoryIcon?: string;
+    categoryLessonCount?: number;
+    globalStartIndex?: number;
+    showHeader?: boolean;
 }
 
-export function LessonPath({ lessons, completedLessonIds, lessonScores }: LessonPathProps) {
+export function LessonPath({
+    lessons,
+    completedLessonIds,
+    lessonScores,
+    categoryName,
+    categoryIcon,
+    categoryLessonCount,
+    globalStartIndex = 0,
+    showHeader = false,
+}: LessonPathProps) {
+    const completedCount = lessons.filter(l => completedLessonIds.includes(l.id)).length;
+
+    // Find the first lesson that's not completed and not locked → "current"
+    const firstCurrentIndex = lessons.findIndex((lesson, i) => {
+        const isCompleted = completedLessonIds.includes(lesson.id);
+        const previousGlobalLesson = getPreviousLesson(lesson.id);
+        const isLocked = previousGlobalLesson ? !completedLessonIds.includes(previousGlobalLesson.id) : false;
+        return !isCompleted && !isLocked;
+    });
+
     return (
-        <div className="relative flex flex-col items-center py-8 space-y-8 max-w-3xl mx-auto">
-            {/* Center Line */}
-            <div className="absolute left-[50%] top-0 bottom-0 w-1 -translate-x-1/2 hidden md:block bg-linear-to-b from-primary via-purple-500 to-surface-elevated" />
-
-            {lessons.map((lesson, index) => {
-                const isCompleted = completedLessonIds.includes(lesson.id);
-
-                // Unlock logic: 
-                // A lesson is locked if the PREVIOUS global lesson is not completed.
-                // Except the very first lesson of the entire curriculum (which has no previous).
-                const previousGlobalLesson = getPreviousLesson(lesson.id);
-                const isLocked = previousGlobalLesson ? !completedLessonIds.includes(previousGlobalLesson.id) : false;
-
-                // Alternating layout for timeline feel
-                const isLeft = index % 2 === 0;
-
-                return (
-                    <div key={lesson.id} className={cn(
-                        "relative flex w-full md:justify-between items-center group",
-                        isLeft ? "md:flex-row" : "md:flex-row-reverse"
-                    )}>
-                        {/* Desktop: Empty space for alternating layout */}
-                        <div className="hidden md:block w-5/12" />
-
-                        {/* Connector Dot */}
-                        <div className={cn(
-                            "absolute left-[50%] -translate-x-1/2 w-4 h-4 rounded-full border-4 border-background z-20 transition-colors hidden md:block",
-                            isCompleted ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
-                                : isLocked ? "bg-muted-foreground/30"
-                                    : "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)] animate-pulse"
-                        )} />
-
-                        {/* Node Container */}
-                        <div className={cn(
-                            "w-full md:w-5/12 flex",
-                            isLeft ? "md:justify-end pr-0 md:pr-8" : "md:justify-start pl-0 md:pl-8",
-                            "justify-center" // Center on mobile
-                        )}>
-                            <LessonNode
-                                lesson={lesson}
-                                score={lessonScores[lesson.id]}
-                                isLocked={isLocked}
-                                isCompleted={isCompleted}
-                                index={index}
-                            />
-                        </div>
+        <div className="space-y-4">
+            {showHeader && categoryName && (
+                <div className="mb-5">
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="text-3xl">{categoryIcon}</span>
+                        <h3 className="font-display text-xl font-bold text-(--color-content-primary)">
+                            {categoryName}
+                        </h3>
+                        <span className="bg-primary/10 text-(--color-primary) text-xs px-2 py-0.5 rounded-full">
+                            {categoryLessonCount ?? lessons.length} lessons
+                        </span>
                     </div>
-                );
-            })}
+                    <div className="border-b border-(--color-border-subtle)" />
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {lessons.map((lesson, index) => {
+                    const isCompleted = completedLessonIds.includes(lesson.id);
+                    const previousGlobalLesson = getPreviousLesson(lesson.id);
+                    const isLocked = previousGlobalLesson ? !completedLessonIds.includes(previousGlobalLesson.id) : false;
+                    const isCurrent = index === firstCurrentIndex;
+
+                    return (
+                        <LessonCard
+                            key={lesson.id}
+                            lesson={lesson}
+                            score={lessonScores[lesson.id]}
+                            isLocked={isLocked}
+                            isCompleted={isCompleted}
+                            isCurrent={isCurrent}
+                            index={globalStartIndex + index}
+                        />
+                    );
+                })}
+            </div>
         </div>
+    );
+}
+
+// Kept for backwards compatibility — not used in the new lessons page layout
+export function LessonNode({ lesson, score, isLocked, isCompleted, index }: {
+    lesson: Lesson; score?: LessonScore; isLocked: boolean; isCompleted: boolean; index: number;
+}) {
+    const previousGlobalLesson = getPreviousLesson(lesson.id);
+    const isCurrent = !isCompleted && !isLocked && !previousGlobalLesson;
+
+    return (
+        <LessonCard
+            lesson={lesson}
+            score={score}
+            isLocked={isLocked}
+            isCompleted={isCompleted}
+            isCurrent={isCurrent}
+            index={index}
+        />
     );
 }

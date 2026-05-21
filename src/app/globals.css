@@ -10,6 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -34,7 +35,6 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -211,11 +211,13 @@
   .subheading { @apply text-content-primary font-semibold; }
   .body-text { @apply text-content-secondary; }
   .caption { @apply text-content-muted text-xs; }
-  .text-text-muted { color: hsl(var(--muted-foreground)); }
+  .text-text-muted { color: var(--color-content-muted); }
+
+  .font-display { font-family: var(--font-display), var(--font-sans), system-ui, sans-serif; }
 
   /* ── Typing area word opacity — will-change promotes to compositor layer ── */
   .word-active  { opacity: 1;    will-change: opacity; }
-  .word-inactive { opacity: 0.3; will-change: opacity; }
+  .word-inactive { opacity: 0.45; will-change: opacity; }
 
   /* ── Scroll container — promote once, translateY on compositor ── */
   .typing-scroll-container {
@@ -251,10 +253,39 @@
   100%      { transform: translateX(0); }
 }
 
+/* Correct character bounce — scale only, compositor-friendly */
+@keyframes charCorrect {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* Caret glow pulse — box-shadow + opacity, replaces caretBlink */
+@keyframes caretGlow {
+  0%, 100% {
+    box-shadow: 0 0 6px var(--color-primary), 0 0 12px color-mix(in srgb, var(--color-primary) 40%, transparent);
+    opacity: 0.9;
+  }
+  50% {
+    box-shadow: none;
+    opacity: 0;
+  }
+}
+
 @layer utilities {
   .caret-blink {
     animation: caretBlink 1.2s ease-in-out infinite;
     will-change: opacity;
+  }
+
+  .caret-glow {
+    animation: caretGlow 1.2s ease-in-out infinite;
+    will-change: box-shadow, opacity;
+  }
+
+  .animate-char-correct {
+    animation: charCorrect 0.12s ease-out forwards;
+    will-change: transform;
   }
 
   .animate-char-shake {

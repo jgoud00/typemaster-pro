@@ -70,7 +70,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="username" 
                 type="text" 
                 maxLength={20}
-                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
+                className="bg-(--color-surface-elevated) text-(--color-content-primary) border border-(--color-border-subtle) focus:border-(--color-primary) focus:ring-2 focus:ring-primary/20 placeholder:text-(--color-content-muted)" 
                 placeholder="typingmaster42" 
               />
             </div>
@@ -81,7 +81,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 name="email" 
                 type="email" 
                 required 
-                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
+                className="bg-(--color-surface-elevated) text-(--color-content-primary) border border-(--color-border-subtle) focus:border-(--color-primary) focus:ring-2 focus:ring-primary/20 placeholder:text-(--color-content-muted)" 
                 placeholder="you@example.com" 
               />
             </div>
@@ -96,18 +96,18 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 id="password" 
                 name="password" 
                 required 
-                className="bg-slate-900 text-slate-100 border border-slate-700 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 placeholder:text-text-muted" 
+                className="bg-(--color-surface-elevated) text-(--color-content-primary) border border-(--color-border-subtle) focus:border-(--color-primary) focus:ring-2 focus:ring-primary/20 placeholder:text-(--color-content-muted)" 
                 placeholder="••••••••"
               />
             </div>
             
             {params?.error && (
-              <div className="p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-medium">
+              <div className="p-3 rounded bg-error/10 border border-error/20 text-(--color-error) text-sm text-center font-medium">
                 {params.error}
               </div>
             )}
             {params?.message && (
-              <div className="p-3 rounded bg-green-500/10 border border-green-500/20 text-green-400 text-sm text-center font-medium">
+              <div className="p-3 rounded bg-success/10 border border-success/20 text-(--color-success) text-sm text-center font-medium">
                 {params.message}
               </div>
             )}

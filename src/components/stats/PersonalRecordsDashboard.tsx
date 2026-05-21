@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Trophy, Star, Target, Flame } from 'lucide-react';
 import { useProgressStore } from '@/stores/progress-store';
@@ -12,13 +12,14 @@ export const PersonalRecordsDashboard = React.memo(() => {
     const bestAccuracy = progress.personalBests?.accuracy || 0;
     const bestStreak = game.maxCombo || 0;
 
+    const [now] = useState(() => Date.now());
     const weeklyBestWpm = useMemo(() => {
         if (!progress.records) return 0;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+         
+        const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
         const weeklyRecords = progress.records.filter(r => r.timestamp >= oneWeekAgo);
         return weeklyRecords.length > 0 ? Math.max(...weeklyRecords.map(r => r.wpm)) : 0;
-    }, [progress.records]);
+    }, [progress.records, now]);
 
     const top5Lessons = useMemo(() => {
         if (!progress.records) return [];

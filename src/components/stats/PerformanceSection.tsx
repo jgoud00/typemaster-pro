@@ -110,8 +110,8 @@ export default function PerformanceSection({
                                             />
                                             <Tooltip
                                                 contentStyle={{
-                                                    backgroundColor: 'hsl(var(--card))',
-                                                    border: '1px solid hsl(var(--border))',
+                                                    backgroundColor: 'var(--color-surface)',
+                                                    border: '1px solid var(--color-border-subtle)',
                                                     borderRadius: '8px',
                                                 }}
                                                 formatter={(value) => [`${value} WPM`, 'Speed']}
@@ -171,8 +171,8 @@ export default function PerformanceSection({
                                             />
                                             <Tooltip
                                                 contentStyle={{
-                                                    backgroundColor: 'hsl(var(--card))',
-                                                    border: '1px solid hsl(var(--border))',
+                                                    backgroundColor: 'var(--color-surface)',
+                                                    border: '1px solid var(--color-border-subtle)',
                                                     borderRadius: '8px',
                                                 }}
                                                 formatter={(value) => [`${value}%`, 'Accuracy']}

@@ -64,8 +64,8 @@ export function LiveFlowGraph({
             areaPoints: `${line} ${width},${height} 0,${height}`,
             lastY: lY,
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [smoothedData]);
+     
+    }, [smoothedData, lastIdx]);
 
     if (smoothedData.length < 2) return null;
 

@@ -2,38 +2,71 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ArrowLeft,
     Trophy,
-    BarChart3,
     RotateCcw,
     AlertTriangle,
+    Zap,
+    Target,
+    Clock,
+    Flame,
+    ChevronDown,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { PersonalRecordsDashboard } from '@/components/stats/PersonalRecordsDashboard';
+import { SiteHeader } from '@/components/layout/SiteHeader';
+import { cn } from '@/lib/utils';
 
-// Lazy load Recharts components
 const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceSection'), {
-    loading: () => <div className="h-[400px] w-full bg-muted/10 animate-pulse rounded-xl" />,
+    loading: () => <div className="h-[400px] w-full bg-white/5 animate-pulse rounded-xl" />,
     ssr: false,
 });
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
-const KeyboardHeatmap = dynamic(() => import('@/components/stats/KeyboardHeatmap').then(mod => mod.KeyboardHeatmap), { ssr: false });
-import { cn } from '@/lib/utils';
+const KeyboardHeatmap = dynamic(
+    () => import('@/components/stats/KeyboardHeatmap').then(mod => mod.KeyboardHeatmap),
+    { ssr: false }
+);
 
-// Get color based on accuracy
-function getAccuracyColor(accuracy: number | null): string {
-    if (accuracy === null) return 'bg-muted/50 text-muted-foreground';
-    if (accuracy >= 95) return 'bg-green-500/20 text-green-400 border-green-500/50';
-    if (accuracy >= 85) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-    if (accuracy >= 70) return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
-    return 'bg-red-500/20 text-red-400 border-red-500/50';
+type Timeframe = '7D' | '30D' | 'All';
+
+function formatTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+}
+
+interface SummaryCardProps {
+    label: string;
+    value: string | number;
+    icon: React.ReactNode;
+    accentColor: string;
+}
+
+function SummaryCard({ label, value, icon, accentColor }: SummaryCardProps) {
+    return (
+        <div
+            className="relative rounded-2xl p-5 border border-(--color-border-subtle) bg-(--color-surface-elevated) overflow-hidden"
+            style={{ borderTop: `2px solid ${accentColor}` }}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-widest text-(--color-content-muted) mt-1 mb-2">
+                        {label}
+                    </p>
+                    <p className="text-3xl font-black font-mono text-(--color-content-primary) leading-none truncate">
+                        {value}
+                    </p>
+                </div>
+                <div className="mt-0.5 shrink-0" style={{ color: accentColor }}>
+                    {icon}
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default function StatsPage() {
@@ -42,7 +75,10 @@ export default function StatsPage() {
     const game = useGameStore(s => s.game);
     const resetGame = useGameStore(s => s.resetGame);
     const { keyStats, clearSession } = useAnalyticsStore();
+
     const [showResetModal, setShowResetModal] = useState(false);
+    const [timeframe, setTimeframe] = useState<Timeframe>('30D');
+    const [dangerOpen, setDangerOpen] = useState(false);
 
     const handleResetStats = () => {
         resetProgress();
@@ -56,18 +92,24 @@ export default function StatsPage() {
         router.refresh();
     };
 
-    // Calculate stats
     const totalTimeSeconds = progress.totalPracticeTime || 0;
     const totalKeystrokes = progress.totalKeystrokes || 0;
     const hasPracticeData = totalTimeSeconds > 0;
 
-    // Generate chart data from actual records
     const wpmData = progress.records?.slice(-30).map((record, i) => ({
         session: i + 1,
         wpm: record.wpm,
         accuracy: record.accuracy,
         date: new Date(record.timestamp).toLocaleDateString(),
     })) || [];
+
+    const HEATMAP_LEGEND = [
+        { color: 'var(--color-success)', label: 'Fast' },
+        { color: '#84CC16', label: '' },
+        { color: 'var(--color-warning)', label: '' },
+        { color: '#F97316', label: '' },
+        { color: 'var(--color-error)', label: 'Slow' },
+    ];
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
@@ -85,37 +127,31 @@ export default function StatsPage() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="relative z-10 bg-card border rounded-xl p-6 max-w-md mx-4 shadow-2xl"
+                        className="relative z-10 bg-(--color-surface-elevated) border border-(--color-border-subtle) rounded-xl p-6 max-w-md mx-4 shadow-2xl"
                     >
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 rounded-full bg-red-500/20">
-                                <AlertTriangle className="w-6 h-6 text-red-500" />
+                            <div className="p-3 rounded-full bg-(--color-error)/20">
+                                <AlertTriangle className="w-6 h-6 text-(--color-error)" />
                             </div>
-                            <h3 className="text-xl font-bold">Reset All Statistics?</h3>
+                            <h3 className="text-xl font-bold text-(--color-content-primary)">Reset All Statistics?</h3>
                         </div>
-                        <p className="text-muted-foreground mb-6">
+                        <p className="text-(--color-content-secondary) mb-4">
                             This will permanently delete all your progress, including:
                         </p>
-                        <ul className="text-sm text-muted-foreground mb-6 space-y-2">
-                            <li className="flex items-center gap-2">• Completed lessons and scores</li>
-                            <li className="flex items-center gap-2">• Personal best records (WPM, accuracy, combo)</li>
-                            <li className="flex items-center gap-2">• Practice time and keystroke history</li>
-                            <li className="flex items-center gap-2">• Daily streak and achievements</li>
+                        <ul className="text-sm text-(--color-content-muted) mb-6 space-y-1.5">
+                            <li>• Completed lessons and scores</li>
+                            <li>• Personal best records (WPM, accuracy, combo)</li>
+                            <li>• Practice time and keystroke history</li>
+                            <li>• Daily streak and achievements</li>
                         </ul>
-                        <p className="text-sm text-red-400 mb-6 font-medium">
+                        <p className="text-sm text-(--color-error) mb-6 font-medium">
                             ⚠️ This action cannot be undone!
                         </p>
                         <div className="flex gap-3 justify-end">
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowResetModal(false)}
-                            >
+                            <Button variant="outline" onClick={() => setShowResetModal(false)}>
                                 Cancel
                             </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleResetStats}
-                            >
+                            <Button variant="destructive" onClick={handleResetStats}>
                                 <RotateCcw className="w-4 h-4 mr-2" />
                                 Reset Everything
                             </Button>
@@ -124,127 +160,145 @@ export default function StatsPage() {
                 </div>
             )}
 
-            {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <BarChart3 className="w-6 h-6 text-primary" />
-                            <h1 className="text-xl font-bold">Statistics</h1>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                            onClick={() => setShowResetModal(true)}
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Reset Stats
-                        </Button>
-                    </div>
-                </div>
-            </header>
+            <SiteHeader />
 
-            <main className="container mx-auto px-4 py-8 space-y-8">
-                {/* Overview Dashboards */}
+            <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl">
+
+                {/* ── ZONE 1: Summary Row ── */}
                 <section>
-                    <h2 className="text-lg font-semibold mb-4">Personal Best Records</h2>
-                    <PersonalRecordsDashboard />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <SummaryCard
+                            label="Best WPM"
+                            value={progress.personalBests?.wpm || 0}
+                            icon={<Zap className="w-5 h-5" />}
+                            accentColor="var(--color-primary)"
+                        />
+                        <SummaryCard
+                            label="Best Accuracy"
+                            value={`${progress.personalBests?.accuracy || 0}%`}
+                            icon={<Target className="w-5 h-5" />}
+                            accentColor="var(--color-success)"
+                        />
+                        <SummaryCard
+                            label="Total Practice"
+                            value={formatTime(totalTimeSeconds)}
+                            icon={<Clock className="w-5 h-5" />}
+                            accentColor="#EAB308"
+                        />
+                        <SummaryCard
+                            label="Daily Streak"
+                            value={`${game.dailyStreak ?? 0}d`}
+                            icon={<Flame className="w-5 h-5" />}
+                            accentColor="#F97316"
+                        />
+                    </div>
                 </section>
 
-                {/* Performance Charts */}
-                <PerformanceSection
-                    wpmData={wpmData}
-                    hasPracticeData={hasPracticeData}
-                    totalTimeSeconds={totalTimeSeconds}
-                    totalKeystrokes={totalKeystrokes}
-                    sessionsCount={progress.records?.length || 0}
-                    completedLessonsCount={progress.completedLessons?.length || 0}
-                />
-
-                {/* Keyboard Heatmap */}
+                {/* ── ZONE 2: Charts ── */}
                 <section>
-                    <h2 className="text-lg font-semibold mb-4">Keyboard Accuracy Heatmap</h2>
-                    <Card className="overflow-hidden bg-black/20 border-white/10">
-                        <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-purple-500/5 pointer-events-none" />
-                        <CardHeader>
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    <CardTitle>Per-Key Performance</CardTitle>
-                                    <CardDescription>
-                                        Visual representation of your typing accuracy.
-                                    </CardDescription>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" /> Mastered</div>
-                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" /> Good</div>
-                                    <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" /> Problem</div>
-                                </div>
+                    <div className="rounded-2xl border border-(--color-border-subtle) bg-(--color-surface-elevated) p-6 space-y-5">
+                        <div className="flex items-center justify-between flex-wrap gap-3">
+                            <h2 className="font-display text-lg font-bold text-(--color-content-primary)">
+                                Performance Over Time
+                            </h2>
+                            {/* Timeframe toggle */}
+                            <div className="flex items-center gap-1 p-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface)">
+                                {(['7D', '30D', 'All'] as Timeframe[]).map((tf) => (
+                                    <button
+                                        key={tf}
+                                        onClick={() => setTimeframe(tf)}
+                                        className={cn(
+                                            'px-3 py-1 text-xs font-medium rounded-md border transition-all duration-150',
+                                            timeframe === tf
+                                                ? 'bg-primary/20 text-(--color-primary) border-primary/40'
+                                                : 'bg-transparent text-(--color-content-muted) border-transparent hover:text-(--color-content-secondary)'
+                                        )}
+                                    >
+                                        {tf}
+                                    </button>
+                                ))}
                             </div>
-                        </CardHeader>
-                        <CardContent className="p-6 md:p-8 flex justify-center overflow-x-auto">
-                            <KeyboardHeatmap />
-                        </CardContent>
-                    </Card>
+                        </div>
+                        <PerformanceSection
+                            wpmData={wpmData}
+                            hasPracticeData={hasPracticeData}
+                            totalTimeSeconds={totalTimeSeconds}
+                            totalKeystrokes={totalKeystrokes}
+                            sessionsCount={progress.records?.length || 0}
+                            completedLessonsCount={progress.completedLessons?.length || 0}
+                        />
+                    </div>
                 </section>
 
-                {/* Problem Keys Summary */}
-                {Object.keys(keyStats).length > 0 && (
-                    <section>
-                        <Card className="border-red-500/20 bg-red-500/5">
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <AlertTriangle className="w-5 h-5 text-red-500" />
-                                            Needs Improvement
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Keys with lowest accuracy (min. 5 attempts)
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(keyStats)
-                                        .filter(([, stat]) => stat.totalAttempts >= 5)
-                                        .map(([key, stat]) => ({
-                                            key,
-                                            accuracy: ((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100
-                                        }))
-                                        .filter(k => k.accuracy < 90)
-                                        .sort((a, b) => a.accuracy - b.accuracy)
-                                        .slice(0, 8)
-                                        .map(({ key, accuracy }) => (
-                                            <Badge
-                                                key={key}
-                                                variant="outline"
-                                                className={cn(
-                                                    "text-base px-3 py-1.5",
-                                                    getAccuracyColor(accuracy)
-                                                )}
-                                            >
-                                                {key.toUpperCase()}: {accuracy.toFixed(0)}%
-                                            </Badge>
-                                        ))
-                                    }
-                                    {Object.keys(keyStats).length > 0 && Object.entries(keyStats).filter(([, s]) => s.totalAttempts >= 5 && (((s.totalAttempts - s.errors) / s.totalAttempts) * 100) < 90).length === 0 && (
-                                        <div className="flex items-center gap-2 text-green-400">
-                                            <Trophy className="w-5 h-5" />
-                                            <span>No weak keys found! You are doing great.</span>
-                                        </div>
+                {/* ── ZONE 3: Keyboard Heatmap ── */}
+                <section>
+                    <div className="rounded-2xl border border-(--color-border-subtle) bg-(--color-surface-elevated) p-6 space-y-4">
+                        <div>
+                            <h2 className="font-display text-lg font-bold text-(--color-content-primary)">
+                                Key Accuracy Heatmap
+                            </h2>
+                            <p className="text-xs text-(--color-content-muted) mt-0.5">
+                                Keys colored by your error rate — red = most errors
+                            </p>
+                        </div>
+
+                        <div className="flex justify-center overflow-x-auto py-2">
+                            <KeyboardHeatmap />
+                        </div>
+
+                        {/* Legend */}
+                        <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+                            {HEATMAP_LEGEND.map(({ color, label }, i) => (
+                                <div key={i} className="flex items-center gap-1.5">
+                                    <span
+                                        className="w-4 h-4 rounded-sm inline-block shrink-0"
+                                        style={{ backgroundColor: color }}
+                                    />
+                                    {label && (
+                                        <span className="text-xs text-(--color-content-muted)">{label}</span>
                                     )}
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </section>
-                )}
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Danger Zone ── */}
+                <section className="flex justify-end">
+                    <div className="w-full max-w-sm">
+                        <button
+                            onClick={() => setDangerOpen(o => !o)}
+                            className="flex items-center gap-2 text-xs uppercase tracking-widest text-(--color-content-muted) hover:text-(--color-content-secondary) transition-colors"
+                        >
+                            <span>Danger Zone</span>
+                            <motion.span animate={{ rotate: dangerOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                            </motion.span>
+                        </button>
+                        <AnimatePresence>
+                            {dangerOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="pt-3 flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            className="text-(--color-error) hover:bg-(--color-error)/10 hover:text-(--color-error)"
+                                            onClick={() => setShowResetModal(true)}
+                                        >
+                                            <RotateCcw className="w-4 h-4 mr-2" />
+                                            Reset All Statistics
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </section>
             </main>
         </div>
     );

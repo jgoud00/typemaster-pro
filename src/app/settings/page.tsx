@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Volume2, Monitor, Keyboard, Shield, Download, AlertTriangle } from 'lucide-react';
+import { Volume2, Monitor, Keyboard, Shield, Download, AlertTriangle } from 'lucide-react';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -54,24 +55,16 @@ export default function SettingsPage() {
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Header */}
-            <header className="glass-header">
-                <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-xl font-bold">⚙️ Settings</h1>
-                </div>
-            </header>
+            <SiteHeader />
 
             <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <Card className="p-6">
+                    <Card className="p-6 bg-(--color-surface-elevated) border border-(--color-border-subtle)">
                         <div className="flex items-center gap-3 mb-6">
-                            <Volume2 className="w-5 h-5 text-blue-500" />
+                            <Volume2 className="w-5 h-5 text-(--color-primary)" />
                             <h2 className="text-xl font-semibold">Sound & Immersion</h2>
                         </div>
 
@@ -138,9 +131,9 @@ export default function SettingsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                 >
-                    <Card className="p-6">
+                    <Card className="p-6 bg-(--color-surface-elevated) border border-(--color-border-subtle)">
                         <div className="flex items-center gap-3 mb-6">
-                            <Monitor className="w-5 h-5 text-green-500" />
+                            <Monitor className="w-5 h-5 text-(--color-success)" />
                             <h2 className="text-xl font-semibold">Visual Customization</h2>
                         </div>
 
@@ -213,9 +206,9 @@ export default function SettingsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
                 >
-                    <Card className="p-6">
+                    <Card className="p-6 bg-(--color-surface-elevated) border border-(--color-border-subtle)">
                         <div className="flex items-center gap-3 mb-6">
-                            <Keyboard className="w-5 h-5 text-cyan-500" />
+                            <Keyboard className="w-5 h-5 text-(--color-primary)" />
                             <h2 className="text-xl font-semibold">Keyboard Layout & Focus</h2>
                         </div>
 
@@ -282,14 +275,14 @@ export default function SettingsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                 >
-                    <Card className="p-6">
+                    <Card className="p-6 bg-(--color-surface-elevated) border border-(--color-border-subtle)">
                         <div className="flex items-center gap-3 mb-6">
-                            <Shield className="w-5 h-5 text-orange-500" />
+                            <Shield className="w-5 h-5 text-(--color-warning)" />
                             <h2 className="text-xl font-semibold">Privacy & Data</h2>
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-(--color-surface) border border-(--color-border-subtle) rounded-lg">
                                 <div>
                                     <div className="font-medium">Save Progress Locally</div>
                                     <div className="text-sm text-muted-foreground">

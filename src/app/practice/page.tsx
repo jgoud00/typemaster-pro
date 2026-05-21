@@ -16,6 +16,7 @@ import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
 import { useUserStore } from '@/stores/user-store';
+import { useProgressStore } from '@/stores/progress-store';
 import { useLeaderboardStore } from '@/stores/leaderboard-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
@@ -30,26 +31,18 @@ import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
 import { createClient } from '@/lib/supabase/client';
 import { submitSessionToSupabase } from '@/lib/supabase/leaderboard';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 
 // --- Practice Hub Component ---
 function PracticeHub() {
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-                    <Link href="/">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <h1 className="font-semibold text-lg">Practice Modes</h1>
-                </div>
-            </header>
+            <SiteHeader />
 
             <main className="container mx-auto px-4 py-8 space-y-8">
                 <div className="text-center space-y-4 max-w-2xl mx-auto">
-                    <h2 className="text-3xl font-bold tracking-tight">Choose Your Challenge</h2>
-                    <p className="text-muted-foreground text-lg">
+                    <h2 className="font-display text-3xl font-bold tracking-tight text-(--color-content-primary)">Choose Your Challenge</h2>
+                    <p className="text-(--color-content-secondary) text-lg">
                         Select a mode to hone your typing skills. From speed tests to AI-powered adaptive training.
                     </p>
                 </div>
@@ -190,8 +183,8 @@ function Leaderboard() {
                                     <span className="text-sm font-medium truncate">{entry.username}</span>
                                 </div>
                                 <div className="flex items-center gap-4 text-xs">
-                                    <span className="font-bold text-blue-400">{entry.wpm} <span className="text-[10px] text-gray-600">WPM</span></span>
-                                    <span className="text-gray-500">{entry.accuracy}%</span>
+                                    <span className="font-bold text-(--color-primary)"><span className="font-black">{entry.wpm}</span> <span className="text-[10px] text-(--color-content-muted)">WPM</span></span>
+                                    <span className="text-(--color-content-muted)">{entry.accuracy}%</span>
                                 </div>
                             </div>
                         ))}
@@ -432,7 +425,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             if (char) map.set(char, (map.get(char) || 0) + 1);
         });
         return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [isComplete, text]);
 
     return (
@@ -539,13 +532,13 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                             hasStarted ? "opacity-40 hover:opacity-100" : "opacity-20"
                         )}>
                             <div className="flex flex-col items-center">
-                                <span className="text-[9px] uppercase tracking-[0.3em] text-gray-600 font-black">Flow</span>
+                                <span className="text-[9px] uppercase tracking-[0.3em] text-(--color-content-muted) font-black">Flow</span>
                                 <span className={cn(
                                     "text-xl font-black tabular-nums transition-colors duration-500",
                                     {
                                         'text-teal-400': trend === 'rising',
-                                        'text-magenta-400': trend === 'falling',
-                                        'text-gray-500': trend === 'stable'
+                                        'text-rose-400': trend === 'falling',
+                                        'text-(--color-content-muted)': trend === 'stable'
                                     }
                                 )}>
                                     {flowScore}
@@ -584,37 +577,26 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                         animate={{ opacity: 1, scale: 1 }}
                         className="space-y-6"
                     >
-                        <Card className="bg-linear-to-r from-green-500/10 to-blue-500/10 border-green-500/30">
-                            <CardContent className="p-8 text-center">
-                                <h3 className="text-3xl font-bold mb-6">Test Complete!</h3>
-                                <div className="grid grid-cols-3 gap-8 mb-8">
-                                    <div>
-                                        <div className="text-5xl font-bold text-blue-400 mb-2">{result?.wpm}</div>
-                                        <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider">WPM</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-5xl font-bold text-green-400 mb-2">{result?.accuracy}%</div>
-                                        <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Accuracy</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-5xl font-bold text-orange-400 mb-2">{result?.maxCombo}</div>
-                                        <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Max Combo</div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-center gap-4">
-                                    <Button size="lg" onClick={handleReset} className="min-w-[150px]">
-                                        <RotateCcw className="w-4 h-4 mr-2" />
-                                        Try Again
-                                    </Button>
-                                    <Button size="lg" variant="outline" onClick={() => router.push('/stats')}>
-                                        View Full Stats
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <ResultChart
+                            data={history}
+                            wpm={result?.wpm ?? 0}
+                            accuracy={result?.accuracy ?? 100}
+                            elapsedTime={result?.duration ?? 0}
+                            maxCombo={result?.maxCombo ?? 0}
+                            isNewPersonalBest={(result?.wpm ?? 0) > (useProgressStore.getState().progress.personalBests?.wpm ?? 0)}
+                        />
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <ResultChart data={history} />
+                        <div className="flex justify-center gap-4">
+                            <Button size="lg" onClick={handleReset} className="min-w-[150px]">
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Try Again
+                            </Button>
+                            <Button size="lg" variant="outline" onClick={() => router.push('/stats')}>
+                                View Full Stats
+                            </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <WeaknessAnalysis errorBreakdown={errorBreakdown} />
                             <Leaderboard />
                         </div>

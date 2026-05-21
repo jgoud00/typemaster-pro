@@ -1,8 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, Trophy, Lock, Star } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Trophy, Lock, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +15,7 @@ import {
     getAchievementsByCategory,
 } from '@/lib/achievements';
 import { useAchievementStore } from '@/stores/achievement-store';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 
 const categories: { id: AchievementCategory | 'all'; label: string; icon: string }[] = [
     { id: 'all', label: 'All', icon: '🏆' },
@@ -28,7 +28,6 @@ const categories: { id: AchievementCategory | 'all'; label: string; icon: string
 ];
 
 export default function AchievementsPage() {
-    const router = useRouter();
     const { isUnlocked, getProgress, state } = useAchievementStore();
     const progress = getProgress();
 
@@ -54,20 +53,7 @@ export default function AchievementsPage() {
 
     return (
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <Trophy className="w-6 h-6 text-yellow-500" />
-                            <h1 className="text-xl font-bold">Achievements</h1>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <SiteHeader />
 
             <main className="container mx-auto px-4 py-8 space-y-8">
                 {/* Progress Summary */}
