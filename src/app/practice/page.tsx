@@ -4,7 +4,7 @@ import { useState, useRef, Suspense, useEffect, useMemo, useCallback } from 'rea
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link'; // Added for Hub links
 import { motion } from 'framer-motion';
-import { ArrowLeft, RotateCcw, Clock, Zap, Rocket, Keyboard, Trophy } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Clock, Zap, Rocket, Keyboard, Trophy, Target, Feather, PenTool, Skull } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,7 +22,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
 import { ComboPopup, StreakBreakPopup } from '@/components/gamification/combo-popup';
 import { LiveFlowGraph } from '@/components/typing/live-flow-graph';
-import { generateAdaptiveText, getRandomQuote, getRandomParagraph } from '@/lib/practice-texts';
+import { generateAdaptiveText, getRandomQuote, getRandomParagraph, generateWeaknessTargetedText } from '@/lib/practice-texts';
 import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -35,73 +35,122 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 // --- Practice Hub Component ---
 function PracticeHub() {
     return (
-        <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
+        <div className="min-h-screen relative">
+            {/* Ambient Background */}
+            <div className="fixed inset-0 pointer-events-none -z-10">
+                <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] mix-blend-screen" />
+                <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px] mix-blend-screen" />
+            </div>
+
             <SiteHeader />
 
-            <main className="container mx-auto px-4 py-8 space-y-8">
+            <main className="container mx-auto px-4 py-16 space-y-12">
                 <div className="text-center space-y-4 max-w-2xl mx-auto">
-                    <h2 className="font-display text-3xl font-bold tracking-tight text-(--color-content-primary)">Choose Your Challenge</h2>
-                    <p className="text-(--color-content-secondary) text-lg">
-                        Select a mode to hone your typing skills. From speed tests to AI-powered adaptive training.
-                    </p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-strong border-blue-500/30 text-blue-400 text-sm font-medium mb-4"
+                    >
+                        <Zap className="w-4 h-4" />
+                        <span>Training Grounds</span>
+                    </motion.div>
+                    <motion.h2 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="font-display text-4xl md:text-5xl font-bold tracking-tight text-white"
+                    >
+                        Choose Your Challenge
+                    </motion.h2>
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-zinc-400 text-lg"
+                    >
+                        Select a mode to hone your typing skills. From timed sprints to relaxing zen sessions.
+                    </motion.p>
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"
+                >
                     <PracticeHubCard
                         title="Free Practice"
-                        description="Relaxed typing with random paragraphs. Great for warm-ups."
+                        description="Relaxed typing with random paragraphs. Great for warm-ups and general practice."
                         href="/practice?mode=free"
                         icon={<Keyboard className="w-8 h-8" />}
-                        color="from-blue-500/20 to-cyan-500/20 border-blue-500/30"
+                        color="from-blue-500/10 to-cyan-500/5 border-blue-500/20"
+                        accentColor="text-cyan-400"
+                        glowColor="rgba(56, 189, 248, 0.5)"
                     />
                     <PracticeHubCard
                         title="Speed Test"
-                        description="Test your WPM in timed 60s, 2m, or 5m dashes."
+                        description="Test your WPM in timed 60s, 2m, or 5m dashes to rank on the leaderboard."
                         href="/practice?mode=speed-test"
                         icon={<Clock className="w-8 h-8" />}
-                        color="from-yellow-500/20 to-orange-500/20 border-yellow-500/30"
+                        color="from-yellow-500/10 to-orange-500/5 border-yellow-500/20"
+                        accentColor="text-yellow-400"
+                        glowColor="rgba(250, 204, 21, 0.5)"
                     />
                     <PracticeHubCard
-                        title="Burst Mode"
-                        description="High-intensity intervals. Type fast or game over."
-                        href="/practice/speed-training"
-                        icon={<Rocket className="w-8 h-8" />}
-                        color="from-red-500/20 to-rose-500/20 border-red-500/30"
+                        title="Sudden Death"
+                        description="Accuracy is everything. Make 3 mistakes and it's game over."
+                        href="/practice?mode=sudden-death"
+                        icon={<Skull className="w-8 h-8" />}
+                        color="from-red-500/10 to-rose-500/5 border-red-500/20"
+                        accentColor="text-rose-400"
+                        glowColor="rgba(244, 63, 94, 0.5)"
                     />
-                </div>
+
+                </motion.div>
             </main>
         </div>
     );
 }
 
-function PracticeHubCard({ title, description, href, icon, color }: {
+function PracticeHubCard({ title, description, href, icon, color, accentColor, glowColor }: {
     title: string;
     description: string;
     href: string;
     icon: React.ReactNode;
     color: string;
+    accentColor: string;
+    glowColor: string;
 }) {
     return (
-        <Link href={href}>
-            <motion.div
-                whileHover={{ y: -5 }}
-                whileTap={{ scale: 0.98 }}
-                className="h-full"
-            >
-                <Card className={cn(
-                    "h-full border transition-all duration-300 hover:shadow-xl bg-linear-to-br backdrop-blur-sm",
-                    color,
-                    "hover:border-white/20 hover:bg-white/5"
-                )}>
-                    <CardHeader>
-                        <div className="mb-4 p-3 w-fit rounded-xl bg-background/30 backdrop-blur-md border border-white/10">
-                            {icon}
-                        </div>
-                        <CardTitle className="text-xl">{title}</CardTitle>
-                        <CardDescription className="text-base mt-2">{description}</CardDescription>
-                    </CardHeader>
-                </Card>
-            </motion.div>
+        <Link href={href} className="block group h-full">
+            <div className={cn(
+                "relative h-full rounded-2xl p-6 glass-card border transition-all duration-500 overflow-hidden",
+                color,
+                "hover:bg-white/[0.04] hover:-translate-y-1 hover:shadow-2xl"
+            )}>
+                {/* Hover Glow */}
+                <div 
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                    style={{
+                        background: `radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${glowColor}, transparent 40%)`
+                    }}
+                />
+                
+                <div className="relative z-10">
+                    <div className={cn("mb-6 p-4 w-fit rounded-xl bg-black/40 backdrop-blur-md border border-white/5", accentColor)}>
+                        {icon}
+                    </div>
+                    <h3 className="text-xl font-display font-bold text-white mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-white/70 transition-all">
+                        {title}
+                    </h3>
+                    <p className="text-zinc-400 leading-relaxed text-sm">
+                        {description}
+                    </p>
+                </div>
+                
+                {/* Bottom decorative line */}
+                <div className={cn("absolute bottom-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-current to-transparent", accentColor)} />
+            </div>
         </Link>
     );
 }
@@ -135,8 +184,8 @@ function Leaderboard() {
         <Card className="bg-black/20 border-white/10">
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Trophy className="w-4 h-4 text-yellow-400" />
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-white">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
                         Leaderboard
                     </CardTitle>
                     <div className="flex gap-1">
@@ -153,7 +202,7 @@ function Leaderboard() {
                             onClick={() => setTab('local')}
                             className={cn(
                                 "px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-colors",
-                                tab === 'local' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
+                                tab === 'local' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'
                             )}
                         >
                             Local
@@ -163,27 +212,40 @@ function Leaderboard() {
             </CardHeader>
             <CardContent>
                 {globalLoading && tab === 'global' ? (
-                    <div className="text-xs text-muted-foreground text-center py-8 animate-pulse">
+                    <div className="text-xs text-zinc-500 text-center py-8 animate-pulse">
                         Loading global leaderboard...
                     </div>
                 ) : entries.length === 0 ? (
-                    <div className="text-xs text-muted-foreground text-center py-8">
+                    <div className="text-xs text-zinc-500 text-center py-8">
                         {tab === 'global' ? 'No global scores yet. Be the first!' : 'No scores yet. Start typing!'}
                     </div>
                 ) : (
                     <div className="space-y-2">
                         {entries.slice(0, 10).map((entry, i) => (
-                            <div key={`${entry.username}-${i}`} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
+                            <div key={`${entry.username}-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800/50 transition-colors">
                                 <div className="flex items-center gap-3 min-w-0">
+                                    <div className={cn(
+                                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0",
+                                        i === 0 ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" :
+                                        i === 1 ? "bg-zinc-300/20 text-zinc-300 border border-zinc-300/30" :
+                                        i === 2 ? "bg-orange-600/20 text-orange-500 border border-orange-600/30" :
+                                        "bg-zinc-800/50 text-zinc-500 border border-zinc-700/50"
+                                    )}>
+                                        {i + 1}
+                                    </div>
                                     <span className={cn(
-                                        "text-xs font-bold w-4",
-                                        ['text-yellow-400', 'text-gray-300', 'text-orange-400'][i] || 'text-gray-500'
-                                    )}>{i + 1}</span>
-                                    <span className="text-sm font-medium truncate">{entry.username}</span>
+                                        "text-sm font-medium truncate",
+                                        i < 3 ? "text-white" : "text-zinc-300"
+                                    )}>{entry.username}</span>
                                 </div>
                                 <div className="flex items-center gap-4 text-xs">
-                                    <span className="font-bold text-(--color-primary)"><span className="font-black">{entry.wpm}</span> <span className="text-[10px] text-(--color-content-muted)">WPM</span></span>
-                                    <span className="text-(--color-content-muted)">{entry.accuracy}%</span>
+                                    <span className={cn(
+                                        "font-bold",
+                                        i === 0 ? "text-yellow-500" : "text-blue-400"
+                                    )}>
+                                        <span className="font-black text-sm">{entry.wpm}</span> <span className="text-[10px] text-zinc-500">WPM</span>
+                                    </span>
+                                    <span className="text-zinc-500 font-medium">{entry.accuracy}%</span>
                                 </div>
                             </div>
                         ))}
@@ -287,6 +349,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         text,
         mode,
         timeLimitSeconds: mode === 'speed-test' ? duration : undefined,
+        errorLimit: mode === 'sudden-death' ? 3 : undefined,
         onComplete: handleComplete,
     });
 
@@ -408,8 +471,8 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
             {/* Header - Focus Mode (Hidden when typing) */}
             <header className={cn(
-                "border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 transition-opacity duration-700",
-                hasStarted && !isComplete ? "opacity-0 pointer-events-none" : "opacity-100"
+                "border-b border-zinc-800/80 bg-black/50 backdrop-blur-xl sticky top-0 z-40 transition-all duration-700",
+                hasStarted && !isComplete ? "opacity-0 -translate-y-full pointer-events-none" : "opacity-100 translate-y-0"
             )}>
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -435,33 +498,30 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
             <main className="container mx-auto px-4 py-8 space-y-6">
                 {!isComplete ? (
                     <>
-                        {/* Mode Selection Tabs */}
+                        {/* Mode Configuration */
                         <div className={cn(
-                            "transition-all duration-700",
-                            hasStarted && !isComplete ? "opacity-0 pointer-events-none translate-y-[-20px]" : "opacity-100"
+                            "transition-all duration-700 max-w-2xl mx-auto w-full",
+                            hasStarted && !isComplete ? "opacity-0 h-0 overflow-hidden pointer-events-none translate-y-[-20px]" : "opacity-100 mb-8"
                         )}>
-                            <Tabs value={mode} onValueChange={(v) => handleStartTest(v as PracticeMode)}>
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="speed-test">Speed Test</TabsTrigger>
-                                    <TabsTrigger value="free">Free Practice</TabsTrigger>
-                                <TabsTrigger value="custom">Custom Text</TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="speed-test" className="mt-4">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Clock className="w-5 h-5" />
-                                            Speed Test
+                            {mode === 'speed-test' && (
+                                <Card className="glass-card">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="flex items-center gap-2 text-white">
+                                            <Clock className="w-5 h-5 text-yellow-400" />
+                                            Speed Test Duration
                                         </CardTitle>
-                                        <CardDescription>Choose a duration and test your typing speed</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="flex gap-2">
+                                    <CardContent>
+                                        <div className="flex gap-3">
                                             {([60, 120, 300] as SpeedTestDuration[]).map((d) => (
                                                 <Button
                                                     key={d}
                                                     variant={duration === d ? 'default' : 'outline'}
+                                                    className={cn(
+                                                        duration === d 
+                                                            ? 'bg-yellow-500 hover:bg-yellow-600 text-black border-transparent' 
+                                                            : 'border-white/10 hover:bg-white/5 text-zinc-300'
+                                                    )}
                                                     onClick={() => handleStartTest('speed-test', d)}
                                                 >
                                                     {d / 60} min
@@ -470,17 +530,20 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </TabsContent>
+                            )}
 
-                            <TabsContent value="custom" className="mt-4">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Custom Text</CardTitle>
-                                        <CardDescription>Paste your own text to practice</CardDescription>
+                            {mode === 'custom' && (
+                                <Card className="glass-card">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="flex items-center gap-2 text-white">
+                                            <PenTool className="w-5 h-5 text-zinc-300" />
+                                            Custom Text
+                                        </CardTitle>
+                                        <CardDescription className="text-zinc-400">Paste your own text to practice</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <textarea
-                                            className="w-full h-32 p-3 rounded-lg border bg-background resize-none"
+                                            className="w-full h-32 p-4 rounded-xl border border-white/10 bg-black/40 text-white resize-none focus:outline-none focus:ring-2 focus:ring-white/20 transition-all placeholder:text-zinc-600"
                                             placeholder="Paste your text here..."
                                             maxLength={5000}
                                             value={customText}
@@ -489,6 +552,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                             )}
                                         />
                                         <Button
+                                            className="w-full bg-white text-black hover:bg-zinc-200"
                                             onClick={() => handleStartTest('custom')}
                                             disabled={!customText.trim()}
                                         >
@@ -496,54 +560,47 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                         </Button>
                                     </CardContent>
                                 </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </div>
+                            )}
+                        </div>}
 
                     {/* Main Focus Area - Centered */}
-                    <div className="flex flex-col items-center justify-center min-h-[70vh] max-w-6xl mx-auto w-full">
-                        {/* Flow Score & Trend Graph */}
-                        <div className={cn(
-                            "flex items-center gap-6 mb-8 h-12 transition-opacity duration-1000",
-                            hasStarted ? "opacity-40 hover:opacity-100" : "opacity-20"
-                        )}>
-                            <div className="flex flex-col items-center">
-                                <span className="text-[9px] uppercase tracking-[0.3em] text-(--color-content-muted) font-black">Flow</span>
-                                <span className={cn(
-                                    "text-xl font-black tabular-nums transition-colors duration-500",
-                                    {
-                                        'text-teal-400': trend === 'rising',
-                                        'text-rose-400': trend === 'falling',
-                                        'text-(--color-content-muted)': trend === 'stable'
-                                    }
+                    <div className={cn("flex flex-col items-center justify-center max-w-5xl mx-auto w-full transition-all duration-700", hasStarted ? "min-h-[90vh]" : "min-h-[60vh]")}>
+                        {mode !== 'zen' && (
+                            <>
+                                {/* Flow Score & Trend Graph */}
+                                <div className={cn(
+                                    "flex items-center gap-6 mb-8 h-12 transition-opacity duration-1000",
+                                    hasStarted ? "opacity-40 hover:opacity-100" : "opacity-20"
                                 )}>
-                                    {flowScore}
-                                </span>
-                            </div>
-                            <LiveFlowGraph history={history} trend={trend} />
-                        </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] uppercase tracking-[0.3em] text-(--color-content-muted) font-black">Flow</span>
+                                        <span className={cn(
+                                            "text-xl font-black tabular-nums transition-colors duration-500",
+                                            {
+                                                'text-teal-400': trend === 'rising',
+                                                'text-rose-400': trend === 'falling',
+                                                'text-(--color-content-muted)': trend === 'stable'
+                                            }
+                                        )}>
+                                            {flowScore}
+                                        </span>
+                                    </div>
+                                    <LiveFlowGraph history={history} trend={trend} />
+                                </div>
 
-                        {/* Stats - Minimal */}
-                        <TypingStats />
+                                {/* Stats - Minimal */}
+                                <TypingStats />
+                            </>
+                        )}
 
                         {/* Typing area */}
                         <TypingArea />
 
-                        {/* Virtual keyboard */}
-                        {settings.showVirtualKeyboard && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="mt-8 w-full"
-                            >
-                                <VirtualKeyboard showHeatmap={false} />
-                            </motion.div>
-                        )}
+                        {/* Virtual keyboard removed for Practice section */}
                         
                         {/* Combo popup */}
-                        <ComboPopup />
-                        <StreakBreakPopup />
+                        {mode !== 'zen' && <ComboPopup />}
+                        {mode !== 'zen' && <StreakBreakPopup />}
                     </div>
                     </>
                 ) : (
@@ -600,10 +657,18 @@ function getTextForMode(mode: PracticeMode, duration: number, customText?: strin
     switch (mode) {
         case 'speed-test':
             return generateAdaptiveText(Math.ceil(duration / 60 * 50), 'medium');
+        case 'sudden-death':
+            return generateAdaptiveText(200, 'hard'); // Long, hard text for sudden death
+        case 'zen':
+            return generateAdaptiveText(100, 'easy'); // Easy, flowing text for zen
         case 'custom':
             return customText?.trim() || getRandomQuote();
         case 'free':
         default:
+            const problemKeys = useAnalyticsStore.getState().getProblematicKeys();
+            if (problemKeys && problemKeys.length > 0) {
+                return generateWeaknessTargetedText(problemKeys, 30);
+            }
             return getRandomParagraph();
     }
 }

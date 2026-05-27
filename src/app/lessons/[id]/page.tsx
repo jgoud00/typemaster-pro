@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, RotateCcw, Eye, EyeOff } from 'lucide-react';
@@ -13,6 +13,7 @@ import { LessonComplete } from '@/components/gamification/lesson-complete';
 import { useTypingController } from '@/hooks/use-typing-controller';
 import { useConfetti } from '@/hooks/use-confetti';
 import { getLessonById, getNextLesson } from '@/lib/lessons';
+import { generateLessonText } from '@/lib/practice-texts';
 import { PerformanceRecord } from '@/types';
 import { useProgressStore } from '@/stores/progress-store';
 import { useTypingStore } from '@/stores/typing-store';
@@ -32,7 +33,19 @@ export default function LessonPage() {
     const { progress } = useProgressStore();
     const { fireComboMilestone, fireLessonComplete, fireStars } = useConfetti();
     const currentExercise = lesson?.exercises[exerciseIndex];
-    const text = currentExercise?.text || '';
+    
+    const [text, setText] = useState('');
+
+    // Generate dynamic text when the lesson or exercise changes
+    useEffect(() => {
+        if (lesson && currentExercise) {
+            let wordCount = 10;
+            if (currentExercise.difficulty === 'intermediate') wordCount = 15;
+            if (currentExercise.difficulty === 'advanced') wordCount = 20;
+            
+            setText(generateLessonText(lesson.keys, wordCount));
+        }
+    }, [lessonId, exerciseIndex]); // deliberately omitting lesson.keys to avoid deep ref checks on static arrays
 
     // Callback for lesson completion
     const handleComplete = useCallback((record: PerformanceRecord) => {

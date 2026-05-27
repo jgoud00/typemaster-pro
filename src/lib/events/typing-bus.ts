@@ -1,4 +1,4 @@
-import mitt from 'mitt';
+import mitt, { type Handler } from 'mitt';
 import { Finger } from '@/types';
 
 export type KeystrokeContext = {
@@ -27,18 +27,23 @@ export type TypingEvents = {
 
 const _bus = typeof window !== 'undefined' ? mitt<TypingEvents>() : null;
 
+/**
+ * Type-safe event bus wrapper.
+ * SSR-safe: all operations are no-ops on the server.
+ */
 export const typingBus = {
-    on: (type: any, handler: any) => {
+    on<K extends keyof TypingEvents>(type: K, handler: Handler<TypingEvents[K]>): void {
         if (typeof window === 'undefined') return;
         _bus?.on(type, handler);
     },
-    off: (type: any, handler: any) => {
+    off<K extends keyof TypingEvents>(type: K, handler: Handler<TypingEvents[K]>): void {
         if (typeof window === 'undefined') return;
         _bus?.off(type, handler);
     },
-    emit: (type: any, event?: any) => {
+    emit<K extends keyof TypingEvents>(type: K, ...args: TypingEvents[K] extends void ? [] : [TypingEvents[K]]): void {
         if (typeof window === 'undefined') return;
-        _bus?.emit(type, event);
+        // mitt expects (type, event?) — we spread to handle void events
+        (_bus as ReturnType<typeof mitt<TypingEvents>>)?.emit(type, ...args as [TypingEvents[K]]);
     },
-    all: _bus?.all || new Map()
-} as unknown as ReturnType<typeof mitt<TypingEvents>>;
+    all: _bus?.all ?? new Map(),
+};

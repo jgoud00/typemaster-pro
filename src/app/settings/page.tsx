@@ -139,6 +139,23 @@ export default function SettingsPage() {
 
                         <div className="space-y-6">
                             <div>
+                                <div className="font-medium mb-3">Theme</div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['dark', 'light', 'cyberpunk', 'midnight', 'dracula'] as const).map((theme) => (
+                                        <Button
+                                            key={theme}
+                                            variant={settings.theme === theme ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => updateSetting('theme', theme)}
+                                            className="capitalize"
+                                        >
+                                            {theme}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
                                 <div className="font-medium mb-3">Cursor Style</div>
                                 <div className="grid grid-cols-4 gap-2">
                                     {(['line', 'block', 'underline', 'bar'] as const).map((style) => (

@@ -57,14 +57,17 @@ export interface WeaknessProfile {
 
 // ============= Gamification =============
 export interface GameState {
+  score: number;
   combo: number;
   maxCombo: number;
-  multiplier: number;
-  perfectStreak: number;      // Consecutive sessions with >95% accuracy
+  comboMultiplier: number;
+  perfectStreak: number;
   dailyStreak: number;
-  score: number;
   todayScore: number;
-  lastPlayedDate: string | null;
+  weeklyScore: number;
+  totalXP: number;
+  sessionsToday: number;
+  lastSessionDate: string;
 }
 
 export interface Achievement {
@@ -139,7 +142,7 @@ export interface SessionStructure {
 }
 
 // ============= Progress & Records =============
-export type PracticeMode = 'lesson' | 'free' | 'speed-test' | 'custom';
+export type PracticeMode = 'lesson' | 'free' | 'speed-test' | 'custom' | 'sudden-death' | 'zen';
 export type SpeedTestDuration = 60 | 120 | 300;
 
 export interface PerformanceRecord {

@@ -6,32 +6,90 @@ import { TypingState, KeystrokeEvent, Finger } from '@/types';
 import { getKeyData } from '@/lib/keyboard-data';
 import type { LayoutName } from '@/lib/keyboard-layouts';
 
+// ─── Ring Buffer (O(1) push, no shift cost) ──────────────────────────────────
+const RING_CAPACITY = 1000;
+
+class RingBuffer<T> {
+    private buf: (T | undefined)[];
+    private head = 0;
+    private _length = 0;
+    private capacity: number;
+
+    constructor(capacity: number) {
+        this.capacity = capacity;
+        this.buf = new Array(capacity);
+    }
+
+    push(item: T): void {
+        this.buf[(this.head + this._length) % this.capacity] = item;
+        if (this._length < this.capacity) {
+            this._length++;
+        } else {
+            this.head = (this.head + 1) % this.capacity;
+        }
+    }
+
+    get length(): number { return this._length; }
+
+    toArray(): T[] {
+        const result: T[] = [];
+        for (let i = 0; i < this._length; i++) {
+            result.push(this.buf[(this.head + i) % this.capacity] as T);
+        }
+        return result;
+    }
+
+    slice(start: number, end?: number): T[] {
+        const s = Math.max(0, start < 0 ? this._length + start : start);
+        const e = end === undefined ? this._length : Math.min(this._length, end < 0 ? this._length + end : end);
+        const result: T[] = [];
+        for (let i = s; i < e; i++) {
+            result.push(this.buf[(this.head + i) % this.capacity] as T);
+        }
+        return result;
+    }
+
+    clear(): void {
+        this.head = 0;
+        this._length = 0;
+    }
+}
+
 // ─── Keystroke buffer (outside reactive state — no re-renders) ───────────────
-const MAX_KEYSTROKES_BUFFER = 1000;
-const _keystrokeBuffer: KeystrokeEvent[] = [];
+const _keystrokeBuffer = new RingBuffer<KeystrokeEvent>(RING_CAPACITY);
 
 export function getKeystrokeBuffer(): KeystrokeEvent[] {
-    return _keystrokeBuffer;
+    return _keystrokeBuffer.toArray();
+}
+
+export function getKeystrokeBufferSlice(start: number, end?: number): KeystrokeEvent[] {
+    return _keystrokeBuffer.slice(start, end);
 }
 
 function clearKeystrokeBuffer() {
-    _keystrokeBuffer.length = 0;
+    _keystrokeBuffer.clear();
 }
 
 function pushKeystroke(event: KeystrokeEvent) {
-    if (_keystrokeBuffer.length >= MAX_KEYSTROKES_BUFFER) {
-        _keystrokeBuffer.shift();
-    }
     _keystrokeBuffer.push(event);
 }
 
 // ─── Error index Set (outside reactive state) ─────────────────────────────────
-// Mirrors errorIndices for O(1) membership test, eliminating the O(n)
-// .includes() scan and [...spread] allocation on every incorrect keystroke.
 const _errorSet = new Set<number>();
 
 function clearErrorSet() {
     _errorSet.clear();
+}
+
+// ─── High-resolution timing ──────────────────────────────────────────────────
+// Use performance.now() for sub-millisecond precision where available
+function hrTimestamp(): number {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+// Epoch-relative timestamp for storage/sync (Date.now() based)
+function epochTimestamp(): number {
+    return Date.now();
 }
 
 // ─── Store interface ──────────────────────────────────────────────────────────
@@ -41,19 +99,19 @@ interface TypingStore {
     activeKey: string | null;
     lastKeystrokeTime: number | null;
 
-    // O(1) counters — avoids scanning errorIndices/keystrokes arrays
+    // O(1) counters
     correctCount: number;
     totalCount: number;
 
     // Actions
     setText: (text: string) => void;
     handleKeystroke: (key: string, layoutName?: LayoutName) => KeystrokeEvent | null;
+    handleBackspace: () => boolean;
     reset: () => void;
     pause: () => void;
     resume: () => void;
 
-    // Computed — call via useTypingStore.getState().getWpm() inside intervals,
-    // or via useTypingStore(s => s.getWpm()) as a selector (see usage guide below)
+    // Computed
     getWpm: () => number;
     getAccuracy: () => number;
     getElapsedTime: () => number;
@@ -68,7 +126,7 @@ const initialState: TypingState = {
     startTime: null,
     endTime: null,
     errorIndices: [],
-    keystrokes: [],   // kept in TypingState for type-compat; always empty array
+    keystrokes: [],
     isComplete: false,
     isPaused: false,
     pausedMs: 0,
@@ -76,9 +134,6 @@ const initialState: TypingState = {
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
-// subscribeWithSelector middleware enables granular subscriptions:
-//   useTypingStore(s => s.state.currentIndex)  → re-renders only when index changes
-//   useTypingStore.subscribe(s => s.activeKey, cb)  → imperative subscription
 
 export const useTypingStore = create<TypingStore>()(
     subscribeWithSelector((set, get) => ({
@@ -88,7 +143,6 @@ export const useTypingStore = create<TypingStore>()(
         correctCount: 0,
         totalCount: 0,
 
-        // ── setText ──────────────────────────────────────────────────────────
         setText: (text: string) => {
             clearKeystrokeBuffer();
             clearErrorSet();
@@ -101,10 +155,6 @@ export const useTypingStore = create<TypingStore>()(
             });
         },
 
-        // ── handleKeystroke ──────────────────────────────────────────────────
-        // FIX: keystrokes pushed to external buffer, not into state.
-        // This eliminates the [...state.keystrokes, keystroke] allocation that
-        // previously forced a new `state` object reference on every keypress.
         handleKeystroke: (key: string, layoutName?: LayoutName): KeystrokeEvent | null => {
             const { state, lastKeystrokeTime, correctCount, totalCount } = get();
 
@@ -112,7 +162,8 @@ export const useTypingStore = create<TypingStore>()(
                 return null;
             }
 
-            const now = Date.now();
+            const now = epochTimestamp();
+            const hrNow = hrTimestamp();
             const expected = state.text[state.currentIndex];
             const isCorrect = key === expected;
             const previousKey = state.currentIndex > 0
@@ -138,13 +189,11 @@ export const useTypingStore = create<TypingStore>()(
                 previousKey,
             };
 
-            // Push to external buffer — zero reactive cost
             pushKeystroke(keystroke);
 
             const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
             const isComplete = newIndex >= state.text.length;
 
-            // O(1) Set lookup — no array scan, no spread allocation on error.
             let newErrorIndices = state.errorIndices;
             if (!isCorrect && !_errorSet.has(state.currentIndex)) {
                 _errorSet.add(state.currentIndex);
@@ -158,7 +207,7 @@ export const useTypingStore = create<TypingStore>()(
                     startTime: state.startTime ?? now,
                     endTime: isComplete ? now : null,
                     errorIndices: newErrorIndices,
-                    keystrokes: [],   // always empty; real buffer is _keystrokeBuffer
+                    keystrokes: [],
                     isComplete,
                 },
                 activeKey: isComplete ? null : state.text[newIndex],
@@ -170,7 +219,28 @@ export const useTypingStore = create<TypingStore>()(
             return keystroke;
         },
 
-        // ── reset ────────────────────────────────────────────────────────────
+        // ── handleBackspace ──────────────────────────────────────────────────
+        // Monkeytype-style: moves currentIndex back by 1 (only for already-typed chars).
+        // Does NOT undo errors or change accuracy counts — it simply lets the user re-type.
+        handleBackspace: (): boolean => {
+            const { state } = get();
+            if (state.isComplete || state.isPaused || state.currentIndex === 0 || !state.startTime) {
+                return false;
+            }
+
+            const newIndex = state.currentIndex - 1;
+            set({
+                state: {
+                    ...state,
+                    currentIndex: newIndex,
+                    isComplete: false,
+                    endTime: null,
+                },
+                activeKey: state.text[newIndex],
+            });
+            return true;
+        },
+
         reset: () => {
             const { state } = get();
             clearKeystrokeBuffer();
@@ -184,11 +254,10 @@ export const useTypingStore = create<TypingStore>()(
             });
         },
 
-        // ── pause / resume ───────────────────────────────────────────────────
         pause: () => {
             set(s => {
                 if (s.state.isPaused) return s;
-                return { state: { ...s.state, isPaused: true, pauseStart: Date.now() } };
+                return { state: { ...s.state, isPaused: true, pauseStart: epochTimestamp() } };
             });
         },
 
@@ -199,35 +268,19 @@ export const useTypingStore = create<TypingStore>()(
                     state: {
                         ...s.state,
                         isPaused: false,
-                        pausedMs: s.state.pausedMs + (Date.now() - (s.state.pauseStart || Date.now())),
+                        pausedMs: s.state.pausedMs + (epochTimestamp() - (s.state.pauseStart || epochTimestamp())),
                         pauseStart: null,
                     },
                 };
             });
         },
 
-        // ── computed ─────────────────────────────────────────────────────────
-        // NOTE on usage:
-        //   ❌ const wpm = useTypingStore(s => s.getWpm())
-        //      Re-evaluates on every state change; Date.now() inside makes value
-        //      unstable between keystrokes.
-        //
-        //   ✅ Poll via interval (recommended for live display):
-        //      useEffect(() => {
-        //        const id = setInterval(() =>
-        //          setWpm(useTypingStore.getState().getWpm()), 500);
-        //        return () => clearInterval(id);
-        //      }, []);
-        //
-        //   ✅ One-shot read at completion:
-        //      const record = useTypingStore.getState().getWpm();
-
         getWpm: () => {
             const { state, correctCount } = get();
             if (!state.startTime) return 0;
 
-            const endTime = state.endTime ?? Date.now();
-            const activePause = state.pauseStart ? (Date.now() - state.pauseStart) : 0;
+            const endTime = state.endTime ?? epochTimestamp();
+            const activePause = state.pauseStart ? (epochTimestamp() - state.pauseStart) : 0;
             const elapsedSeconds = Math.max(
                 0,
                 (endTime - state.startTime - state.pausedMs - activePause)
@@ -247,8 +300,8 @@ export const useTypingStore = create<TypingStore>()(
             const { state } = get();
             if (!state.startTime) return 0;
 
-            const endTime = state.endTime ?? Date.now();
-            const activePause = state.pauseStart ? (Date.now() - state.pauseStart) : 0;
+            const endTime = state.endTime ?? epochTimestamp();
+            const activePause = state.pauseStart ? (epochTimestamp() - state.pauseStart) : 0;
             return Math.max(
                 0,
                 Math.floor((endTime - state.startTime - state.pausedMs - activePause) / 1000)
@@ -263,8 +316,7 @@ export const useTypingStore = create<TypingStore>()(
     }))
 );
 
-// ─── Granular selector hooks (use these in components) ───────────────────────
-// Each hook only re-renders when its specific slice changes.
+// ─── Granular selector hooks ─────────────────────────────────────────────────
 
 export const useCurrentIndex = () =>
     useTypingStore(s => s.state.currentIndex);

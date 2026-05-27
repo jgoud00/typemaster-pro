@@ -35,6 +35,20 @@ export function initializeTypingListeners(): void {
     typingBus.on('KEYSTROKE_REGISTERED', (ctx) => {
         recordTypingKeystroke(ctx);
 
+        // Calculate spatial pan based on key position (QWERTY approximation)
+        const leftKeys = '12345qwertasdfgzxcvb'.split('');
+        const rightKeys = '67890yuiophjklnm,./;\'[]\\'.split('');
+        let pan = 0;
+        const keyLower = ctx.key.toLowerCase();
+        if (leftKeys.includes(keyLower)) {
+            pan = -0.6; // Pan left
+        } else if (rightKeys.includes(keyLower)) {
+            pan = 0.6; // Pan right
+        }
+        
+        // Play spatial keystroke sound
+        soundEngine.play('keystroke', { pan, wpm: ctx.wpm });
+
         const gameState = useGameStore.getState();
         if (ctx.isCorrect) {
             gameState.incrementCombo();

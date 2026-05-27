@@ -1,58 +1,75 @@
 import { get, set, del } from 'idb-keyval';
-import toast from 'react-hot-toast';
 
 /**
- * Saves data to IndexedDB asynchronously, eliminating main-thread blocking.
+ * Write batching — coalesces multiple saveToDB calls within 100ms
+ * into a single IDB transaction.
  */
-export async function saveToDB<T>(key: string, data: T): Promise<void> {
-    try {
-        await set(key, data);
-    } catch (e) {
-        console.error(`[Storage] Failed to save ${key} to IndexedDB:`, e);
-        toast.error('Data persistence failed. Check browser storage permissions.');
+const pendingWrites = new Map<string, unknown>();
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+const BATCH_DELAY_MS = 100;
+
+async function flushBatch(): Promise<void> {
+    const entries = [...pendingWrites.entries()];
+    pendingWrites.clear();
+    batchTimer = null;
+    for (const [key, data] of entries) {
+        try {
+            await set(key, data);
+        } catch (e) {
+            console.error(`[Storage] Failed to save ${key} to IndexedDB:`, e);
+        }
     }
 }
 
 /**
- * Loads data from IndexedDB, automatically falling back to and migrating 
+ * Saves data to IndexedDB asynchronously with write batching.
+ */
+export async function saveToDB<T>(key: string, data: T): Promise<void> {
+    pendingWrites.set(key, data);
+    if (!batchTimer) {
+        batchTimer = setTimeout(flushBatch, BATCH_DELAY_MS);
+    }
+}
+
+/**
+ * Saves data immediately, bypassing the batch queue.
+ */
+export async function saveToDBImmediate<T>(key: string, data: T): Promise<void> {
+    try {
+        await set(key, data);
+    } catch (e) {
+        console.error(`[Storage] Failed to save ${key} to IndexedDB:`, e);
+    }
+}
+
+/**
+ * Loads data from IndexedDB, automatically falling back to and migrating
  * legacy localStorage data if it exists.
  */
 export async function loadFromDB<T>(key: string): Promise<T | null> {
     try {
-        // 1. Try IndexedDB first
         const dbData = await get<T>(key);
-        if (dbData !== undefined) {
-            return dbData;
-        }
+        if (dbData !== undefined) return dbData;
 
-        // 2. Fallback to localStorage migration - ONLY in main browser context
-        // We use globalThis.localStorage to prevent ReferenceErrors in Workers
         const isMainThread = typeof globalThis.window !== 'undefined' && typeof globalThis.document !== 'undefined';
-        const safeStorage = (globalThis as any).localStorage;
-        
+        const safeStorage = (globalThis as Record<string, unknown>).localStorage as Storage | undefined;
+
         if (isMainThread && safeStorage) {
             const localData = safeStorage.getItem(key);
             if (localData) {
-                console.log(`[Storage] Migrating legacy dataset '${key}' from synchronous localStorage to asynchronous IndexedDB...`);
+                console.log(`[Storage] Migrating '${key}' from localStorage to IndexedDB...`);
                 try {
                     const parsed = JSON.parse(localData) as T;
-                    
-                    // Save to IDB for future
                     await set(key, parsed);
-                    
-                    // Clean up localStorage to free the 5MB quota
                     safeStorage.removeItem(key);
-                    console.log(`[Storage] Migration of '${key}' fully successful.`);
-                    
                     return parsed;
-                } catch(e) {
+                } catch (e) {
                     console.error(`[Storage] Failed to parse legacy localStorage for ${key}`, e);
                 }
             }
         }
-    } catch (e: any) {
-        // Suppress ReferenceError logging in non-browser environments (workers/SSR)
-        if (e && e.name !== 'ReferenceError' && e.message !== 'localStorage is not defined') {
+    } catch (e: unknown) {
+        if (e && (e as Error).name !== 'ReferenceError') {
             console.error(`[Storage] Failed to load ${key} from storage:`, e);
         }
     }
@@ -65,8 +82,8 @@ export async function loadFromDB<T>(key: string): Promise<T | null> {
 export async function clearFromDB(key: string): Promise<void> {
     try {
         await del(key);
-    } catch (e: any) {
-        if (e && e.name !== 'ReferenceError' && e.message !== 'localStorage is not defined') {
+    } catch (e: unknown) {
+        if (e && (e as Error).name !== 'ReferenceError') {
             console.error(`[Storage] Failed to delete ${key}`, e);
         }
     }
@@ -84,5 +101,24 @@ export async function checkStorageHealth(): Promise<boolean> {
     } catch (e) {
         console.warn('[Storage] Health check failed:', e);
         return false;
+    }
+}
+
+/**
+ * Check storage quota usage. Returns percentage used (0-100).
+ */
+export async function getStorageUsage(): Promise<{ used: number; total: number; percentage: number } | null> {
+    try {
+        if (typeof navigator === 'undefined' || !navigator.storage?.estimate) return null;
+        const estimate = await navigator.storage.estimate();
+        const used = estimate.usage ?? 0;
+        const total = estimate.quota ?? 0;
+        return {
+            used,
+            total,
+            percentage: total > 0 ? Math.round((used / total) * 100) : 0,
+        };
+    } catch {
+        return null;
     }
 }

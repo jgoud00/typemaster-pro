@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase/client';
 import { getProfile, updateProfile } from '@/lib/supabase/profiles';
+import { sanitizeUsername, isValidUrl } from '@/lib/security/input-sanitizer';
 
 interface UserStore {
     username: string;
@@ -15,6 +16,10 @@ interface UserStore {
     syncUsername: (name: string) => Promise<void>;
 }
 
+// Rate-limit profile loads — prevent auth-check storms during rapid navigation
+let lastProfileLoad = 0;
+const PROFILE_LOAD_COOLDOWN_MS = 5_000;
+
 export const useUserStore = create<UserStore>()(
     persist(
         (set, get) => ({
@@ -22,14 +27,17 @@ export const useUserStore = create<UserStore>()(
             avatarUrl: null,
             profileLoaded: false,
 
-            setUsername: (name: string) => set({ username: name.trim().slice(0, 20) }),
-            setAvatarUrl: (url: string | null) => set({ avatarUrl: url }),
+            setUsername: (name: string) => set({ username: sanitizeUsername(name) }),
+            setAvatarUrl: (url: string | null) => set({ avatarUrl: url && isValidUrl(url) ? url : null }),
 
             /**
              * Load profile from Supabase if authenticated.
              * Falls back to local state for anonymous users.
              */
             loadProfile: async () => {
+                const now = Date.now();
+                if (now - lastProfileLoad < PROFILE_LOAD_COOLDOWN_MS) return;
+                lastProfileLoad = now;
                 try {
                     const supabase = createClient();
                     const { data: { user } } = await supabase.auth.getUser();
@@ -58,7 +66,7 @@ export const useUserStore = create<UserStore>()(
              * Update username both locally and in Supabase.
              */
             syncUsername: async (name: string) => {
-                const trimmed = name.trim().slice(0, 20);
+                const trimmed = sanitizeUsername(name);
                 set({ username: trimmed });
 
                 try {

@@ -62,7 +62,6 @@ export default function PerformanceSection({
 
     return (
         <section>
-            <h2 className="text-lg font-semibold mb-4">Performance Trends</h2>
             <Tabs defaultValue="wpm" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="wpm" className="gap-2">

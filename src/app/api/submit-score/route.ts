@@ -19,10 +19,13 @@ interface SubmitScoreBody {
   mode?: string;
 }
 
+const ALLOWED_MODES = new Set(['speed-test', 'free', 'custom', 'lesson', 'burst', 'smart']);
+
 export async function POST(req: Request) {
   try {
     const body: SubmitScoreBody = await req.json();
-    const { token, keystrokes, mode = 'speed-test' } = body;
+    const { token, keystrokes } = body;
+    const mode = typeof body.mode === 'string' && ALLOWED_MODES.has(body.mode) ? body.mode : 'speed-test';
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? '127.0.0.1';
 
     if (!token || !Array.isArray(keystrokes)) {
@@ -151,7 +154,7 @@ export async function POST(req: Request) {
           wpm: finalWpm,
           accuracy: finalAcc,
           duration: Math.round(ksDuration),
-          mode: typeof mode === 'string' && mode.length <= 32 ? mode : 'speed-test',
+          mode,
           max_combo: 0,
           score: 0,
           total_chars: keystrokes.length,

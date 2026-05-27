@@ -37,8 +37,8 @@ class SoundEngine {
     private initialized = false;
     private settings: SoundSettings = defaultSettings;
 
-    // Synthesizers
     private keystrokeSynth: Tone.Synth | null = null;
+    private keystrokePanner: Tone.Panner | null = null;
     private errorSynth: Tone.NoiseSynth | null = null;
     private comboSynth: Tone.PolySynth | null = null;
     private completeSynth: Tone.PolySynth | null = null;
@@ -50,6 +50,9 @@ class SoundEngine {
         try {
             await Tone.start();
 
+            // Panner for spatial audio
+            this.keystrokePanner = new Tone.Panner(0).toDestination();
+
             // Keystroke synth - short click
             this.keystrokeSynth = new Tone.Synth({
                 oscillator: { type: 'sine' },
@@ -59,7 +62,7 @@ class SoundEngine {
                     sustain: 0,
                     release: 0.01,
                 },
-            }).toDestination();
+            }).connect(this.keystrokePanner);
 
             // Error synth - noise burst
             this.errorSynth = new Tone.NoiseSynth({
@@ -154,7 +157,7 @@ class SoundEngine {
         }
     }
 
-    play(type: SoundType): void {
+    play(type: SoundType, options?: { pan?: number, wpm?: number }): void {
         if (typeof window === 'undefined' || !window.AudioContext) return;
         if (!this.settings.enabled) return;
 
@@ -177,6 +180,13 @@ class SoundEngine {
                 case 'keystroke':
                     if (profile === 'none') return;
 
+                    // Set spatial panning (-1 to 1)
+                    if (this.keystrokePanner && options?.pan !== undefined) {
+                        // Clamp between -0.8 and 0.8 to avoid hard panning
+                        const panVal = Math.max(-0.8, Math.min(0.8, options.pan));
+                        this.keystrokePanner.pan.rampTo(panVal, 0.01);
+                    }
+
                     if (profile === 'typewriter') {
                         // High-pitched "ping"
                         this.keystrokeSynth?.triggerAttackRelease('C6', '32n', now, 0.5);
@@ -187,9 +197,14 @@ class SoundEngine {
                         this.keystrokeSynth?.triggerAttackRelease('E5', '64n', now);
                     } else {
                         // Mechanical (Standard) - Thocky
-                        // Random pitch for variety
-                        const pitches = ['C3', 'D3', 'E3']; // Lower pitch for "thock"
-                        const pitch = pitches[Math.floor(Math.random() * pitches.length)];
+                        // Pitch tightens as WPM increases
+                        let pitch = 'C3'; // Base thock
+                        const wpm = options?.wpm || 0;
+                        if (wpm > 120) pitch = 'E3';
+                        else if (wpm > 80) pitch = 'D3';
+                        else if (wpm > 40) pitch = 'C#3';
+                        else pitch = 'C3';
+                        
                         this.keystrokeSynth?.triggerAttackRelease(pitch, '16n', now);
                     }
                     break;
@@ -249,6 +264,7 @@ class SoundEngine {
         if (typeof window === 'undefined' || !window.AudioContext) return;
         try {
             this.keystrokeSynth?.dispose();
+            this.keystrokePanner?.dispose();
             this.errorSynth?.dispose();
             this.comboSynth?.dispose();
             this.completeSynth?.dispose();

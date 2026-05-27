@@ -1,12 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { motion } from 'framer-motion';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { cn } from '@/lib/utils';
@@ -15,19 +9,9 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 
 export default function LessonsPage() {
     const { progress } = useProgressStore();
-    const [expandedCategories, setExpandedCategories] = useState<string[]>(['home-row']);
-
     const completedCount = progress.completedLessons.length;
     const totalLessons = lessons.length;
     const overallProgress = (completedCount / totalLessons) * 100;
-
-    const toggleCategory = (categoryId: string) => {
-        setExpandedCategories(prev =>
-            prev.includes(categoryId)
-                ? prev.filter(id => id !== categoryId)
-                : [...prev, categoryId]
-        );
-    };
 
     const getCategoryColor = (color: string) => {
         const colors: Record<string, string> = {
@@ -59,114 +43,63 @@ export default function LessonsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <Card className="bg-linear-to-r from-primary/10 to-purple-500/10 border-primary/20">
-                        <CardContent className="p-6">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    <h2 className="font-display text-2xl font-bold mb-1 text-(--color-content-primary)">
-                                        {completedCount} of {totalLessons} Lessons Complete
-                                    </h2>
-                                    <p className="text-muted-foreground">
-                                        Master typing from home row to advanced techniques
-                                    </p>
+                    <div className="relative rounded-2xl glass-glow p-6 overflow-hidden">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-blue-400/30 to-transparent" />
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                            <div>
+                                <h2 className="font-display text-2xl font-bold mb-1 text-white tracking-tight">
+                                    {completedCount} of {totalLessons} Lessons
+                                    <span className="text-blue-400 ml-2">Complete</span>
+                                </h2>
+                                <p className="text-zinc-500 text-sm">
+                                    Master typing from home row to advanced techniques
+                                </p>
+                            </div>
+                            <div className="w-full md:w-64 shrink-0">
+                                <div className="flex justify-between text-xs font-medium mb-2">
+                                    <span className="text-zinc-500">Overall Progress</span>
+                                    <span className="text-white font-bold">{Math.round(overallProgress)}%</span>
                                 </div>
-                                <div className="w-full md:w-64">
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span>Overall Progress</span>
-                                        <span className="font-medium">{Math.round(overallProgress)}%</span>
-                                    </div>
-                                    <Progress value={overallProgress} className="h-3" />
+                                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                                    <motion.div
+                                        className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${overallProgress}%` }}
+                                        transition={{ duration: 1, ease: 'easeOut' }}
+                                    />
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </motion.section>
 
-                {/* Lesson Categories */}
-                <div className="space-y-4">
+                {/* Lesson Categories - Vertical Roadmap */}
+                <div className="space-y-12 relative pb-24">
                     {lessonCategories.map((category, categoryIndex) => {
                         const categoryLessons = getLessonsByCategory(category.id);
-                        const completedInCategory = categoryLessons.filter(l =>
-                            progress.completedLessons.includes(l.id)
-                        ).length;
-                        const categoryProgress = (completedInCategory / categoryLessons.length) * 100;
-                        const isExpanded = expandedCategories.includes(category.id);
+                        // Calculate global start index for this category's lessons to maintain left/right alternating correctly
+                        const globalStartIndex = lessonCategories
+                            .slice(0, categoryIndex)
+                            .reduce((acc, cat) => acc + getLessonsByCategory(cat.id).length, 0);
 
                         return (
                             <motion.div
                                 key={category.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 + categoryIndex * 0.05 }}
+                                transition={{ delay: 0.1 + categoryIndex * 0.1 }}
+                                className="relative"
                             >
-                                <Card className={cn(
-                                    'transition-all cursor-pointer bg-linear-to-r',
-                                    getCategoryColor(category.color),
-                                    isExpanded && 'ring-2 ring-primary/20'
-                                )}>
-                                    <CardHeader
-                                        className="pb-3 cursor-pointer"
-                                        onClick={() => toggleCategory(category.id)}
-                                        role="button"
-                                        aria-expanded={isExpanded}
-                                        aria-controls={`category-${category.id}`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">{category.icon}</span>
-                                                <div>
-                                                    <CardTitle className="text-lg flex items-center gap-2">
-                                                        {category.name}
-                                                        <Badge variant="secondary" className="ml-2">
-                                                            {completedInCategory}/{categoryLessons.length}
-                                                        </Badge>
-                                                        {completedInCategory === categoryLessons.length && categoryLessons.length > 0 && (
-                                                            <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
-                                                                ✓ Complete
-                                                            </Badge>
-                                                        )}
-                                                    </CardTitle>
-                                                    <CardDescription>{category.description}</CardDescription>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-32 hidden md:block">
-                                                    <Progress value={categoryProgress} className="h-2" />
-                                                </div>
-                                                <motion.div
-                                                    animate={{ rotate: isExpanded ? 180 : 0 }}
-                                                    transition={{ duration: 0.2 }}
-                                                >
-                                                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                                                </motion.div>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-
-                                    <AnimatePresence>
-                                        {isExpanded && (
-                                            <motion.div
-                                                id={`category-${category.id}`}
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.3 }}
-                                            >
-                                                <CardContent className="pt-0 pb-4">
-                                                    <LessonPath
-                                                        lessons={categoryLessons}
-                                                        completedLessonIds={progress.completedLessons}
-                                                        lessonScores={progress.lessonScores}
-                                                        categoryName={category.name}
-                                                        categoryIcon={category.icon}
-                                                        categoryLessonCount={categoryLessons.length}
-                                                        showHeader
-                                                    />
-                                                </CardContent>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </Card>
+                                <LessonPath
+                                    lessons={categoryLessons}
+                                    completedLessonIds={progress.completedLessons}
+                                    lessonScores={progress.lessonScores}
+                                    categoryName={category.name}
+                                    categoryIcon={category.icon}
+                                    categoryLessonCount={categoryLessons.length}
+                                    globalStartIndex={globalStartIndex}
+                                    showHeader={true}
+                                />
                             </motion.div>
                         );
                     })}

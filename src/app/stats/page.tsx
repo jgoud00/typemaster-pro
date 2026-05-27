@@ -12,6 +12,7 @@ import {
     Clock,
     Flame,
     ChevronDown,
+    Activity,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceS
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
+import { AICoach } from '@/components/stats/AICoach';
+
 const KeyboardHeatmap = dynamic(
     () => import('@/components/stats/KeyboardHeatmap').then(mod => mod.KeyboardHeatmap),
     { ssr: false }
@@ -49,19 +52,28 @@ interface SummaryCardProps {
 function SummaryCard({ label, value, icon, accentColor }: SummaryCardProps) {
     return (
         <div
-            className="relative rounded-2xl p-5 border border-(--color-border-subtle) bg-(--color-surface-elevated) overflow-hidden"
-            style={{ borderTop: `2px solid ${accentColor}` }}
+            className="relative rounded-2xl p-5 overflow-hidden glass-subtle border border-white/[0.06] transition-all duration-300 hover:border-white/[0.12]"
+            style={{
+                boxShadow: `0 0 30px ${accentColor}12, 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)`,
+            }}
         >
-            <div className="flex items-start justify-between gap-3">
+            {/* Glowing top accent */}
+            <div
+                className="absolute top-0 inset-x-0 h-[2px] rounded-t-2xl"
+                style={{ background: `linear-gradient(90deg, transparent, ${accentColor}90, transparent)` }}
+            />
+            {/* Ambient corner glow */}
+            <div
+                className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none"
+                style={{ background: `radial-gradient(circle, ${accentColor}12 0%, transparent 70%)` }}
+            />
+
+            <div className="flex items-start justify-between gap-3 relative z-10">
                 <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-widest text-(--color-content-muted) mt-1 mb-2">
-                        {label}
-                    </p>
-                    <p className="text-3xl font-black font-mono text-(--color-content-primary) leading-none truncate">
-                        {value}
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-bold mb-2">{label}</p>
+                    <p className="text-3xl font-black font-mono text-white leading-none truncate">{value}</p>
                 </div>
-                <div className="mt-0.5 shrink-0" style={{ color: accentColor }}>
+                <div className="mt-0.5 shrink-0 p-2 rounded-xl" style={{ color: accentColor, background: `${accentColor}15` }}>
                     {icon}
                 </div>
             </div>
@@ -127,24 +139,24 @@ export default function StatsPage() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="relative z-10 bg-(--color-surface-elevated) border border-(--color-border-subtle) rounded-xl p-6 max-w-md mx-4 shadow-2xl"
+                        className="relative z-10 glass-card rounded-xl p-6 max-w-md mx-4"
                     >
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 rounded-full bg-(--color-error)/20">
-                                <AlertTriangle className="w-6 h-6 text-(--color-error)" />
+                            <div className="p-3 rounded-full bg-red-500/20">
+                                <AlertTriangle className="w-6 h-6 text-red-500" />
                             </div>
-                            <h3 className="text-xl font-bold text-(--color-content-primary)">Reset All Statistics?</h3>
+                            <h3 className="text-xl font-bold text-white">Reset All Statistics?</h3>
                         </div>
-                        <p className="text-(--color-content-secondary) mb-4">
+                        <p className="text-zinc-400 mb-4">
                             This will permanently delete all your progress, including:
                         </p>
-                        <ul className="text-sm text-(--color-content-muted) mb-6 space-y-1.5">
+                        <ul className="text-sm text-zinc-500 mb-6 space-y-1.5">
                             <li>• Completed lessons and scores</li>
                             <li>• Personal best records (WPM, accuracy, combo)</li>
                             <li>• Practice time and keystroke history</li>
                             <li>• Daily streak and achievements</li>
                         </ul>
-                        <p className="text-sm text-(--color-error) mb-6 font-medium">
+                        <p className="text-sm text-red-500 mb-6 font-medium">
                             ⚠️ This action cannot be undone!
                         </p>
                         <div className="flex gap-3 justify-end">
@@ -163,55 +175,60 @@ export default function StatsPage() {
             <SiteHeader />
 
             <main className="container mx-auto px-4 py-8 space-y-8 max-w-6xl">
-
                 {/* ── ZONE 1: Summary Row ── */}
                 <section>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <SummaryCard
                             label="Best WPM"
-                            value={progress.personalBests?.wpm || 0}
+                            value={hasPracticeData ? (progress.personalBests?.wpm || 0) : '-'}
                             icon={<Zap className="w-5 h-5" />}
                             accentColor="var(--color-primary)"
                         />
                         <SummaryCard
                             label="Best Accuracy"
-                            value={`${progress.personalBests?.accuracy || 0}%`}
+                            value={hasPracticeData ? `${progress.personalBests?.accuracy || 0}%` : '-'}
                             icon={<Target className="w-5 h-5" />}
                             accentColor="var(--color-success)"
                         />
                         <SummaryCard
                             label="Total Practice"
-                            value={formatTime(totalTimeSeconds)}
+                            value={hasPracticeData ? formatTime(totalTimeSeconds) : '-'}
                             icon={<Clock className="w-5 h-5" />}
                             accentColor="#EAB308"
                         />
                         <SummaryCard
                             label="Daily Streak"
-                            value={`${game.dailyStreak ?? 0}d`}
+                            value={hasPracticeData ? `${game.dailyStreak ?? 0}d` : '-'}
                             icon={<Flame className="w-5 h-5" />}
                             accentColor="#F97316"
                         />
                     </div>
                 </section>
 
+                {/* ── ZONE 1.5: AI Coach ── */}
+                <section>
+                    <AICoach hasData={hasPracticeData} />
+                </section>
+
                 {/* ── ZONE 2: Charts ── */}
                 <section>
-                    <div className="rounded-2xl border border-(--color-border-subtle) bg-(--color-surface-elevated) p-6 space-y-5">
+                    <div className="relative rounded-2xl glass-glow p-6 space-y-5 overflow-hidden">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                         <div className="flex items-center justify-between flex-wrap gap-3">
-                            <h2 className="font-display text-lg font-bold text-(--color-content-primary)">
+                            <h2 className="font-display text-lg font-bold text-white">
                                 Performance Over Time
                             </h2>
                             {/* Timeframe toggle */}
-                            <div className="flex items-center gap-1 p-1 rounded-lg border border-(--color-border-subtle) bg-(--color-surface)">
+                            <div className="flex items-center gap-1 p-1 rounded-xl glass-subtle border border-white/[0.07]">
                                 {(['7D', '30D', 'All'] as Timeframe[]).map((tf) => (
                                     <button
                                         key={tf}
                                         onClick={() => setTimeframe(tf)}
                                         className={cn(
-                                            'px-3 py-1 text-xs font-medium rounded-md border transition-all duration-150',
+                                            'px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-150',
                                             timeframe === tf
-                                                ? 'bg-primary/20 text-(--color-primary) border-primary/40'
-                                                : 'bg-transparent text-(--color-content-muted) border-transparent hover:text-(--color-content-secondary)'
+                                                ? 'bg-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                                                : 'text-zinc-500 hover:text-zinc-300'
                                         )}
                                     >
                                         {tf}
@@ -232,12 +249,13 @@ export default function StatsPage() {
 
                 {/* ── ZONE 3: Keyboard Heatmap ── */}
                 <section>
-                    <div className="rounded-2xl border border-(--color-border-subtle) bg-(--color-surface-elevated) p-6 space-y-4">
+                    <div className="relative rounded-2xl glass-glow p-6 space-y-4 overflow-hidden">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                         <div>
-                            <h2 className="font-display text-lg font-bold text-(--color-content-primary)">
+                            <h2 className="font-display text-lg font-bold text-white">
                                 Key Accuracy Heatmap
                             </h2>
-                            <p className="text-xs text-(--color-content-muted) mt-0.5">
+                            <p className="text-xs text-zinc-500 mt-0.5">
                                 Keys colored by your error rate — red = most errors
                             </p>
                         </div>

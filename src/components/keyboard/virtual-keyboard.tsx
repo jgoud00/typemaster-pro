@@ -98,10 +98,18 @@ function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKey
     const currentLayout = getLayoutKeyboardData(settings.keyboardLayout);
 
     return (
-        <div
-            className={cn('flex flex-col gap-1.5 p-4 rounded-2xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-xl', className)}
+        <motion.div
+            className={cn('flex flex-col gap-1.5 p-6 rounded-2xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl relative', className)}
             aria-hidden="true"
+            style={{
+                transformStyle: 'preserve-3d',
+                transformPerspective: 1200,
+                rotateX: 12,
+                translateZ: 10
+            }}
         >
+            {/* Keyboard depth layer */}
+            <div className="absolute inset-0 bg-black/40 rounded-2xl -z-10 translate-y-3 blur-sm" />
 
             {/* Layout indicator */}
             {settings.keyboardLayout !== 'qwerty' && (
@@ -136,7 +144,7 @@ function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKey
                     </div>
                 ))}
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -183,7 +191,7 @@ const MemoizedKey = memo(function Key({ keyData, isActive, showHeatmap, accuracy
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
             {/* Shift character */}
-            {shiftKey && (
+            {shiftKey && shiftKey.toLowerCase() !== key.toLowerCase() && (
                 <span className="text-[10px] text-muted-foreground/70 leading-none">
                     {shiftKey}
                 </span>

@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { memo, useState, useEffect } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 
-// Module-scope selectors — stable references, never recreated per render.
 const selectStartTime = (s: ReturnType<typeof useTypingStore.getState>) => s.state.startTime;
 const selectIsComplete = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isComplete;
 const selectIsPaused = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isPaused;
@@ -16,12 +15,10 @@ export const TypingStats = memo(function TypingStats({
     readonly remainingTime?: number | null;
     readonly className?: string;
 }) {
-    // Primitive selectors — re-renders only when these values change.
     const startTime = useTypingStore(selectStartTime);
     const isComplete = useTypingStore(selectIsComplete);
     const isPaused = useTypingStore(selectIsPaused);
 
-    // Polled via interval — zero reactive subscriptions during typing.
     const [wpm, setWpm] = useState(0);
     const [accuracy, setAccuracy] = useState(100);
     const [elapsedTime, setElapsedTime] = useState(0);
@@ -30,7 +27,6 @@ export const TypingStats = memo(function TypingStats({
         const active = !!startTime && !isComplete && !isPaused;
         if (!active) return;
 
-        // Immediate read on activation — no separate eager-set path.
         const tick = () => {
             const s = useTypingStore.getState();
             setWpm(s.getWpm());
@@ -52,23 +48,39 @@ export const TypingStats = memo(function TypingStats({
     const displayAcc = `${accuracy}%`;
     const displayTime = formatTime(remainingTime ?? elapsedTime);
 
+    const stats = [
+        { value: displayTime, label: 'time', testId: 'timer', highlight: !!startTime },
+        { value: displayWpm, label: 'wpm', testId: 'wpm', highlight: wpm > 0 },
+        { value: displayAcc, label: 'acc', testId: 'accuracy', highlight: accuracy < 100 && accuracy > 0 && !!startTime },
+    ];
+
     return (
-        <div className={cn('flex justify-center items-center gap-12 mb-8 font-mono text-3xl tabular-nums text-(--color-content-muted)', className)}>
-            <div className="flex items-baseline gap-2">
-                <span data-testid="timer" className="text-(--color-content-primary) font-bold">{displayTime}</span>
-                <span className="text-xs uppercase tracking-widest opacity-40">time</span>
-            </div>
-
-            <div className="flex items-baseline gap-2">
-                <span data-testid="wpm" className="text-(--color-content-primary) font-bold">{displayWpm}</span>
-                <span className="text-xs opacity-40 uppercase tracking-widest">wpm</span>
-            </div>
-
-            <div className="flex items-baseline gap-2">
-                <span data-testid="accuracy" className="text-(--color-content-primary) font-bold">{displayAcc}</span>
-                <span className="text-xs opacity-40 uppercase tracking-widest">acc</span>
+        <div className={cn(
+            'flex justify-center items-center gap-2 mb-8',
+            className
+        )}>
+            <div className="flex items-center gap-px rounded-2xl glass-subtle border border-white/[0.07] overflow-hidden">
+                {stats.map((stat, i) => (
+                    <div key={stat.label} className="flex items-baseline gap-2 px-6 py-3 relative group">
+                        {/* Separator */}
+                        {i > 0 && (
+                            <div className="absolute left-0 inset-y-3 w-px bg-white/[0.07]" />
+                        )}
+                        <span
+                            data-testid={stat.testId}
+                            className={cn(
+                                'font-mono font-black tabular-nums text-3xl transition-all duration-300',
+                                stat.highlight ? 'text-white' : 'text-zinc-600'
+                            )}
+                        >
+                            {stat.value}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-bold">
+                            {stat.label}
+                        </span>
+                    </div>
+                ))}
             </div>
         </div>
     );
 });
-

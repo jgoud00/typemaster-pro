@@ -10,7 +10,7 @@ export interface SettingsState {
     volume: number;
 
     // Display
-    theme: 'light' | 'dark' | 'system';
+    theme: 'dark' | 'light' | 'cyberpunk' | 'midnight' | 'dracula';
     showVirtualKeyboard: boolean;
     showFingerHints: boolean;
     showKeyboardOverlay: boolean;

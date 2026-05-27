@@ -20,13 +20,13 @@ interface UnlockedAchievement {
 interface AchievementState {
     unlockedAchievements: UnlockedAchievement[];
     recentUnlock: Achievement | null;
+    notificationQueue: Achievement[];
     totalPoints: number;
 }
 
 interface AchievementStore {
     state: AchievementState;
 
-    // Actions
     checkAchievements: (
         progress: UserProgress,
         game: GameState,
@@ -34,16 +34,20 @@ interface AchievementStore {
     ) => Achievement[];
     unlockAchievement: (id: string) => void;
     clearRecentUnlock: () => void;
+    dequeueNotification: () => Achievement | null;
 
-    // Getters
     isUnlocked: (id: string) => boolean;
     getUnlockedIds: () => string[];
     getProgress: () => { unlocked: number; total: number; points: number };
 }
 
+// O(1) lookup Set — maintained alongside the unlocked array.
+let _unlockedSet = new Set<string>();
+
 const initialState: AchievementState = {
     unlockedAchievements: [],
     recentUnlock: null,
+    notificationQueue: [],
     totalPoints: 0,
 };
 
@@ -53,15 +57,11 @@ export const useAchievementStore = create<AchievementStore>()(
             state: initialState,
 
             checkAchievements: (progress, game, event) => {
-                const { state } = get();
-                const unlockedIds = new Set(state.unlockedAchievements.map(a => a.id));
                 const newlyUnlocked: Achievement[] = [];
 
                 for (const condition of achievementConditions) {
-                    // Skip if already unlocked
-                    if (unlockedIds.has(condition.achievementId)) continue;
+                    if (_unlockedSet.has(condition.achievementId)) continue;
 
-                    // Check if condition is met
                     if (condition.check(progress, game, event)) {
                         const achievement = getAchievementById(condition.achievementId);
                         if (achievement) {
@@ -79,10 +79,7 @@ export const useAchievementStore = create<AchievementStore>()(
                 if (!achievement) return;
 
                 set((state) => {
-                    // Check if already unlocked
-                    if (state.state.unlockedAchievements.some(a => a.id === id)) {
-                        return state;
-                    }
+                    if (_unlockedSet.has(id)) return state;
 
                     const newUnlocked: UnlockedAchievement = {
                         id,
@@ -90,12 +87,14 @@ export const useAchievementStore = create<AchievementStore>()(
                     };
 
                     const newUnlockedAchievements = [...state.state.unlockedAchievements, newUnlocked];
+                    _unlockedSet.add(id);
 
                     return {
                         state: {
                             ...state.state,
                             unlockedAchievements: newUnlockedAchievements,
                             recentUnlock: achievement,
+                            notificationQueue: [...state.state.notificationQueue, achievement],
                             totalPoints: getTotalAchievementPoints(newUnlockedAchievements.map(a => a.id)),
                         },
                     };
@@ -111,9 +110,15 @@ export const useAchievementStore = create<AchievementStore>()(
                 }));
             },
 
-            isUnlocked: (id) => {
-                return get().state.unlockedAchievements.some(a => a.id === id);
+            dequeueNotification: () => {
+                const { state } = get();
+                if (state.notificationQueue.length === 0) return null;
+                const [next, ...rest] = state.notificationQueue;
+                set({ state: { ...state, notificationQueue: rest } });
+                return next;
             },
+
+            isUnlocked: (id) => _unlockedSet.has(id),
 
             getUnlockedIds: () => {
                 return get().state.unlockedAchievements.map(a => a.id);
@@ -131,7 +136,12 @@ export const useAchievementStore = create<AchievementStore>()(
         }),
         {
             name: 'typing-achievements',
-            skipHydration: true
+            skipHydration: true,
+            onRehydrateStorage: () => (state) => {
+                if (state?.state?.unlockedAchievements) {
+                    _unlockedSet = new Set(state.state.unlockedAchievements.map(a => a.id));
+                }
+            },
         }
     )
 );

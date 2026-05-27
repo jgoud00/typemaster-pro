@@ -7,19 +7,21 @@ import { createAntiCheatCollector, analyzeSession, generateIntegrityHashAsync } 
 import { useSettingsStore } from '@/stores/settings-store';
 import { getKeystrokeBuffer } from '@/stores/typing-store';
 import { PracticeMode, PerformanceRecord } from '@/types';
+import { startAutoSave, clearSession as clearRecoverySession } from '@/lib/services/session-recovery';
 
 interface UseTypingControllerOptions {
     text: string;
     mode: PracticeMode;
     lessonId?: string;
     timeLimitSeconds?: number;
+    errorLimit?: number;
     onComplete?: (record: PerformanceRecord) => void;
     onComboMilestone?: (combo: number, level: number) => void;
 }
 
 interface CompletionState {
     completed: boolean;
-    reason: 'text' | 'time' | null;
+    reason: 'text' | 'time' | 'errorLimit' | null;
 }
 
 export function useTypingController({
@@ -27,6 +29,7 @@ export function useTypingController({
     mode,
     lessonId,
     timeLimitSeconds,
+    errorLimit,
     onComplete,
     onComboMilestone,
 }: UseTypingControllerOptions) {
@@ -34,6 +37,7 @@ export function useTypingController({
     const reset = useTypingStore(s => s.reset);
     const getElapsedTime = useTypingStore(s => s.getElapsedTime);
     const handleKeystroke = useTypingStore(s => s.handleKeystroke);
+    const handleBackspace = useTypingStore(s => s.handleBackspace);
 
     const isComplete = useTypingStore(s => s.state.isComplete);
     const startTime = useTypingStore(s => s.state.startTime);
@@ -53,7 +57,24 @@ export function useTypingController({
     // stale listeners on the typingBus after HMR or route changes.
     useEffect(() => {
         initializeTypingListeners();
-        return () => disposeTypingListeners();
+        // Session auto-save: persist state every 5s for recovery
+        const stopAutoSave = startAutoSave(() => {
+            const s = useTypingStore.getState();
+            if (!s.state.startTime || s.state.isComplete) return null;
+            return {
+                text: s.state.text,
+                currentIndex: s.state.currentIndex,
+                errorIndices: s.state.errorIndices,
+                startTime: s.state.startTime,
+                pausedMs: s.state.pausedMs,
+                mode,
+                lessonId,
+            };
+        });
+        return () => {
+            disposeTypingListeners();
+            stopAutoSave();
+        };
     }, []);
 
     // Link milestone events
@@ -126,7 +147,7 @@ export function useTypingController({
             if (e.ctrlKey || e.altKey || e.metaKey) return true;
             if (['Escape', 'Tab', 'CapsLock', 'Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return true;
             if (e.key.startsWith('F') && e.key.length > 1) return true;
-            if (e.key === 'Backspace' || e.key === 'Delete') return true;
+            if (e.key === 'Delete') return true;
             return false;
         };
 
@@ -179,6 +200,13 @@ export function useTypingController({
             const s = useTypingStore.getState();
             if (isInvalidState(s, e)) return;
 
+            // Backspace: undo last character (Monkeytype-style)
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleBackspace();
+                return;
+            }
+
             if (e.key.length === 1) {
                 e.preventDefault();
                 processKeystroke(e.key, e.isTrusted, e.timeStamp);
@@ -187,9 +215,9 @@ export function useTypingController({
 
         globalThis.window.addEventListener('keydown', handleKeyDown);
         return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeystroke, timeLimitSeconds]);
+    }, [handleKeystroke, handleBackspace, timeLimitSeconds]);
 
-    const completeSession = useCallback((reason: 'text' | 'time') => {
+    const completeSession = useCallback((reason: 'text' | 'time' | 'errorLimit') => {
         if (completionStateRef.current.completed) return;
         completionStateRef.current = { completed: true, reason };
 
@@ -204,6 +232,17 @@ export function useTypingController({
         const integrity = analyzeSession(collectorRef.current, wpm, accuracy);
         const collectorData = collectorRef.current.getData();
 
+        // Calculate a rewarding score based on wpm, accuracy, duration, and combo
+        const baseScore = wpm * (accuracy / 100) * duration;
+        const comboBonus = maxCombo * 5;
+        const sessionScore = Math.round(baseScore + comboBonus);
+
+        // Update global game store
+        if (integrity.valid) {
+            useGameStore.getState().addScore(sessionScore);
+            useGameStore.getState().addXP(Math.round(sessionScore / 10));
+        }
+
         // Build record synchronously first so onComplete fires immediately,
         // then upgrade the hash asynchronously (server validates independently).
         const record: PerformanceRecord = {
@@ -216,7 +255,7 @@ export function useTypingController({
             totalChars: freshIndex,
             errors: freshErrors,
             maxCombo,
-            score: 0,
+            score: sessionScore,
             timestamp: Date.now(),
             cheatScore: integrity.cheatScore,
             valid: integrity.valid,
@@ -252,6 +291,16 @@ export function useTypingController({
         return () => { if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current); };
     }, [startTime, isComplete, timeLimitSeconds, getElapsedTime, completeSession]);
 
+    // Error limit check (Sudden Death)
+    useEffect(() => {
+        if (!errorLimit || !startTime || isComplete) return;
+        if (completionStateRef.current.completed) return;
+        
+        if (errorIndices.length >= errorLimit) {
+            completeSession('errorLimit');
+        }
+    }, [startTime, isComplete, errorIndices.length, errorLimit, completeSession]);
+
     // Text completion check
     useEffect(() => {
         if (isComplete && !completionStateRef.current.completed) {
@@ -261,7 +310,7 @@ export function useTypingController({
 
     const handleReset = useCallback(() => {
         reset();
-        // Replace with a fresh instance — never reuse across sessions
+        clearRecoverySession();
         collectorRef.current = createAntiCheatCollector();
         completionStateRef.current = { completed: false, reason: null };
     }, [reset]);

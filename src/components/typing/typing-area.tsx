@@ -4,6 +4,8 @@ import { useRef, useEffect, useState, memo, useMemo, useCallback } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
 import { cn } from '@/lib/utils';
 import { TypingCharacter } from './typing-character';
+import { ParticleSystem } from './particles';
+import { RippleEffect } from './ripple-effect';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
@@ -71,16 +73,18 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
     const isComplete = useTypingStore(selectIsComplete);
 
     const [isFocused, setIsFocused] = useState(true);
+    const [scrollOffset, setScrollOffset] = useState(0);
 
-    // rAF-gated auto-scroll, cancelled on cleanup.
+    // rAF-gated auto-scroll using offsetTop to accurately track line breaks natively.
     useEffect(() => {
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = requestAnimationFrame(() => {
-            if (cursorRef.current && containerRef.current) {
-                const cursorRect = cursorRef.current.getBoundingClientRect();
-                const containerRect = containerRef.current.getBoundingClientRect();
-                if (cursorRect.bottom > containerRect.bottom - 50) {
-                    cursorRef.current.scrollIntoView({ behavior: 'instant', block: 'center' });
+            if (cursorRef.current) {
+                const wordEl = cursorRef.current.parentElement;
+                if (wordEl) {
+                    // Update offset if the line changes. The intrinsic offsetTop is relative to the container.
+                    const newOffset = wordEl.offsetTop;
+                    setScrollOffset(prev => Math.abs(prev - newOffset) > 10 ? newOffset : prev);
                 }
             }
         });
@@ -134,8 +138,7 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
         return result;
     }, [text]);
 
-    // O(n) word index scan — still needed per keystroke but kept minimal.
-    // Optimized: early exit when space count reaches target.
+    // currentWordIdx is still needed for word-active class
     const currentWordIdx = useMemo(() => {
         let count = 0;
         for (let i = 0; i < currentIndex; i++) {
@@ -144,7 +147,6 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
         return count;
     }, [text, currentIndex]);
 
-    const currentLineIndex = Math.floor(currentWordIdx / 10);
     const showFocusOverlay = hasStarted && !isComplete && !isFocused;
 
     return (
@@ -156,8 +158,8 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                 onClick={focusInput}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') focusInput(); }}
                 className={cn(
-                    'relative bg-white/5 backdrop-blur-2xl rounded-2xl border p-8 shadow-2xl overflow-hidden cursor-text transition-colors duration-300',
-                    isFocused ? 'border-primary/50 ring-4 ring-primary/10' : 'border-white/15',
+                    'relative glass-card rounded-2xl p-8 overflow-hidden cursor-text transition-colors duration-300 mx-auto w-full max-w-3xl',
+                    isFocused ? 'border-zinc-700 ring-1 ring-zinc-700/50' : 'border-zinc-800/50',
                     className
                 )}
             >
@@ -184,7 +186,10 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                 />
 
                 {/* Background glow — pointer-events-none, no JS */}
-                <div className="absolute top-0 left-1/4 w-1/2 h-full bg-primary/5 blur-[100px] pointer-events-none" />
+                <div className="absolute top-0 left-1/4 w-1/2 h-full bg-blue-500/5 blur-[100px] pointer-events-none" />
+
+                <RippleEffect currentIndex={currentIndex} cursorRef={cursorRef} containerRef={containerRef} />
+                <ParticleSystem cursorRef={cursorRef} />
 
                 <SrOnlyStats progress={progress} />
 
@@ -207,16 +212,16 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                     role="status"
                     aria-live="polite"
                     className={cn(
-                        'relative min-h-[180px] overflow-hidden',
-                        'leading-relaxed font-mono text-center focus:outline-none',
-                        fontSize === 'small' ? 'text-[1.75rem]' : fontSize === 'large' ? 'text-[3rem]' : 'text-[2.5rem]',
+                        'relative h-[140px] overflow-hidden',
+                        'leading-relaxed font-mono text-left focus:outline-none tracking-normal',
+                        fontSize === 'small' ? 'text-xl md:text-2xl' : fontSize === 'large' ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl',
                         showFocusOverlay && 'blur-sm select-none'
                     )}
                 >
                     {/* CSS transform — compositor-only, no Framer spring overhead. */}
                     <div
-                        className="flex flex-wrap justify-center gap-x-1 gap-y-2 typing-scroll-container"
-                        style={{ transform: `translateY(${-(currentLineIndex * 60)}px)` }}
+                        className="flex flex-wrap justify-start gap-x-3 gap-y-3 typing-scroll-container relative transition-transform duration-300 ease-out"
+                        style={{ transform: `translateY(${-scrollOffset}px)` }}
                     >
                         {words.map((word, wIdx) => (
                             <div

@@ -140,3 +140,26 @@ export function generateSpeedTestText(durationSeconds: number, sessionId: string
 
     return text.trim();
 }
+
+/**
+ * Generates text that STRICTLY uses ONLY the provided allowed keys.
+ * For beginners/early lessons, this generates random combinations of characters to build raw muscle memory without confusing the user with real words.
+ */
+export function generateLessonText(allowedKeys: string[], wordCount: number, prng: PRNG = globalPrng): string {
+    const words: string[] = [];
+    const keys = allowedKeys.filter(k => k.length === 1); // Only allow single character keys for generation
+    
+    if (keys.length === 0) return "error no keys provided";
+
+    for (let i = 0; i < wordCount; i++) {
+        // Generate a chunk of 2 to 5 characters
+        const chunkLength = prng.nextInt(2, 5);
+        let chunk = '';
+        for (let j = 0; j < chunkLength; j++) {
+            chunk += prng.choice(keys);
+        }
+        words.push(chunk);
+    }
+
+    return words.join(' ');
+}

@@ -8,6 +8,8 @@ import { WorkerProvider } from "@/components/providers/worker-provider";
 import { HydrationProvider } from "@/components/providers/hydration-provider";
 import { SyncProvider } from "@/components/providers/sync-provider";
 import { AnalyticsSyncProvider } from "@/components/providers/AnalyticsSyncProvider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AmbientBackground } from "@/components/layout/ambient-background";
 import "./globals.css";
 
 const inter = Inter({
@@ -27,7 +29,7 @@ const syne = Syne({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#0d1117",
 };
 
 export const metadata: Metadata = {
@@ -57,15 +59,21 @@ export default function RootLayout({
           Skip to content
         </a>
         <ErrorBoundary>
-          <HydrationProvider>
-            <WorkerProvider>
-              <SyncProvider>
-                <AnalyticsSyncProvider>
-                  {children}
-                </AnalyticsSyncProvider>
-              </SyncProvider>
-            </WorkerProvider>
-          </HydrationProvider>
+          <ThemeProvider>
+            <SyncProvider>
+              <WorkerProvider>
+                <HydrationProvider>
+                  <AnalyticsSyncProvider>
+                    <div className="relative min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary-foreground">
+                      <AmbientBackground />
+                      <PWARegistry />
+                      {children}
+                    </div>
+                  </AnalyticsSyncProvider>
+                </HydrationProvider>
+              </WorkerProvider>
+            </SyncProvider>
+          </ThemeProvider>
         </ErrorBoundary>
         <AchievementToast />
         <Toaster
@@ -76,7 +84,6 @@ export default function RootLayout({
             duration: 3000,
           }}
         />
-        <PWARegistry />
         {process.env.NODE_ENV === 'development' && (
           <script
             dangerouslySetInnerHTML={{

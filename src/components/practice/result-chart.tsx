@@ -108,25 +108,28 @@ export function ResultChart({
     };
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
             {/* ── Score Hero ───────────────────────────────────────────────── */}
-            <div
-                className="rounded-2xl p-6 flex flex-col items-center gap-4"
-                style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-subtle)' }}
-            >
+            <div className="relative rounded-2xl p-6 flex flex-col items-center gap-5 overflow-hidden glass-glow">
+                {/* Top accent line */}
+                <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                {/* Ambient glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+
                 {/* Personal best banner */}
                 <AnimatePresence>
                     {isNewPersonalBest && (
                         <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
+                            initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.9 }}
                             transition={{ duration: 0.35, ease: 'easeOut' }}
-                            className="flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold text-sm"
+                            className="relative flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm"
                             style={{
-                                background: 'color-mix(in srgb, var(--color-warning) 15%, transparent)',
-                                border: '1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)',
-                                color: 'var(--color-warning)',
+                                background: 'linear-gradient(135deg, rgba(234,179,8,0.15), rgba(245,158,11,0.08))',
+                                border: '1px solid rgba(234,179,8,0.35)',
+                                color: '#FBBF24',
+                                boxShadow: '0 0 20px rgba(234,179,8,0.15), inset 0 1px 0 rgba(234,179,8,0.15)',
                             }}
                         >
                             🏆 New Personal Best!
@@ -135,62 +138,51 @@ export function ResultChart({
                 </AnimatePresence>
 
                 {/* WPM + Accuracy Ring */}
-                <div className="flex items-center justify-center gap-10">
+                <div className="flex items-center justify-center gap-12 relative z-10">
                     {/* Animated WPM */}
                     <div className="flex flex-col items-center gap-1">
                         <motion.span
-                            className="font-display font-bold leading-none tabular-nums"
-                            style={{ fontSize: '4rem', color: 'var(--color-content-primary)' }}
+                            className="font-display font-black leading-none tabular-nums bg-gradient-to-b from-white to-zinc-300 bg-clip-text text-transparent"
+                            style={{ fontSize: '4.5rem' }}
                         >
                             {animatedWpm}
                         </motion.span>
-                        <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--color-content-muted)' }}>
-                            WPM
-                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold">WPM</span>
                     </div>
 
                     {/* Divider */}
-                    <div className="h-16 w-px" style={{ background: 'var(--color-border-subtle)' }} />
+                    <div className="h-16 w-px bg-white/[0.08]" />
 
                     {/* Accuracy ring */}
                     <div className="flex flex-col items-center gap-1">
                         <AccuracyRing accuracy={accuracy} />
-                        <span className="text-xs uppercase tracking-widest" style={{ color: 'var(--color-content-muted)' }}>
-                            Accuracy
-                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold">Accuracy</span>
                     </div>
                 </div>
 
                 {/* Stats pill row */}
-                <div className="flex flex-wrap justify-center gap-3 mt-2">
+                <div className="flex flex-wrap justify-center gap-2.5 relative z-10">
                     {[
-                        { label: 'Speed', value: `${wpm} WPM` },
-                        { label: 'Accuracy', value: `${accuracy}%` },
-                        { label: 'Time', value: formatTime(elapsedTime) },
-                        { label: 'Best Combo', value: `×${maxCombo}` },
-                    ].map(({ label, value }) => (
+                        { label: 'Speed', value: `${wpm} WPM`, icon: '⚡' },
+                        { label: 'Accuracy', value: `${accuracy}%`, icon: '🎯' },
+                        { label: 'Time', value: formatTime(elapsedTime), icon: '⏱' },
+                        { label: 'Best Combo', value: `×${maxCombo}`, icon: '🔥' },
+                    ].map(({ label, value, icon }) => (
                         <div
                             key={label}
-                            className="flex items-center gap-2 rounded-full px-4 py-1.5 text-sm"
-                            style={{
-                                background: 'var(--color-surface)',
-                                border: '1px solid var(--color-border-subtle)',
-                            }}
+                            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm glass-subtle border border-white/[0.07]"
                         >
-                            <span style={{ color: 'var(--color-content-muted)' }}>{label}</span>
-                            <span className="font-mono font-bold" style={{ color: 'var(--color-content-primary)' }}>
-                                {value}
-                            </span>
+                            <span className="text-xs">{icon}</span>
+                            <span className="text-zinc-500 text-xs">{label}</span>
+                            <span className="font-mono font-bold text-white text-sm">{value}</span>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* ── Performance Chart ─────────────────────────────────────────── */}
-            <div
-                className="rounded-2xl p-4"
-                style={{ background: 'var(--color-surface-elevated)', border: '1px solid var(--color-border-subtle)' }}
-            >
+            <div className="relative rounded-2xl p-5 glass-glow overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 <div className="flex items-center justify-between mb-4">
                     <span className="font-display font-semibold text-base" style={{ color: 'var(--color-content-primary)' }}>
                         Performance Trend

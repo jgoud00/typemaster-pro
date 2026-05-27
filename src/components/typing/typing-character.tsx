@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface TypingCharacterProps {
@@ -14,6 +14,14 @@ interface TypingCharacterProps {
     ref?: React.RefObject<HTMLSpanElement | null>;
 }
 
+/**
+ * TypingCharacter — Pure CSS animation, no useState.
+ * 
+ * Previous implementation used useState + setTimeout for correct-flash animation,
+ * causing a re-render on every correctly typed character. Now the animation is
+ * triggered purely by CSS class transitions (animate-char-correct), which the
+ * browser handles on the compositor thread.
+ */
 export const TypingCharacter = memo(function TypingCharacter({
     char,
     isTyped,
@@ -23,20 +31,6 @@ export const TypingCharacter = memo(function TypingCharacter({
     cursorStyle,
     ref,
 }: Readonly<TypingCharacterProps>) {
-    const [showCorrectFlash, setShowCorrectFlash] = useState(false);
-    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Trigger bounce when char transitions to correct
-    useEffect(() => {
-        if (isTyped && !isError) {
-            setShowCorrectFlash(true);
-            timerRef.current = setTimeout(() => setShowCorrectFlash(false), 120);
-        }
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-    }, [isTyped, isError]);
-
     return (
         <span
             ref={isCurrent ? ref : undefined}
@@ -45,8 +39,7 @@ export const TypingCharacter = memo(function TypingCharacter({
             className={cn(
                 'relative inline-block',
                 isError && isCurrent && 'animate-char-shake',
-                showCorrectFlash && 'animate-char-correct',
-                isTyped && !isError && 'char-correct',
+                isTyped && !isError && 'char-correct animate-char-correct',
                 isCurrent && 'char-active',
                 isTyped && isError && 'char-error',
                 !isTyped && !isCurrent && 'char-untyped',
@@ -76,5 +69,6 @@ export const TypingCharacter = memo(function TypingCharacter({
     prev.isError === next.isError &&
     prev.isNext === next.isNext &&
     prev.cursorStyle === next.cursorStyle &&
+    prev.smoothCaret === next.smoothCaret &&
     prev.char === next.char
 );
