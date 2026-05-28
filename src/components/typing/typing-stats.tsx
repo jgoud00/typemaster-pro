@@ -11,9 +11,11 @@ const selectIsPaused = (s: ReturnType<typeof useTypingStore.getState>) => s.stat
 export const TypingStats = memo(function TypingStats({
     remainingTime,
     className,
+    totalWords,
 }: {
     readonly remainingTime?: number | null;
     readonly className?: string;
+    readonly totalWords?: number;
 }) {
     const startTime = useTypingStore(selectStartTime);
     const isComplete = useTypingStore(selectIsComplete);
@@ -22,6 +24,7 @@ export const TypingStats = memo(function TypingStats({
     const [wpm, setWpm] = useState(0);
     const [accuracy, setAccuracy] = useState(100);
     const [elapsedTime, setElapsedTime] = useState(0);
+    const [wordsTyped, setWordsTyped] = useState(0);
 
     useEffect(() => {
         const active = !!startTime && !isComplete && !isPaused;
@@ -32,11 +35,17 @@ export const TypingStats = memo(function TypingStats({
             setWpm(s.getWpm());
             setAccuracy(s.getAccuracy());
             setElapsedTime(s.getElapsedTime());
+            
+            if (totalWords) {
+                const typedText = s.state.text.substring(0, s.state.currentIndex);
+                const words = typedText.trim() === '' ? 0 : typedText.trim().split(/\s+/).length;
+                setWordsTyped(words);
+            }
         };
         tick();
         const id = setInterval(tick, 500);
         return () => clearInterval(id);
-    }, [startTime, isComplete, isPaused]);
+    }, [startTime, isComplete, isPaused, totalWords]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -49,6 +58,7 @@ export const TypingStats = memo(function TypingStats({
     const displayTime = formatTime(remainingTime ?? elapsedTime);
 
     const stats = [
+        ...(totalWords ? [{ value: `${wordsTyped}/${totalWords}`, label: 'words', testId: 'words', highlight: !!startTime }] : []),
         { value: displayTime, label: 'time', testId: 'timer', highlight: !!startTime },
         { value: displayWpm, label: 'wpm', testId: 'wpm', highlight: wpm > 0 },
         { value: displayAcc, label: 'acc', testId: 'accuracy', highlight: accuracy < 100 && accuracy > 0 && !!startTime },

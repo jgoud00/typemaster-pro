@@ -388,7 +388,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     // Dynamic text extension — reads currentIndex from store imperatively to avoid subscription
     useEffect(() => {
         if (!hasStarted || isComplete) return;
-        if (mode !== 'zen') return; // Only extend text dynamically in Zen mode
+        if (mode === 'free' || mode === 'custom') return; // Do not dynamically extend for fixed-length modes
         const remainingChars = text.length - currentIndex;
         if (remainingChars < 100) {
             setText(prev => prev + ' ' + generateAdaptiveText(20, difficulty));
@@ -622,7 +622,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                 </div>
 
                                 {/* Stats - Minimal */}
-                                <TypingStats />
+                                <TypingStats totalWords={mode === 'free' ? wordCount : undefined} />
                             </>
                         )}
 
