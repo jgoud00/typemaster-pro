@@ -700,6 +700,9 @@ function PracticeContent() {
 
     // Restore the store synchronously right before we mount the interface
     if (recoveredSession && useTypingStore.getState().state.text !== recoveredSession.text) {
+        // Calculate how long the user was offline so we don't unfairly penalize their time limit
+        const timeOffline = recoveredSession.savedAt ? Math.max(0, Date.now() - recoveredSession.savedAt) : 0;
+        
         useTypingStore.setState({
             state: {
                 ...useTypingStore.getState().state,
@@ -707,7 +710,7 @@ function PracticeContent() {
                 currentIndex: recoveredSession.currentIndex,
                 errorIndices: recoveredSession.errorIndices,
                 startTime: recoveredSession.startTime,
-                pausedMs: recoveredSession.pausedMs,
+                pausedMs: (recoveredSession.pausedMs || 0) + timeOffline,
                 isComplete: false,
                 isPaused: false, // Don't pause, let the user type immediately
             },
