@@ -6,11 +6,15 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Keyboard, Trophy, TrendingUp, Flame, Star, Settings,
-    Info, BookOpen, ChevronDown, MoreHorizontal, Zap
+    Info, BookOpen, ChevronDown, MoreHorizontal, Zap, LogOut, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, SettingsState } from '@/stores/settings-store';
 import { useGameStore } from '@/stores/game-store';
+import { useUserStore } from '@/stores/user-store';
+import { createClient } from '@/lib/supabase/client';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { Button } from '@/components/ui/button';
 
 const THEMES: { id: SettingsState['theme']; label: string; color: string }[] = [
     { id: 'dark', label: 'Default', color: 'bg-zinc-800' },
@@ -24,10 +28,23 @@ function SiteHeaderComponent() {
     const { game } = useGameStore();
     const theme = useSettingsStore(s => s.settings.theme);
     const updateSetting = useSettingsStore(s => s.updateSetting);
+    const username = useUserStore(s => s.username);
+    const profileLoaded = useUserStore(s => s.profileLoaded);
     const [isMoreOpen, setIsMoreOpen] = useState(false);
     const [isThemeOpen, setIsThemeOpen] = useState(false);
+    const [isAuthOpen, setIsAuthOpen] = useState(false);
     const moreRef = useRef<HTMLDivElement>(null);
     const themeRef = useRef<HTMLDivElement>(null);
+
+    const handleSignOut = async () => {
+        try {
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            useUserStore.setState({ username: '', profileLoaded: true });
+        } catch (e) {
+            console.error('[Auth] Sign out failed:', e);
+        }
+    };
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -48,6 +65,7 @@ function SiteHeaderComponent() {
     ];
 
     return (
+        <>
         <header className="glass-header sticky top-0 z-40">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
@@ -201,6 +219,35 @@ function SiteHeaderComponent() {
                         </AnimatePresence>
                     </div>
 
+                    {/* Auth cluster */}
+                    {profileLoaded && (
+                        username ? (
+                            <div className="hidden md:flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-subtle border border-white/[0.07] text-xs font-medium text-zinc-300">
+                                    <User className="w-3 h-3 text-zinc-500" />
+                                    <span>{username}</span>
+                                </div>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={handleSignOut}
+                                    aria-label="Sign Out"
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors duration-200"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                </motion.button>
+                            </div>
+                        ) : (
+                            <Button
+                                onClick={() => setIsAuthOpen(true)}
+                                className="hidden md:flex h-8 px-4 text-xs font-bold border border-white/[0.1] bg-white/[0.05] text-zinc-200 hover:bg-white/[0.1] hover:text-white"
+                                variant="ghost"
+                            >
+                                Sign In
+                            </Button>
+                        )
+                    )}
+
                     {/* Settings shortcut */}
                     <Link href="/settings" className="outline-none hidden md:block">
                         <motion.div
@@ -215,6 +262,10 @@ function SiteHeaderComponent() {
                 </div>
             </div>
         </header>
+
+        {/* Auth Modal — rendered outside header flow to avoid stacking context issues */}
+        {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
+        </>
     );
 }
 export const SiteHeader = memo(SiteHeaderComponent);

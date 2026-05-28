@@ -32,6 +32,7 @@ import { API_ROUTES, TIMERS } from '@/lib/config/constants';
 import { loadSession, saveSession, clearSession as clearRecoverySession, attachBeforeUnloadSync, type RecoverableSession } from '@/lib/services/session-recovery';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import { triggerSync } from '@/components/providers/sync-provider';
 
 // --- Practice Hub Component ---
 function PracticeHub() {
@@ -302,6 +303,9 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
             flowScore: finalFlowScore,
             date: Date.now()
         });
+
+        // Fire-and-forget sync to Supabase for authenticated users
+        triggerSync();
 
 
 
