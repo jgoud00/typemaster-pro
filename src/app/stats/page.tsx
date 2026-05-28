@@ -26,6 +26,7 @@ const PerformanceSection = dynamic(() => import('@/components/stats/PerformanceS
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
+import { clearFromDB } from '@/lib/storage/db';
 import { AICoach } from '@/components/stats/AICoach';
 
 const KeyboardHeatmap = dynamic(
@@ -92,14 +93,14 @@ export default function StatsPage() {
     const [timeframe, setTimeframe] = useState<Timeframe>('30D');
     const [dangerOpen, setDangerOpen] = useState(false);
 
-    const handleResetStats = () => {
+    const handleResetStats = async () => {
         resetProgress();
         resetSession();
         clearSession();
         setShowResetModal(false);
         if (globalThis.window !== undefined) {
             globalThis.localStorage.removeItem('ngram-analytics');
-            globalThis.localStorage.removeItem('analytics-store');
+            await clearFromDB('analytics-store');
         }
         router.refresh();
     };

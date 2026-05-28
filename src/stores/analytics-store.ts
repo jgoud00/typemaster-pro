@@ -304,3 +304,18 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
             _hesitationCount > 0 ? _hesitationTotal / _hesitationCount : 0,
     };
 });
+
+import { saveToDB } from '@/lib/storage/db';
+
+const ANALYTICS_DB_KEY = 'analytics-store';
+
+useAnalyticsStore.subscribe((state) => {
+  saveToDB(ANALYTICS_DB_KEY, {
+    keyStats: state.keyStats,
+    bigramStats: state.bigramStats,
+    trigramStats: state.trigramStats,
+    fingerStats: state.fingerStats,
+    mlResults: state.mlResults,
+    deviceId: state.deviceId,
+  });
+});
