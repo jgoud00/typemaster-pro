@@ -13,6 +13,7 @@ export class PRNG {
 
     constructor(seed?: number) {
         this.seed = seed ?? Math.floor(Math.random() * 2147483647);
+        if (this.seed === 0) this.seed = 1; // Prevent Lehmer RNG getting stuck at 0
     }
 
     // Returns a float between 0 and 1
@@ -43,7 +44,8 @@ export class PRNG {
 let globalPrng = new PRNG();
 
 // Generate text emphasizing specific weak keys
-export function generateWeaknessTargetedText(weakKeys: string[], wordCount: number, prng: PRNG = globalPrng): string {
+export function generateWeaknessTargetedText(weakKeys: string[], wordCount: number, prng?: PRNG): string {
+    const rng = prng || new PRNG(Date.now() + Math.floor(Math.random() * 100000));
     const words: string[] = [];
     
     // Combine word banks
@@ -80,18 +82,20 @@ export function generateWeaknessTargetedText(weakKeys: string[], wordCount: numb
     return words.join(' ') + '.';
 }
 
-export function generateAdaptiveText(wordCount: number, difficulty: 'easy' | 'medium' | 'hard', prng: PRNG = globalPrng): string {
+export function generateAdaptiveText(wordCount: number, difficulty: 'easy' | 'medium' | 'hard', prng?: PRNG): string {
+    const rng = prng || new PRNG(Date.now() + Math.floor(Math.random() * 100000));
     const words: string[] = [];
     const { commonWords, advancedWords, shortSentences } = getLocale();
     const pool = difficulty === 'easy' ? commonWords : 
                  difficulty === 'medium' ? [...commonWords, ...advancedWords] : 
                  [...advancedWords, ...shortSentences];
-    for (let i = 0; i < wordCount; i++) words.push(prng.choice(pool));
+    for (let i = 0; i < wordCount; i++) words.push(rng.choice(pool));
     return words.join(' ');
 }
 
-export function generateRandomText(wordCount: number, prng: PRNG = globalPrng): string {
-    const text = generateAdaptiveText(wordCount, 'medium', prng);
+export function generateRandomText(wordCount: number, prng?: PRNG): string {
+    const rng = prng || new PRNG(Date.now() + Math.floor(Math.random() * 100000));
+    const text = generateAdaptiveText(wordCount, 'medium', rng);
     return text.charAt(0).toUpperCase() + text.slice(1) + '.';
 }
 
