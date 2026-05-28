@@ -168,6 +168,69 @@ function calculateFlowScore(wpms: number[], accuracy: number) {
     return Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
 }
 
+function LocalLeaderboard({ currentSessionDate }: { currentSessionDate: number }) {
+    const entries = useLeaderboardStore(s => s.entries).slice(0, 10);
+    
+    if (entries.length === 0) return null;
+
+    return (
+        <Card className="bg-black/20 border-white/10 mt-6">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-white">
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    Local Leaderboard
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                    <div className="grid grid-cols-5 gap-4 px-2.5 pb-2 text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-white/5">
+                        <div className="col-span-1">Rank</div>
+                        <div className="col-span-1">Name</div>
+                        <div className="col-span-1 text-right">WPM</div>
+                        <div className="col-span-1 text-right">Accuracy</div>
+                        <div className="col-span-1 text-right">Date</div>
+                    </div>
+                    {entries.map((entry, i) => {
+                        const isCurrent = Math.abs(entry.date - currentSessionDate) < 5000;
+                        return (
+                            <div key={`${entry.date}-${i}`} className={cn(
+                                "grid grid-cols-5 gap-4 items-center px-2.5 py-2 rounded-lg transition-colors border",
+                                isCurrent 
+                                    ? "bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]" 
+                                    : "bg-zinc-900/50 border-zinc-800/50 hover:bg-zinc-800/50"
+                            )}>
+                                <div className="col-span-1 flex items-center gap-3 min-w-0">
+                                    <div className={cn(
+                                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0",
+                                        i === 0 ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" :
+                                        i === 1 ? "bg-zinc-300/20 text-zinc-300 border border-zinc-300/30" :
+                                        i === 2 ? "bg-orange-600/20 text-orange-500 border border-orange-600/30" :
+                                        "bg-zinc-800/50 text-zinc-500 border border-zinc-700/50"
+                                    )}>
+                                        {i + 1}
+                                    </div>
+                                </div>
+                                <div className={cn("col-span-1 text-sm font-medium truncate", isCurrent ? "text-blue-400" : (i < 3 ? "text-white" : "text-zinc-300"))}>
+                                    {entry.username || 'Anonymous'}
+                                </div>
+                                <div className={cn("col-span-1 text-right font-bold text-sm", i === 0 ? "text-yellow-500" : "text-white")}>
+                                    {entry.wpm}
+                                </div>
+                                <div className="col-span-1 text-right text-sm text-zinc-400">
+                                    {entry.accuracy}%
+                                </div>
+                                <div className="col-span-1 text-right text-xs text-zinc-500 truncate">
+                                    {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function Leaderboard() {
     const localEntries = useLeaderboardStore(s => s.entries).slice(0, 10);
     const globalEntries = useLeaderboardStore(s => s.globalEntries);
@@ -700,6 +763,8 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
                             maxCombo={result?.maxCombo ?? 0}
                             isNewPersonalBest={(result?.wpm ?? 0) > (useProgressStore.getState().progress.personalBests?.wpm ?? 0)}
                         />
+                        
+                        <LocalLeaderboard currentSessionDate={result?.timestamp ?? Date.now()} />
 
                         <div className="flex justify-center gap-4">
                             <Button size="lg" onClick={handleReset} className="min-w-[150px]">

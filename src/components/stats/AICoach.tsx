@@ -73,7 +73,7 @@ export function AICoach({ hasData = true }: { hasData?: boolean }) {
                 </div>
                 <div>
                     <h2 className="font-display text-xl font-bold text-white tracking-wide">Nexus AI Coach</h2>
-                    <p className="text-xs text-cyan-400/70 uppercase tracking-widest font-mono">Live Telemetry Analysis</p>
+                    <p className="text-xs text-cyan-400/70 uppercase tracking-widest font-mono">ML Model Output</p>
                 </div>
             </div>
 
@@ -130,7 +130,7 @@ export function AICoach({ hasData = true }: { hasData?: boolean }) {
                     <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
                     <div className="flex items-center gap-2 mb-3 text-cyan-500/80 text-xs border-b border-cyan-500/20 pb-2">
                         <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                        system.analyze()
+                        ml.assess()
                     </div>
                     <div className="text-cyan-100/70 whitespace-pre-wrap leading-relaxed h-[120px] overflow-y-auto custom-scrollbar">
                         {aiAssessment}
