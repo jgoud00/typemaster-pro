@@ -19,6 +19,9 @@ const selectCombo = (s: ReturnType<typeof useGameStore.getState>) => s.game.comb
 const selectHasStarted = (s: ReturnType<typeof useTypingStore.getState>) =>
     s.state.startTime !== null;
 const selectIsComplete = (s: ReturnType<typeof useTypingStore.getState>) => s.state.isComplete;
+const selectText = (s: ReturnType<typeof useTypingStore.getState>) => s.state.text;
+const selectCurrentIndex = (s: ReturnType<typeof useTypingStore.getState>) => s.state.currentIndex;
+const selectErrorIndices = (s: ReturnType<typeof useTypingStore.getState>) => s.state.errorIndices;
 
 // Isolated sub-component: polls wpm/accuracy at 500 ms via getState() — no selector subscription.
 const SrOnlyStats = memo(function SrOnlyStats({ progress }: Readonly<{ progress: number }>) {
@@ -48,8 +51,7 @@ const SrOnlyStats = memo(function SrOnlyStats({ progress }: Readonly<{ progress:
 // Settings selectors — granular to avoid rerender on unrelated settings changes.
 const selectCursorStyle = (s: ReturnType<typeof useSettingsStore.getState>) =>
     s.settings.cursorStyle;
-const selectSmoothCaret = (s: ReturnType<typeof useSettingsStore.getState>) =>
-    s.settings.smoothCaret;
+
 const selectFontSize = (s: ReturnType<typeof useSettingsStore.getState>) =>
     s.settings.fontSize;
 
@@ -62,13 +64,12 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
 
     // Granular settings selectors — no full-object re-subscription.
     const cursorStyle = useSettingsStore(selectCursorStyle);
-    const smoothCaret = useSettingsStore(selectSmoothCaret);
     const fontSize = useSettingsStore(selectFontSize);
 
     // Primitive store slices only.
-    const text = useTypingStore(s => s.state.text);
-    const currentIndex = useTypingStore(s => s.state.currentIndex);
-    const errorIndices = useTypingStore(s => s.state.errorIndices);
+    const text = useTypingStore(selectText);
+    const currentIndex = useTypingStore(selectCurrentIndex);
+    const errorIndices = useTypingStore(selectErrorIndices);
     const hasStarted = useTypingStore(selectHasStarted);
     const isComplete = useTypingStore(selectIsComplete);
 
@@ -236,7 +237,6 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                                     const isTyped = index < currentIndex;
                                     const isCurrent = index === currentIndex;
                                     const isError = errorSet.has(index);
-                                    const isNext = index === currentIndex + 1;
                                     return (
                                         <TypingCharacter
                                             key={`c-${index}`}
@@ -244,9 +244,7 @@ function TypingAreaComponent({ className }: TypingAreaProps) {
                                             isTyped={isTyped}
                                             isCurrent={isCurrent}
                                             isError={isError}
-                                            isNext={isNext}
                                             cursorStyle={cursorStyle}
-                                            smoothCaret={smoothCaret}
                                             ref={cursorRef}
                                         />
                                     );

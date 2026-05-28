@@ -71,22 +71,28 @@ export function scheduleIdle(task: Task): void {
     p3Scheduled = true;
 
     if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback((deadline) => {
+        requestIdleCallback(function process(deadline) {
             p3Scheduled = false;
             while (p3Queue.length > 0 && deadline.timeRemaining() > 2) {
                 const t = p3Queue.shift();
                 if (t) t();
             }
             // Re-schedule if tasks remain
-            if (p3Queue.length > 0) scheduleIdle(() => {});
+            if (p3Queue.length > 0) {
+                p3Scheduled = true;
+                requestIdleCallback(process);
+            }
         });
     } else {
         // Fallback for browsers without requestIdleCallback
-        setTimeout(() => {
+        setTimeout(function processFallback() {
             p3Scheduled = false;
             const batch = p3Queue.splice(0, 5);
             for (const t of batch) t();
-            if (p3Queue.length > 0) scheduleIdle(() => {});
+            if (p3Queue.length > 0) {
+                p3Scheduled = true;
+                setTimeout(processFallback, 50);
+            }
         }, 50);
     }
 }

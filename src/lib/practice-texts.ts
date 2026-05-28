@@ -74,7 +74,7 @@ export function generateWeaknessTargetedText(weakKeys: string[], wordCount: numb
     });
 
     for (let i = 0; i < wordCount; i++) {
-        words.push(prng.choice(weightedPool));
+        words.push(rng.choice(weightedPool));
     }
     
     // Format

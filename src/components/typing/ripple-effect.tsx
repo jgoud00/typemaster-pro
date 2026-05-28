@@ -33,12 +33,17 @@ function RippleEffectComponent({
 
         const newRipple = { id: Date.now() + Math.random(), x, y };
 
-        setRipples(prev => [...prev, newRipple]);
+        setRipples(prev => {
+            const next = [...prev, newRipple];
+            return next.length > 5 ? next.slice(-5) : next;
+        });
 
         // Cleanup ripple after 600ms
-        setTimeout(() => {
+        const timerId = setTimeout(() => {
             setRipples(prev => prev.filter(r => r.id !== newRipple.id));
         }, 600);
+
+        return () => clearTimeout(timerId);
     }, [currentIndex, cursorRef, containerRef]);
 
     return (

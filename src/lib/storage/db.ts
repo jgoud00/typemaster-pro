@@ -1,4 +1,4 @@
-import { get, set, del } from 'idb-keyval';
+import { get, set, setMany, del } from 'idb-keyval';
 
 /**
  * Write batching — coalesces multiple saveToDB calls within 100ms
@@ -12,12 +12,10 @@ async function flushBatch(): Promise<void> {
     const entries = [...pendingWrites.entries()];
     pendingWrites.clear();
     batchTimer = null;
-    for (const [key, data] of entries) {
-        try {
-            await set(key, data);
-        } catch (e) {
-            console.error(`[Storage] Failed to save ${key} to IndexedDB:`, e);
-        }
+    try {
+        await setMany(entries);
+    } catch (e) {
+        console.error(`[Storage] Failed to save batch to IndexedDB:`, e);
     }
 }
 

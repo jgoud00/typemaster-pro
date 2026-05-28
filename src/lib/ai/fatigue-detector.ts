@@ -42,8 +42,8 @@ export class FatigueDetector {
     addDataPoint(point: DataPoint): void {
         this.dataPoints.push(point);
         // Keep last 200 points for trend analysis
-        if (this.dataPoints.length > 200) {
-            this.dataPoints.shift();
+        if (this.dataPoints.length > 400) {
+            this.dataPoints = this.dataPoints.slice(-200);
         }
     }
 

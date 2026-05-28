@@ -43,9 +43,15 @@ class NgramAnalyzer {
     // Tracking current sequence
     private recentChars: { char: string; time: number; correct: boolean }[] = [];
 
+    private _loaded = false;
+
     constructor() {
         if (typeof globalThis.window !== 'undefined') {
-            this.load();
+            this.load().finally(() => {
+                this._loaded = true;
+            });
+        } else {
+            this._loaded = true;
         }
     }
 
@@ -53,12 +59,14 @@ class NgramAnalyzer {
      * Record a keystroke for ngram analysis
      */
     recordKeystroke(char: string, timestamp: number, isCorrect: boolean): void {
+        if (!this._loaded) return;
+
         // Add to recent chars buffer
         this.recentChars.push({ char: char.toLowerCase(), time: timestamp, correct: isCorrect });
 
         // Keep only last 4 chars for trigram analysis
-        if (this.recentChars.length > 4) {
-            this.recentChars.shift();
+        if (this.recentChars.length > 8) {
+            this.recentChars = this.recentChars.slice(-4);
         }
 
         // Analyze bigrams (need at least 2 chars)

@@ -43,8 +43,14 @@ export function ParticleSystem({ cursorRef }: ParticleSystemProps) {
         window.addEventListener('resize', resize);
 
         const render = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
             const particles = particlesRef.current;
+            if (particles.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                animationFrameRef.current = 0;
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
@@ -54,7 +60,9 @@ export function ParticleSystem({ cursorRef }: ParticleSystemProps) {
                 p.life -= 1;
 
                 if (p.life <= 0) {
-                    particles.splice(i, 1);
+                    // Swap and pop for O(1) removal
+                    particles[i] = particles[particles.length - 1];
+                    particles.pop();
                     continue;
                 }
 
@@ -67,21 +75,12 @@ export function ParticleSystem({ cursorRef }: ParticleSystemProps) {
 
             animationFrameRef.current = requestAnimationFrame(render);
         };
-        render();
 
-        return () => {
-            window.removeEventListener('resize', resize);
-            cancelAnimationFrame(animationFrameRef.current);
-        };
-    }, []);
-
-    useEffect(() => {
-        const handleKeystroke = (ctx: any) => {
-            if (!ctx.isCorrect) return;
+        const handleKeystroke = (eCtx: any) => {
+            if (!eCtx.isCorrect) return;
 
             const cursor = cursorRef.current;
-            const container = containerRef.current;
-            if (!cursor || !container) return;
+            if (!cursor) return;
 
             const cursorRect = cursor.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
@@ -106,21 +105,33 @@ export function ParticleSystem({ cursorRef }: ParticleSystemProps) {
             else if (combo > 50) colors = ['rgb(16, 185, 129)', 'rgb(110, 231, 183)']; // Emerald
 
             for (let i = 0; i < count; i++) {
+                const life = 20 + Math.random() * 15;
                 particlesRef.current.push({
                     x,
                     y,
                     vx: (Math.random() - 0.5) * 4,
                     vy: (Math.random() - 1) * 4 - 2, // Upward bias
-                    life: 20 + Math.random() * 15,
-                    maxLife: 35,
+                    life,
+                    maxLife: life,
                     color: colors[Math.floor(Math.random() * colors.length)],
                     size: 2 + Math.random() * 2,
                 });
             }
+
+            if (!animationFrameRef.current) {
+                animationFrameRef.current = requestAnimationFrame(render);
+            }
         };
 
         typingBus.on('KEYSTROKE_REGISTERED', handleKeystroke);
-        return () => typingBus.off('KEYSTROKE_REGISTERED', handleKeystroke);
+
+        return () => {
+            window.removeEventListener('resize', resize);
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+            typingBus.off('KEYSTROKE_REGISTERED', handleKeystroke);
+        };
     }, [cursorRef]);
 
     return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { keyboardLayout as qwertyLayout, fingerColors } from '@/lib/keyboard-data';
@@ -90,12 +90,24 @@ function getLayoutKeyboardData(layoutName: 'qwerty' | 'dvorak' | 'colemak' | 'az
 }
 
 function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKeyboardProps) {
-    const getKeyAccuracy = useAnalyticsStore(s => s.getKeyAccuracy);
+    const keyStats = useAnalyticsStore(s => showHeatmap ? s.keyStats : null);
     const settings = useSettingsStore(s => s.settings);
     const activeKey = useTypingStore(s => s.activeKey);
 
     // Get keyboard layout based on settings
-    const currentLayout = getLayoutKeyboardData(settings.keyboardLayout);
+    const currentLayout = useMemo(() => getLayoutKeyboardData(settings.keyboardLayout), [settings.keyboardLayout]);
+
+    // Memoized accuracy map
+    const accuracyMap = useMemo(() => {
+        const map = new Map<string, number>();
+        if (!showHeatmap || !keyStats) return map;
+        for (const [key, stat] of Object.entries(keyStats)) {
+            if (stat && stat.totalAttempts > 0) {
+                map.set(key.toLowerCase(), Math.round(((stat.totalAttempts - stat.errors) / stat.totalAttempts) * 100));
+            }
+        }
+        return map;
+    }, [showHeatmap, keyStats]);
 
     return (
         <motion.div
@@ -126,7 +138,7 @@ function VirtualKeyboardComponent({ showHeatmap = false, className }: VirtualKey
                             keyData={keyData}
                             isActive={isKeyActive(keyData, activeKey)}
                             showHeatmap={showHeatmap}
-                            accuracy={showHeatmap ? getKeyAccuracy(keyData.key) : 100}
+                            accuracy={showHeatmap ? (accuracyMap.get(keyData.key.toLowerCase()) ?? 100) : 100}
                         />
                     ))}
                 </div>

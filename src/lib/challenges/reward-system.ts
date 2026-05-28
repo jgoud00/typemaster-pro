@@ -30,7 +30,7 @@ export interface LevelInfo {
 
 const BASE_XP_PER_SESSION = 25;
 const BASE_XP_PER_CORRECT_CHAR = 0.5;
-const MAX_XP_PER_HOUR = 500;
+const MAX_XP_PER_SESSION = 500;
 const MIN_SESSION_SECONDS = 10;
 const MAX_STREAK_MULTIPLIER = 2.5;
 const DIMINISHING_THRESHOLD = 5;     // sessions per day
@@ -92,8 +92,8 @@ export function calculateSessionXP(
         baseXP * streakMultiplier * difficultyMultiplier * accuracyPenalty * diminishingFactor
     );
 
-    // Anti-exploit: cap XP per hour
-    totalXP = Math.min(MAX_XP_PER_HOUR, totalXP);
+    // Anti-exploit: cap XP per session
+    totalXP = Math.min(MAX_XP_PER_SESSION, totalXP);
 
     return {
         baseXP,

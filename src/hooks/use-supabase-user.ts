@@ -9,6 +9,7 @@ type AuthHandler = (user: User | null) => void;
 const handlers = new Set<AuthHandler>();
 let sharedUser: User | null = null;
 let initialized = false;
+let authSubscription: { unsubscribe: () => void } | null = null;
 
 /**
  * Shared Supabase auth listener — initialises once, broadcasts to all subscribers.
@@ -24,6 +25,8 @@ export function useSupabaseUser(onUserChange: AuthHandler) {
     }, []);
 
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+        
         handlers.add(stableHandler);
 
         if (!initialized) {
@@ -35,10 +38,11 @@ export function useSupabaseUser(onUserChange: AuthHandler) {
                 handlers.forEach(h => h(user));
             });
 
-            supabase.auth.onAuthStateChange((_event, session) => {
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
                 sharedUser = session?.user ?? null;
                 handlers.forEach(h => h(sharedUser));
             });
+            authSubscription = subscription;
         } else {
             // Already initialized — call immediately with cached user
             stableHandler(sharedUser);
@@ -46,6 +50,12 @@ export function useSupabaseUser(onUserChange: AuthHandler) {
 
         return () => {
             handlers.delete(stableHandler);
+            if (handlers.size === 0) {
+                authSubscription?.unsubscribe();
+                authSubscription = null;
+                initialized = false;
+                sharedUser = null;
+            }
         };
     }, [stableHandler]);
 }

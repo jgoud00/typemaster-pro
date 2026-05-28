@@ -100,7 +100,13 @@ export function generatePersonalizedText(options: GeneratorOptions = {}): string
         words.push(allWords[Math.floor(Math.random() * allWords.length)]);
     }
 
-    let text = shuffleArray(words).join(' ');
+    const deduplicated: string[] = [];
+    for (const w of shuffleArray(words)) {
+        if (deduplicated.length === 0 || deduplicated[deduplicated.length - 1] !== w) {
+            deduplicated.push(w);
+        }
+    }
+    let text = deduplicated.join(' ');
 
     // Phase 3: Apply difficulty modifiers
     if (includePunctuation) {

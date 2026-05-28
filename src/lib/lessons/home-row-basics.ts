@@ -71,13 +71,13 @@ const homeRowLessons: Lesson[] = [
             { id: 'h3-2', text: 'ss ll ss ll ss ll ss ll ss ll', difficulty: 'beginner' },
             // Real words
             { id: 'h3-3', text: 'sad lad sad lad sad lad sad lad', difficulty: 'beginner' },
-            { id: 'h3-4', text: 'lasslass lass lass lass lass', difficulty: 'beginner' },
-            { id: 'h3-5', text: 'ladslass lads lass lads lass', difficulty: 'intermediate' },
+            { id: 'h3-4', text: 'lass lass lass lass lass lass', difficulty: 'beginner' },
+            { id: 'h3-5', text: 'lads lass lads lass lads lass', difficulty: 'intermediate' },
             // Word combinations
-            { id: 'h3-6', text: 'sad dad lad lass fadlass sad dad', difficulty: 'intermediate' },
+            { id: 'h3-6', text: 'sad dad lad lass fad lass sad dad', difficulty: 'intermediate' },
             { id: 'h3-7', text: 'flask flask flask flask flask flask', difficulty: 'intermediate' },
             { id: 'h3-8', text: 'salads flask falls salads flask falls', difficulty: 'advanced' },
-            { id: 'h3-9', text: 'sad lads fall as dad askslass', difficulty: 'advanced' },
+            { id: 'h3-9', text: 'sad lads fall as dad asks lass', difficulty: 'advanced' },
         ],
     },
 
@@ -164,10 +164,10 @@ const homeRowLessons: Lesson[] = [
             { id: 'h7-1', text: 'ask ask ask ask ask ask ask ask', difficulty: 'beginner' },
             { id: 'h7-2', text: 'dad sad lad fad dad sad lad fad', difficulty: 'beginner' },
             { id: 'h7-3', text: 'fall all call fall all call fall', difficulty: 'beginner' },
-            { id: 'h7-4', text: 'lasslasslasslass lass lass', difficulty: 'beginner' },
+            { id: 'h7-4', text: 'lass lass lass lass lass lass', difficulty: 'beginner' },
             // Medium words
             { id: 'h7-5', text: 'flask salad falls flask salad falls', difficulty: 'intermediate' },
-            { id: 'h7-6', text: 'salads flasksallas salads flasks', difficulty: 'intermediate' },
+            { id: 'h7-6', text: 'salads flasks alas salads flasks', difficulty: 'intermediate' },
             { id: 'h7-7', text: 'ask a lad; a lass falls; dad adds', difficulty: 'intermediate' },
             // Word combinations
             { id: 'h7-8', text: 'a sad dad asks all lads as a lass falls', difficulty: 'advanced' },

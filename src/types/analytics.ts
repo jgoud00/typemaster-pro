@@ -1,23 +1,4 @@
-import { Finger } from './index';
-
-export interface KeyStat {
-  totalAttempts: number;
-  errors: number;
-  totalHesitation: number;
-  averageSpeed: number; // ms per keystroke
-}
-
-export interface FingerStat {
-  totalAttempts: number;
-  errors: number;
-  weaknessScore: number;
-}
-
-export interface NGramStat {
-  count: number;
-  totalTime: number;
-  averageSpeed: number;
-}
+import { Finger, KeyStat, BigramStat, TrigramStat } from './index';
 
 export interface BayesianState {
   alpha: number;
@@ -50,11 +31,11 @@ export type VectorClock = Record<string, number>;
 
 export interface AnalyticsPayload {
   keyStats: Record<string, KeyStat>;
-  fingerStats: Record<Finger, FingerStat>;
-  bigramStats: Record<string, NGramStat>;
-  trigramStats: Record<string, NGramStat>;
+  fingerStats: Record<Finger, { correct: number; total: number }>;
+  bigramStats: Record<string, BigramStat>;
+  trigramStats: Record<string, TrigramStat>;
   bayesianStates: Record<string, BayesianState>;
-  hmmStates: Record<string, HMMKeyState>;
+  hmmStates: Record<string, HMMState>;
   fatigue: FatiguePrediction;
   syncMeta: SyncMetadata;
 }

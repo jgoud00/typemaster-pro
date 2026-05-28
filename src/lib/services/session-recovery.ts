@@ -100,6 +100,5 @@ export function startAutoSave(
 
     return () => {
         clearInterval(id);
-        clearSession();
     };
 }

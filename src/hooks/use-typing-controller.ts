@@ -44,7 +44,7 @@ export function useTypingController({
     const isPaused = useTypingStore(s => s.state.isPaused);
     const currentIndex = useTypingStore(s => s.state.currentIndex);
     const errorIndices = useTypingStore(s => s.state.errorIndices);
-    const keystrokes = useTypingStore(s => s.state.keystrokes);
+
     const currentText = useTypingStore(s => s.state.text);
     const activeKey = useTypingStore(s => s.activeKey);
 
@@ -75,7 +75,7 @@ export function useTypingController({
             disposeTypingListeners();
             stopAutoSave();
         };
-    }, []);
+    }, [mode, lessonId]);
 
     // Link milestone events
     useEffect(() => {
@@ -266,7 +266,7 @@ export function useTypingController({
             integrityHash: integrity.hash,
         };
 
-        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid });
+        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid, duration });
 
         // Upgrade to async SHA-256 hash before calling onComplete
         generateIntegrityHashAsync(wpm, accuracy, integrity.cheatScore, collectorData.totalKeyEvents, collectorData.intervals)
@@ -282,17 +282,17 @@ export function useTypingController({
     useEffect(() => {
         if (!timeLimitSeconds || !startTime || isComplete) return;
         if (completionStateRef.current.completed) return;
-        const checkTimeLimit = () => {
+        
+        const timerId = setInterval(() => {
             if (completionStateRef.current.completed) return;
             const elapsed = getElapsedTime();
             if (elapsed >= timeLimitSeconds) {
                 completeSession('time');
-                return;
+                clearInterval(timerId);
             }
-            rafIdRef.current = requestAnimationFrame(checkTimeLimit);
-        };
-        rafIdRef.current = requestAnimationFrame(checkTimeLimit);
-        return () => { if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current); };
+        }, 250);
+        
+        return () => clearInterval(timerId);
     }, [startTime, isComplete, timeLimitSeconds, getElapsedTime, completeSession]);
 
     // Error limit check (Sudden Death)
@@ -327,7 +327,7 @@ export function useTypingController({
         text: currentText,
         currentIndex,
         errorIndices,
-        keystrokes,
+
         activeKey,
     };
 }

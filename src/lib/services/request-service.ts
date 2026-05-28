@@ -48,9 +48,10 @@ function evictStale(): void {
     for (const [k, v] of cache) {
         if (v.expiresAt <= now) cache.delete(k);
     }
-    if (cache.size > MAX_CACHE_SIZE) {
+    while (cache.size > MAX_CACHE_SIZE) {
         const oldest = cache.keys().next().value;
         if (oldest) cache.delete(oldest);
+        else break;
     }
 }
 
@@ -101,7 +102,25 @@ export async function request<T = unknown>(url: string, options: RequestOptions 
     // Offline queue (mutations only)
     if (method !== 'GET' && typeof navigator !== 'undefined' && !navigator.onLine) {
         return new Promise<T>((resolve, reject) => {
-            offlineQueue.push({ url, options: init, resolve: resolve as (v: unknown) => void, reject });
+            const timeoutId = setTimeout(() => {
+                const index = offlineQueue.findIndex(q => q.resolve === wrappedResolve);
+                if (index !== -1) {
+                    offlineQueue.splice(index, 1);
+                    reject(new Error('Offline request queued for too long'));
+                }
+            }, 30_000);
+            
+            const wrappedResolve = (v: unknown) => {
+                clearTimeout(timeoutId);
+                resolve(v as T);
+            };
+            
+            const wrappedReject = (e: unknown) => {
+                clearTimeout(timeoutId);
+                reject(e);
+            };
+
+            offlineQueue.push({ url, options: init, resolve: wrappedResolve, reject: wrappedReject });
         });
     }
 

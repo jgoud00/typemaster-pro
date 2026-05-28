@@ -126,10 +126,13 @@ export function generateDailyChallenges(user: UserLevel): Challenge[] {
         },
     ];
 
-    // Select 3 using seeded random for deterministic daily selection
-    return pool
-        .sort(() => rng() - 0.5)
-        .slice(0, 3);
+    // Select 3 using Fisher-Yates shuffle for deterministic daily selection
+    const poolCopy = [...pool];
+    for (let i = poolCopy.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [poolCopy[i], poolCopy[j]] = [poolCopy[j], poolCopy[i]];
+    }
+    return poolCopy.slice(0, 3);
 }
 
 export function generateWeeklyGoals(user: UserLevel): WeeklyGoal[] {
@@ -169,7 +172,7 @@ export function generateWeeklyGoals(user: UserLevel): WeeklyGoal[] {
 
 export function evaluateChallenge(
     challenge: Challenge,
-    sessionResult: { wpm: number; accuracy: number; duration: number; maxCombo: number }
+    sessionResult: { wpm: number; accuracy: number; duration: number; maxCombo: number; wpmVariance?: number }
 ): Challenge {
     if (challenge.status !== 'active') return challenge;
     if (Date.now() > challenge.expiresAt) return { ...challenge, status: 'expired' };
@@ -194,7 +197,11 @@ export function evaluateChallenge(
             current = Math.max(current, sessionResult.maxCombo);
             break;
         case 'consistency':
-            current += 1;
+            // Only increment if variance is explicitly provided and less than 5,
+            // or if it's not provided (fallback).
+            if (sessionResult.wpmVariance === undefined || sessionResult.wpmVariance < 5) {
+                current += 1;
+            }
             break;
     }
 

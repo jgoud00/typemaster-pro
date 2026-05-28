@@ -80,14 +80,18 @@ export class AntiCheatCollector {
         if (!isTrusted) this.suspiciousKeyEvents++;
 
         this.rawTimestamps.push(timestamp);
-        if (this.rawTimestamps.length > 1000) this.rawTimestamps.shift();
+        if (this.rawTimestamps.length > 2000) {
+            this.rawTimestamps = this.rawTimestamps.slice(-1000);
+        }
 
         if (this.lastTimestamp > 0) {
             const interval = timestamp - this.lastTimestamp;
             // Discard negative/zero intervals (clock drift, duplicate events)
             if (interval > 0) {
                 this.intervals.push(interval);
-                if (this.intervals.length > 500) this.intervals.shift();
+                if (this.intervals.length > 1000) {
+                    this.intervals = this.intervals.slice(-500);
+                }
             }
         }
         this.lastTimestamp = timestamp;
@@ -333,8 +337,4 @@ export function createAntiCheatCollector(): AntiCheatCollector {
     return new AntiCheatCollector();
 }
 
-/**
- * @deprecated Use createAntiCheatCollector() per-session.
- * Kept for backward compatibility; will be removed in a future refactor.
- */
-export const antiCheatCollector = new AntiCheatCollector();
+

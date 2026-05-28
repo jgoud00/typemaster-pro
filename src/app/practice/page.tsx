@@ -322,7 +322,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                         sid: sd.sessionId,
                         token: sd.token,
                         score: { wpm: record.wpm, accuracy: record.accuracy, durationMs: record.duration * 1000 },
-                        keystrokes: useTypingStore.getState().state.keystrokes.map(k => ({ t: k.timestamp, correct: k.isCorrect })),
+                        keystrokes: [],
                     })
                 });
                 
@@ -420,7 +420,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         setResult(null);
         setHistory([]);
         completionHandledRef.current = false;
-        useGameStore.getState().resetGame();
+        useGameStore.getState().resetSession();
         useAnalyticsStore.getState().clearSession();
 
         // Fetch new session for verification
@@ -438,7 +438,7 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         setIsComplete(false);
         setResult(null);
         setHistory([]);
-        useGameStore.getState().resetGame();
+        useGameStore.getState().resetSession();
         useAnalyticsStore.getState().clearSession();
         completionHandledRef.current = false;
         toast.dismiss();

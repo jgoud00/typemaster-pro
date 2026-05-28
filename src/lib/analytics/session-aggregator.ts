@@ -65,12 +65,15 @@ function aggregateRecords(records: PerformanceRecord[]): AggregatedStats {
 export class SessionAggregator {
     private cache: PeriodStats | null = null;
     private lastRecordCount = -1;
+    private lastRecordTimestamp = -1;
 
     /**
      * Get aggregated stats. Returns cached result if records haven't changed.
      */
     aggregate(records: PerformanceRecord[]): PeriodStats {
-        if (this.cache && records.length === this.lastRecordCount) {
+        const latestTimestamp = records.length > 0 ? records[records.length - 1].timestamp : 0;
+
+        if (this.cache && records.length === this.lastRecordCount && latestTimestamp === this.lastRecordTimestamp) {
             return this.cache;
         }
 
@@ -98,14 +101,15 @@ export class SessionAggregator {
             else weeklyMap.set(key, [r]);
         }
 
-        const weekly = [...weeklyMap.values()]
-            .map(aggregateRecords)
-            .sort((a, b) => b.totalSessions - a.totalSessions);
+        const weekly = [...weeklyMap.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([, recs]) => aggregateRecords(recs));
 
         const allTime = aggregateRecords(valid);
 
         this.cache = { daily, weekly, allTime };
         this.lastRecordCount = records.length;
+        this.lastRecordTimestamp = latestTimestamp;
 
         return this.cache;
     }
@@ -122,6 +126,7 @@ export class SessionAggregator {
     invalidate(): void {
         this.cache = null;
         this.lastRecordCount = -1;
+        this.lastRecordTimestamp = -1;
     }
 }
 

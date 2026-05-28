@@ -9,6 +9,13 @@ import { cn } from '@/lib/utils';
 import { Lesson } from '@/types';
 import { useGameStore } from '@/stores/game-store';
 import { useProgressStore } from '@/stores/progress-store';
+import { homeRowLessons } from '@/lib/lessons/home-row-basics';
+import { homeRowAdvancedLessons } from '@/lib/lessons/home-row-advanced';
+import { topRowLessons } from '@/lib/lessons/top-row';
+import { bottomRowLessons } from '@/lib/lessons/bottom-row';
+import { numbersLessons } from '@/lib/lessons/numbers';
+import { symbolsLessons } from '@/lib/lessons/symbols';
+import { advancedLessons } from '@/lib/lessons/advanced';
 
 interface HeroBannerProps {
     completedCount: number;
@@ -115,9 +122,9 @@ export function HeroBanner({
                                         Your course
                                     </div>
                                     {[
-                                        { label: 'Home Row Mastery', desc: '12 lessons', emoji: '⌨️', color: 'border-blue-500/30' },
-                                        { label: 'Top & Bottom Rows', desc: '20 lessons', emoji: '🎯', color: 'border-emerald-500/30' },
-                                        { label: 'Speed & Numbers', desc: '25 lessons', emoji: '⚡', color: 'border-orange-500/30' },
+                                        { label: 'Home Row Mastery', desc: `${homeRowLessons.length + homeRowAdvancedLessons.length} lessons`, emoji: '⌨️', color: 'border-blue-500/30' },
+                                        { label: 'Top & Bottom Rows', desc: `${topRowLessons.length + bottomRowLessons.length} lessons`, emoji: '🎯', color: 'border-emerald-500/30' },
+                                        { label: 'Speed & Numbers', desc: `${numbersLessons.length + symbolsLessons.length + advancedLessons.length} lessons`, emoji: '⚡', color: 'border-orange-500/30' },
                                     ].map((item, i) => (
                                         <motion.div
                                             key={item.label}
@@ -136,9 +143,6 @@ export function HeroBanner({
                                             </div>
                                         </motion.div>
                                     ))}
-                                    <div className="text-[10px] text-zinc-600 text-center pt-1">
-                                        + 16 more milestone lessons
-                                    </div>
                                 </div>
                             </motion.div>
                         </div>

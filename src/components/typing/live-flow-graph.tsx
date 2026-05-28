@@ -84,7 +84,6 @@ export function LiveFlowGraph({
             >
                 {/* Area fill — plain polyline, no Framer subscription. */}
                 <polyline
-                    fill="none"
                     points={areaPoints}
                     className={fillClass}
                 />

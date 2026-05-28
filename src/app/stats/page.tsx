@@ -85,7 +85,7 @@ export default function StatsPage() {
     const router = useRouter();
     const { progress, resetProgress } = useProgressStore();
     const game = useGameStore(s => s.game);
-    const resetGame = useGameStore(s => s.resetGame);
+    const resetSession = useGameStore(s => s.resetSession);
     const { keyStats, clearSession } = useAnalyticsStore();
 
     const [showResetModal, setShowResetModal] = useState(false);
@@ -94,7 +94,7 @@ export default function StatsPage() {
 
     const handleResetStats = () => {
         resetProgress();
-        resetGame();
+        resetSession();
         clearSession();
         setShowResetModal(false);
         if (globalThis.window !== undefined) {

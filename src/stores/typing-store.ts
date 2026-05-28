@@ -83,9 +83,7 @@ function clearErrorSet() {
 
 // ─── High-resolution timing ──────────────────────────────────────────────────
 // Use performance.now() for sub-millisecond precision where available
-function hrTimestamp(): number {
-    return typeof performance !== 'undefined' ? performance.now() : Date.now();
-}
+// (Removed hrTimestamp as it was never called)
 
 // Epoch-relative timestamp for storage/sync (Date.now() based)
 function epochTimestamp(): number {
@@ -126,7 +124,6 @@ const initialState: TypingState = {
     startTime: null,
     endTime: null,
     errorIndices: [],
-    keystrokes: [],
     isComplete: false,
     isPaused: false,
     pausedMs: 0,
@@ -163,7 +160,6 @@ export const useTypingStore = create<TypingStore>()(
             }
 
             const now = epochTimestamp();
-            const hrNow = hrTimestamp();
             const expected = state.text[state.currentIndex];
             const isCorrect = key === expected;
             const previousKey = state.currentIndex > 0
@@ -207,7 +203,6 @@ export const useTypingStore = create<TypingStore>()(
                     startTime: state.startTime ?? now,
                     endTime: isComplete ? now : null,
                     errorIndices: newErrorIndices,
-                    keystrokes: [],
                     isComplete,
                 },
                 activeKey: isComplete ? null : state.text[newIndex],
@@ -279,8 +274,9 @@ export const useTypingStore = create<TypingStore>()(
             const { state, correctCount } = get();
             if (!state.startTime) return 0;
 
-            const endTime = state.endTime ?? epochTimestamp();
-            const activePause = state.pauseStart ? (epochTimestamp() - state.pauseStart) : 0;
+            const now = epochTimestamp();
+            const endTime = state.endTime ?? now;
+            const activePause = state.pauseStart ? (now - state.pauseStart) : 0;
             const elapsedSeconds = Math.max(
                 0,
                 (endTime - state.startTime - state.pausedMs - activePause)
@@ -300,8 +296,9 @@ export const useTypingStore = create<TypingStore>()(
             const { state } = get();
             if (!state.startTime) return 0;
 
-            const endTime = state.endTime ?? epochTimestamp();
-            const activePause = state.pauseStart ? (epochTimestamp() - state.pauseStart) : 0;
+            const now = epochTimestamp();
+            const endTime = state.endTime ?? now;
+            const activePause = state.pauseStart ? (now - state.pauseStart) : 0;
             return Math.max(
                 0,
                 Math.floor((endTime - state.startTime - state.pausedMs - activePause) / 1000)

@@ -103,7 +103,7 @@ export default function PerformanceSection({
                                                 className="text-muted-foreground"
                                             />
                                             <YAxis
-                                                domain={[0, 100]}
+                                                domain={[0, 'dataMax + 20']}
                                                 tick={{ fontSize: 12 }}
                                                 className="text-muted-foreground"
                                             />

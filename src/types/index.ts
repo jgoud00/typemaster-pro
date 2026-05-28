@@ -68,24 +68,18 @@ export interface GameState {
   totalXP: number;
   sessionsToday: number;
   lastSessionDate: string;
+  lastWeeklyReset: number;
 }
 
-export interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  category: 'quick-win' | 'milestone' | 'secret';
-  condition: (state: GameState, progress: UserProgress) => boolean;
-  unlockedAt?: number;
-}
 
-export const COMBO_THRESHOLDS = {
-  LEVEL_1: { combo: 10, multiplier: 1.5 },
-  LEVEL_2: { combo: 25, multiplier: 2 },
-  LEVEL_3: { combo: 50, multiplier: 3 },
-  LEVEL_4: { combo: 100, multiplier: 5 },
-} as const;
+
+export const COMBO_THRESHOLDS = [
+  { threshold: 10, multiplier: 1.25 },
+  { threshold: 25, multiplier: 1.5 },
+  { threshold: 50, multiplier: 1.75 },
+  { threshold: 100, multiplier: 2.0 },
+  { threshold: 200, multiplier: 2.5 },
+] as const;
 
 // ============= Typing State =============
 export interface TypingState {
@@ -94,7 +88,6 @@ export interface TypingState {
   startTime: number | null;
   endTime: number | null;
   errorIndices: number[];
-  keystrokes: KeystrokeEvent[];
   isComplete: boolean;
   isPaused: boolean;
   pausedMs: number;

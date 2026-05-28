@@ -2,9 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState } from '@/types';
-
-const COMBO_THRESHOLDS = [10, 25, 50, 100, 200] as const;
+import { GameState, COMBO_THRESHOLDS } from '@/types';
 
 interface GameStore {
     game: GameState;
@@ -15,7 +13,7 @@ interface GameStore {
     getComboLevel: () => number;
 
     // Score
-    addScore: (points: number) => void;
+    addScore: (points: number, multiplierOverride?: number) => void;
 
     // XP & Level
     addXP: (xp: number) => void;
@@ -27,7 +25,8 @@ interface GameStore {
     breakPerfectStreak: () => void;
 
     // Reset
-    resetGame: () => void;
+    resetSession: () => void;
+    trackDailyProgress: () => void;
     resetDaily: () => void;
 }
 
@@ -43,6 +42,7 @@ const initialGame: GameState = {
     totalXP: 0,
     sessionsToday: 0,
     lastSessionDate: '',
+    lastWeeklyReset: 0,
 };
 
 export const useGameStore = create<GameStore>()(
@@ -53,13 +53,14 @@ export const useGameStore = create<GameStore>()(
             incrementCombo: () => {
                 set(s => {
                     const newCombo = s.game.combo + 1;
-                    const level = COMBO_THRESHOLDS.filter(t => newCombo >= t).length;
+                    const thresholdObj = [...COMBO_THRESHOLDS].reverse().find(t => newCombo >= t.threshold);
+                    const multiplier = thresholdObj ? thresholdObj.multiplier : 1;
                     return {
                         game: {
                             ...s.game,
                             combo: newCombo,
                             maxCombo: Math.max(s.game.maxCombo, newCombo),
-                            comboMultiplier: 1 + level * 0.25,
+                            comboMultiplier: multiplier,
                         },
                     };
                 });
@@ -73,18 +74,22 @@ export const useGameStore = create<GameStore>()(
 
             getComboLevel: () => {
                 const combo = get().game.combo;
-                return COMBO_THRESHOLDS.filter(t => combo >= t).length;
+                return COMBO_THRESHOLDS.filter(t => combo >= t.threshold).length;
             },
 
-            addScore: (points: number) => {
-                set(s => ({
-                    game: {
-                        ...s.game,
-                        score: s.game.score + Math.round(points * s.game.comboMultiplier),
-                        todayScore: s.game.todayScore + Math.round(points * s.game.comboMultiplier),
-                        weeklyScore: s.game.weeklyScore + Math.round(points * s.game.comboMultiplier),
-                    },
-                }));
+            addScore: (points: number, multiplierOverride?: number) => {
+                set(s => {
+                    const multiplier = multiplierOverride ?? s.game.comboMultiplier;
+                    const scoreToAdd = Math.round(points * multiplier);
+                    return {
+                        game: {
+                            ...s.game,
+                            score: s.game.score + scoreToAdd,
+                            todayScore: s.game.todayScore + scoreToAdd,
+                            weeklyScore: s.game.weeklyScore + scoreToAdd,
+                        },
+                    };
+                });
             },
 
             addXP: (xp: number) => {
@@ -128,7 +133,20 @@ export const useGameStore = create<GameStore>()(
                 }));
             },
 
-            resetGame: () => {
+            resetSession: () => {
+                set(s => ({
+                    game: {
+                        ...s.game,
+                        score: 0,
+                        combo: 0,
+                        maxCombo: 0,
+                        comboMultiplier: 1,
+                        perfectStreak: 0,
+                    },
+                }));
+            },
+
+            trackDailyProgress: () => {
                 const today = new Date().toISOString().split('T')[0];
                 set(s => {
                     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -137,11 +155,6 @@ export const useGameStore = create<GameStore>()(
                     return {
                         game: {
                             ...s.game,
-                            score: 0,
-                            combo: 0,
-                            maxCombo: 0,
-                            comboMultiplier: 1,
-                            perfectStreak: 0,
                             dailyStreak: isToday ? s.game.dailyStreak : (isConsecutive ? s.game.dailyStreak + 1 : 1),
                             sessionsToday: isToday ? s.game.sessionsToday + 1 : 1,
                             lastSessionDate: today,
@@ -151,9 +164,19 @@ export const useGameStore = create<GameStore>()(
             },
 
             resetDaily: () => {
-                set(s => ({
-                    game: { ...s.game, todayScore: 0, sessionsToday: 0 },
-                }));
+                set(s => {
+                    const currentWeek = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+                    const isNewWeek = s.game.lastWeeklyReset !== currentWeek;
+                    return {
+                        game: { 
+                            ...s.game, 
+                            todayScore: 0, 
+                            sessionsToday: 0,
+                            weeklyScore: isNewWeek ? 0 : s.game.weeklyScore,
+                            lastWeeklyReset: currentWeek,
+                        },
+                    };
+                });
             },
         }),
         {

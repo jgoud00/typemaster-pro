@@ -8,9 +8,7 @@ interface TypingCharacterProps {
     isTyped: boolean;
     isCurrent: boolean;
     isError: boolean;
-    isNext: boolean;
     cursorStyle: 'line' | 'block' | 'underline' | 'bar';
-    smoothCaret: boolean;
     ref?: React.RefObject<HTMLSpanElement | null>;
 }
 
@@ -27,7 +25,6 @@ export const TypingCharacter = memo(function TypingCharacter({
     isTyped,
     isCurrent,
     isError,
-    isNext,
     cursorStyle,
     ref,
 }: Readonly<TypingCharacterProps>) {
@@ -67,8 +64,6 @@ export const TypingCharacter = memo(function TypingCharacter({
     prev.isTyped === next.isTyped &&
     prev.isCurrent === next.isCurrent &&
     prev.isError === next.isError &&
-    prev.isNext === next.isNext &&
     prev.cursorStyle === next.cursorStyle &&
-    prev.smoothCaret === next.smoothCaret &&
     prev.char === next.char
 );

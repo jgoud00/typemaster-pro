@@ -9,7 +9,7 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    AreaChart,
+    ComposedChart,
     Area,
 } from 'recharts';
 
@@ -201,7 +201,7 @@ export function ResultChart({
 
                 <div className="h-[260px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data}>
+                        <ComposedChart data={data}>
                             <defs>
                                 <linearGradient id="colorWpm" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25} />
@@ -217,7 +217,7 @@ export function ResultChart({
                                 dataKey="timestamp"
                                 stroke="var(--color-content-muted)"
                                 fontSize={11}
-                                tickFormatter={(_val, index) => `${index * 5}s`}
+                                tickFormatter={(val) => `${Math.round(val)}s`}
                                 tick={{ fill: 'var(--color-content-muted)' }}
                             />
                             <YAxis
@@ -252,7 +252,7 @@ export function ResultChart({
                                 strokeWidth={2}
                                 dot={false}
                             />
-                        </AreaChart>
+                        </ComposedChart>
                     </ResponsiveContainer>
                 </div>
             </div>

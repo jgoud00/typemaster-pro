@@ -35,15 +35,14 @@ export function initializeTypingListeners(): void {
     typingBus.on('KEYSTROKE_REGISTERED', (ctx) => {
         recordTypingKeystroke(ctx);
 
-        // Calculate spatial pan based on key position (QWERTY approximation)
-        const leftKeys = '12345qwertasdfgzxcvb'.split('');
-        const rightKeys = '67890yuiophjklnm,./;\'[]\\'.split('');
+        // Calculate spatial pan based on finger (layout agnostic)
         let pan = 0;
-        const keyLower = ctx.key.toLowerCase();
-        if (leftKeys.includes(keyLower)) {
-            pan = -0.6; // Pan left
-        } else if (rightKeys.includes(keyLower)) {
-            pan = 0.6; // Pan right
+        if (ctx.finger) {
+            if (ctx.finger.startsWith('left')) {
+                pan = -0.6;
+            } else if (ctx.finger.startsWith('right')) {
+                pan = 0.6;
+            }
         }
         
         // Play spatial keystroke sound
@@ -86,7 +85,7 @@ export function initializeTypingListeners(): void {
                     type: 'session_end',
                     wpm: stats.wpm,
                     accuracy: stats.accuracy,
-                    duration: 60,
+                    duration: stats.duration || 60,
                 }
             );
         }

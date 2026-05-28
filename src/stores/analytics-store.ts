@@ -32,6 +32,7 @@ interface AnalyticsStore {
         mlWorker?: Remote<MLWorkerAPI> | null
     ) => Promise<void>;
     clearSession: () => void;
+    startSession: () => void;
     mergeRemoteData: (remoteData: AnalyticsPayload) => void;
     setSyncStatus: (isSyncing: boolean, error: string | null) => void;
     markSynced: () => void;
@@ -70,10 +71,10 @@ function clearSessionBuffer(): void {
 }
 
 function pushSessionKeystroke(ks: KeystrokeEvent): void {
-    if (_sessionBuffer.length >= MAX_SESSION_KEYSTROKES) {
-        _sessionBuffer.shift();
-    }
     _sessionBuffer.push(ks);
+    if (_sessionBuffer.length > MAX_SESSION_KEYSTROKES * 2) {
+        _sessionBuffer.splice(0, _sessionBuffer.length - MAX_SESSION_KEYSTROKES);
+    }
 }
 
 // Running hesitation accumulator — avoids O(n) scan in getAverageHesitation.
@@ -181,7 +182,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
                 const currentStat = state.keyStats[keystroke.expected];
                 if (!currentStat) return;
 
-                const tail = _sessionBuffer.slice(-10);
+                const tail = _sessionBuffer.slice(-50);
                 const errorCount = tail.reduce((n, k) => n + (k.isCorrect ? 0 : 1), 0);
 
                 const [bayesian, hmm, prediction] = await Promise.all([
@@ -214,15 +215,15 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
 
         mergeRemoteData: (remoteData: AnalyticsPayload) => {
             set(state => ({
-                keyStats: { ...state.keyStats, ...remoteData.keyStats } as any,
-                bigramStats: { ...state.bigramStats, ...remoteData.bigramStats } as any,
-                trigramStats: { ...state.trigramStats, ...remoteData.trigramStats } as any,
-                fingerStats: { ...state.fingerStats, ...remoteData.fingerStats } as any,
+                keyStats: { ...state.keyStats, ...remoteData.keyStats },
+                bigramStats: { ...state.bigramStats, ...remoteData.bigramStats },
+                trigramStats: { ...state.trigramStats, ...remoteData.trigramStats },
+                fingerStats: { ...state.fingerStats, ...remoteData.fingerStats },
                 mlResults: {
-                    skillStates: { ...state.mlResults.skillStates, ...remoteData.hmmStates } as any,
+                    skillStates: { ...state.mlResults.skillStates, ...remoteData.hmmStates },
                     bayesianEstimates: {
                         ...state.mlResults.bayesianEstimates, ...remoteData.bayesianStates,
-                    } as any,
+                    },
                     errorPrediction: remoteData.fatigue?.fatigueLevel ?? state.mlResults.errorPrediction,
                 },
                 vectorClock: {},
@@ -238,12 +239,12 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
         getAnalyticsPayload: () => {
             const state = get();
             return {
-                keyStats: state.keyStats as any,
-                fingerStats: state.fingerStats as any,
-                bigramStats: state.bigramStats as any,
-                trigramStats: state.trigramStats as any,
-                bayesianStates: state.mlResults.bayesianEstimates as any,
-                hmmStates: state.mlResults.skillStates as any,
+                keyStats: state.keyStats,
+                fingerStats: state.fingerStats,
+                bigramStats: state.bigramStats,
+                trigramStats: state.trigramStats,
+                bayesianStates: state.mlResults.bayesianEstimates,
+                hmmStates: state.mlResults.skillStates,
                 fatigue: {
                     fatigueLevel: state.mlResults.errorPrediction,
                     estimatedTimeUntilFatigue: 60,
@@ -262,6 +263,10 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => {
                 sessionKeystrokes: [],
                 mlResults: { skillStates: {}, bayesianEstimates: {}, errorPrediction: 0 },
             });
+        },
+
+        startSession: () => {
+            get().clearSession();
         },
 
         getWeaknessProfile: () => {
