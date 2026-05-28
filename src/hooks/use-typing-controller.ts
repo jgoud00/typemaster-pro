@@ -119,12 +119,8 @@ export function useTypingController({
         }, false);
     }, [currentIndex, isComplete]);
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            reset();
-        };
-    }, [reset]);
+    // Removed reset on unmount to prevent React StrictMode double-rendering
+    // from wiping the recovered session state injected prior to mount.
 
     // Anti-cheat: Block paste, drop, and autofill
     useEffect(() => {
