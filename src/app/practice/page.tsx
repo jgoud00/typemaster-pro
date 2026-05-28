@@ -29,6 +29,7 @@ import toast from 'react-hot-toast';
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
 import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
+import { loadSession, type RecoverableSession } from '@/lib/services/session-recovery';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
@@ -256,21 +257,38 @@ function Leaderboard() {
     );
 }
 
-function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode }) {
+function StandardPracticeInterface({ initialMode, recoveredSession }: { initialMode: PracticeMode, recoveredSession?: RecoverableSession | null }) {
     const router = useRouter();
     const settings = useSettingsStore(s => s.settings);
-    // Removed granular combo selectors to avoid render cascades.
-    // Combo overlays are now self-contained and listen via stores/buses directly.
     const [mode, setMode] = useState<PracticeMode>(initialMode);
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
     const [wordCount, setWordCount] = useState<number>(25);
     const [customText, setCustomText] = useState('');
-    const [text, setText] = useState(() => getTextForMode(initialMode, 60, '', 25));
+    const [text, setText] = useState(() => recoveredSession ? recoveredSession.text : getTextForMode(initialMode, 60, '', 25));
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [isComplete, setIsComplete] = useState(false);
     const [result, setResult] = useState<PerformanceRecord | null>(null);
     const [sessionData, setSessionData] = useState<{ sessionId: string; token: string } | null>(null);
     const sessionDataRef = useRef(sessionData);
+
+    // Mount logic: push recovered session into store immediately if it exists
+    useEffect(() => {
+        if (recoveredSession) {
+            useTypingStore.setState({
+                state: {
+                    ...useTypingStore.getState().state,
+                    text: recoveredSession.text,
+                    currentIndex: recoveredSession.currentIndex,
+                    errorIndices: recoveredSession.errorIndices,
+                    startTime: recoveredSession.startTime,
+                    pausedMs: recoveredSession.pausedMs,
+                    isComplete: false,
+                    isPaused: true, // Pause it so timer doesn't run wildly until user types
+                },
+                activeKey: recoveredSession.text[recoveredSession.currentIndex] || null
+            });
+        }
+    }, []);
 
     useEffect(() => {
         sessionDataRef.current = sessionData;
@@ -678,15 +696,31 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
 
 function PracticeContent() {
     const searchParams = useSearchParams();
-    // If 'mode' param is present, show standard practice interface.
-    // If not, show the Hub.
     const modeParam = searchParams.get('mode') as PracticeMode | null;
+    const [recoveredSession, setRecoveredSession] = useState<RecoverableSession | null>(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
-    if (!modeParam) {
+    useEffect(() => {
+        loadSession().then(session => {
+            if (session) {
+                setRecoveredSession(session);
+            }
+            setHasLoaded(true);
+        });
+    }, []);
+
+    if (!hasLoaded) {
+        return <div className="min-h-screen flex items-center justify-center text-zinc-500">Loading your session...</div>;
+    }
+
+    if (!modeParam && !recoveredSession) {
         return <PracticeHub />;
     }
 
-    return <StandardPracticeInterface initialMode={modeParam} />;
+    return <StandardPracticeInterface 
+        initialMode={recoveredSession?.mode as PracticeMode || modeParam || 'free'} 
+        recoveredSession={recoveredSession} 
+    />;
 }
 
 function getTextForMode(mode: PracticeMode, duration: number, customText?: string, wordCount: number = 25): string {

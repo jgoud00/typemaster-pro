@@ -88,13 +88,17 @@ export function useTypingController({
     // Initialize — only reset store when text is a genuinely new session
     const prevTextRef = useRef('');
     useEffect(() => {
+        const storeText = useTypingStore.getState().state.text;
+        
         if (prevTextRef.current && text.startsWith(prevTextRef.current) && text !== prevTextRef.current) {
             const store = useTypingStore.getState();
             useTypingStore.setState({
                 state: { ...store.state, text },
                 activeKey: store.state.currentIndex < text.length ? text[store.state.currentIndex] : null,
             });
-        } else {
+        } else if (text !== storeText) {
+            // Only reset the store if the incoming text actually differs from the store's text.
+            // This allows us to inject a recovered session into the store without it being immediately wiped.
             setText(text);
             completionStateRef.current = { completed: false, reason: null };
         }
