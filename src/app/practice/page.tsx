@@ -258,14 +258,14 @@ function Leaderboard() {
     );
 }
 
-function StandardPracticeInterface({ initialMode, recoveredSession }: { initialMode: PracticeMode, recoveredSession?: RecoverableSession | null }) {
+function StandardPracticeInterface({ initialMode, recoveredSession, challengeParam }: { initialMode: PracticeMode, recoveredSession?: RecoverableSession | null, challengeParam?: string | null }) {
     const router = useRouter();
     const settings = useSettingsStore(s => s.settings);
     const [mode, setMode] = useState<PracticeMode>(initialMode);
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
     const [wordCount, setWordCount] = useState<number>(25);
     const [customText, setCustomText] = useState('');
-    const [text, setText] = useState(() => recoveredSession ? recoveredSession.text : getTextForMode(initialMode, 60, '', 25));
+    const [text, setText] = useState(() => recoveredSession ? recoveredSession.text : getTextForMode(initialMode, 60, '', 25, challengeParam));
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [isComplete, setIsComplete] = useState(false);
     const [result, setResult] = useState<PerformanceRecord | null>(null);
@@ -469,9 +469,16 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
         } catch (e) { console.error("Session fetch failed"); }
     };
 
+    const getInitialText = useCallback(() => {
+        if (recoveredSession && recoveredSession.mode === mode) {
+            return recoveredSession.text;
+        }
+        return getTextForMode(mode, duration, customText, wordCount, challengeParam);
+    }, [mode, duration, customText, wordCount, challengeParam, recoveredSession]);
+
     const handleReset = () => {
         // Generate new text when restarting (unless it's a custom fixed text)
-        const rawText = getTextForMode(mode, duration, customText, wordCount);
+        const rawText = getTextForMode(mode, duration, customText, wordCount, challengeParam);
         setText(rawText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim());
         reset();
         setIsComplete(false);
@@ -718,6 +725,7 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
 function PracticeContent() {
     const searchParams = useSearchParams();
     const modeParam = searchParams.get('mode') as PracticeMode | null;
+    const challengeParam = searchParams.get('challenge') as string | null;
     const [recoveredSession, setRecoveredSession] = useState<RecoverableSession | null>(null);
     const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -761,12 +769,30 @@ function PracticeContent() {
     return <StandardPracticeInterface 
         initialMode={recoveredSession?.mode as PracticeMode || modeParam || 'free'} 
         recoveredSession={recoveredSession} 
+        challengeParam={challengeParam}
     />;
 }
 
-function getTextForMode(mode: PracticeMode, duration: number, customText?: string, wordCount: number = 25): string {
+function getTextForMode(mode: PracticeMode, duration: number, customText?: string, wordCount: number = 25, challenge?: string | null): string {
     switch (mode) {
         case 'speed-test':
+            if (challenge === 'daily') {
+                const today = new Date();
+                const seedStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+                let hash = 0;
+                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i) | 0;
+                return getRandomQuote(undefined, Math.abs(hash));
+            } else if (challenge === 'weekly') {
+                const d = new Date();
+                d.setHours(0, 0, 0, 0);
+                d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+                const yearStart = new Date(d.getFullYear(), 0, 1);
+                const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+                const seedStr = `${d.getFullYear()}-W${weekNo}`;
+                let hash = 0;
+                for (let i = 0; i < seedStr.length; i++) hash = ((hash << 5) - hash) + seedStr.charCodeAt(i) | 0;
+                return getRandomParagraph(undefined, Math.abs(hash));
+            }
             return generateAdaptiveText(Math.ceil(duration / 60 * 50), 'medium');
         case 'sudden-death':
             return generateAdaptiveText(200, 'hard'); // Long, hard text for sudden death

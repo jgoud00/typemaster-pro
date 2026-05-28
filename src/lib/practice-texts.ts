@@ -99,16 +99,24 @@ export function generateRandomText(wordCount: number, prng?: PRNG): string {
     return text.charAt(0).toUpperCase() + text.slice(1) + '.';
 }
 
-export function getRandomQuote(prng: PRNG = globalPrng): string {
-    return prng.choice(getLocale().quotes);
+export function getRandomQuote(prng: PRNG = globalPrng, seed?: number): string {
+    const quotes = getLocale().quotes;
+    if (seed !== undefined) {
+        return quotes[Math.abs(Math.floor(seed)) % quotes.length];
+    }
+    return prng.choice(quotes);
 }
 
 export function getRandomSnippet(prng: PRNG = globalPrng): string {
     return prng.choice(getLocale().programmingSnippets);
 }
 
-export function getRandomParagraph(prng: PRNG = globalPrng): string {
-    return prng.choice(getLocale().paragraphs);
+export function getRandomParagraph(prng: PRNG = globalPrng, seed?: number): string {
+    const paragraphs = getLocale().paragraphs;
+    if (seed !== undefined) {
+        return paragraphs[Math.abs(Math.floor(seed)) % paragraphs.length];
+    }
+    return prng.choice(paragraphs);
 }
 
 export function getRandomShortSentence(prng: PRNG = globalPrng): string {
