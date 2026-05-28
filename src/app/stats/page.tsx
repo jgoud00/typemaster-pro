@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -28,6 +28,7 @@ import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { clearFromDB } from '@/lib/storage/db';
 import { AICoach } from '@/components/stats/AICoach';
+import { ngramAnalyzer, type NgramReport } from '@/lib/ngram-analyzer';
 
 const KeyboardHeatmap = dynamic(
     () => import('@/components/stats/KeyboardHeatmap').then(mod => mod.KeyboardHeatmap),
@@ -92,6 +93,14 @@ export default function StatsPage() {
     const [showResetModal, setShowResetModal] = useState(false);
     const [timeframe, setTimeframe] = useState<Timeframe>('30D');
     const [dangerOpen, setDangerOpen] = useState(false);
+    const [ngramReport, setNgramReport] = useState<NgramReport | null>(null);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setNgramReport(ngramAnalyzer.getReport(5));
+        }, 100);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleResetStats = async () => {
         resetProgress();
@@ -278,6 +287,74 @@ export default function StatsPage() {
                                     )}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── ZONE 4: Transition Analysis ── */}
+                <section>
+                    <div className="relative rounded-2xl glass-glow p-6 space-y-4 overflow-hidden">
+                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <div>
+                            <h2 className="font-display text-lg font-bold text-white">Transition Analysis</h2>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                                Slowest and most error-prone character pairs from your typing history
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Slowest Bigrams */}
+                            <div className="rounded-xl glass-subtle border border-white/[0.06] p-4 space-y-3">
+                                <h3 className="text-sm font-bold text-zinc-300">Slowest Bigrams</h3>
+                                {ngramReport && ngramReport.slowestBigrams.length > 0 ? (() => {
+                                    const max = ngramReport.slowestBigrams[0].avgTime;
+                                    return ngramReport.slowestBigrams.slice(0, 5).map((b, i) => (
+                                        <div key={b.ngram} className="flex items-center gap-3">
+                                            <span className="text-[10px] text-zinc-500 w-4 shrink-0 tabular-nums">{i + 1}</span>
+                                            <span className="font-mono text-sm font-bold bg-white/[0.07] border border-white/[0.1] rounded px-2 py-0.5 text-white tracking-widest w-10 text-center shrink-0">
+                                                {b.ngram}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full bg-amber-400/70 transition-all duration-500"
+                                                        style={{ width: `${Math.round((b.avgTime / max) * 100)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <span className="text-xs font-mono text-zinc-400 shrink-0 tabular-nums w-14 text-right">{Math.round(b.avgTime)}ms</span>
+                                        </div>
+                                    ));
+                                })() : (
+                                    <p className="text-xs text-zinc-600 py-2">Type more to generate data</p>
+                                )}
+                            </div>
+
+                            {/* Error-Prone Bigrams */}
+                            <div className="rounded-xl glass-subtle border border-white/[0.06] p-4 space-y-3">
+                                <h3 className="text-sm font-bold text-zinc-300">Error-Prone Bigrams</h3>
+                                {ngramReport && ngramReport.errorProneBigrams.length > 0 ? (
+                                    ngramReport.errorProneBigrams.slice(0, 5).map((b, i) => (
+                                        <div key={b.ngram} className="flex items-center gap-3">
+                                            <span className="text-[10px] text-zinc-500 w-4 shrink-0 tabular-nums">{i + 1}</span>
+                                            <span className="font-mono text-sm font-bold bg-white/[0.07] border border-white/[0.1] rounded px-2 py-0.5 text-white tracking-widest w-10 text-center shrink-0">
+                                                {b.ngram}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full bg-rose-500/70 transition-all duration-500"
+                                                        style={{ width: `${Math.round(b.errorRate * 100)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <span className="text-xs font-mono text-zinc-400 shrink-0 tabular-nums w-14 text-right">{Math.round(b.errorRate * 100)}%</span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-xs text-zinc-600 py-2">No error patterns detected yet</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </section>
