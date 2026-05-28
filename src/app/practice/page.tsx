@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
 import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
-import { loadSession, type RecoverableSession } from '@/lib/services/session-recovery';
+import { loadSession, saveSession, clearSession as clearRecoverySession, attachBeforeUnloadSync, type RecoverableSession } from '@/lib/services/session-recovery';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 
@@ -306,6 +306,7 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
 
 
         setIsComplete(true);
+        clearRecoverySession();
         fireLessonComplete();
         toast.dismiss();
 
@@ -407,6 +408,41 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
         }, TIMERS.POLLING_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [hasStarted, isPaused, isComplete]);
+
+    // Active session saving
+    useEffect(() => {
+        const s = useTypingStore.getState().state;
+        if (s.currentIndex > 0 && !s.isComplete) {
+            saveSession({
+                text: s.text,
+                currentIndex: s.currentIndex,
+                errorIndices: [...s.errorIndices],
+                startTime: s.startTime ?? Date.now(),
+                pausedMs: s.pausedMs ?? 0,
+                mode: mode,
+                lessonId: undefined,
+            });
+        }
+    }, [currentIndex]); // Only trigger when currentIndex changes
+
+    // Before unload saving
+    useEffect(() => {
+        const cleanupUnload = attachBeforeUnloadSync(() => {
+            const s = useTypingStore.getState().state;
+            if (!s.isComplete && s.currentIndex > 0) {
+                return {
+                    text: s.text,
+                    currentIndex: s.currentIndex,
+                    errorIndices: [...s.errorIndices],
+                    startTime: s.startTime ?? Date.now(),
+                    pausedMs: s.pausedMs ?? 0,
+                    mode,
+                };
+            }
+            return null;
+        });
+        return cleanupUnload;
+    }, [mode]);
 
     const handleStartTest = async (newMode: PracticeMode, newDuration?: SpeedTestDuration, newWordCount?: number) => {
         // Fix 8: Block empty input and sanitize text
