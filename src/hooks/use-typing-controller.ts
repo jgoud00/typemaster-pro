@@ -99,10 +99,14 @@ export function useTypingController({
             completionStateRef.current = { completed: false, reason: null };
         }
         prevTextRef.current = text;
+    }, [text, setText]);
+
+    // Cleanup on unmount
+    useEffect(() => {
         return () => {
             reset();
         };
-    }, [text, setText, reset]);
+    }, [reset]);
 
     // Anti-cheat: Block paste, drop, and autofill
     useEffect(() => {

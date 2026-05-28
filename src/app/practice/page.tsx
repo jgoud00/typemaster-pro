@@ -22,7 +22,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { VirtualKeyboard } from '@/components/keyboard/virtual-keyboard';
 import { ComboPopup, StreakBreakPopup } from '@/components/gamification/combo-popup';
 import { LiveFlowGraph } from '@/components/typing/live-flow-graph';
-import { generateAdaptiveText, getRandomQuote, getRandomParagraph, generateWeaknessTargetedText } from '@/lib/practice-texts';
+import { generateAdaptiveText, getRandomQuote, getRandomParagraph, generateWeaknessTargetedText, generateRandomText } from '@/lib/practice-texts';
 import { PracticeMode, SpeedTestDuration, PerformanceRecord } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -263,8 +263,9 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     // Combo overlays are now self-contained and listen via stores/buses directly.
     const [mode, setMode] = useState<PracticeMode>(initialMode);
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
+    const [wordCount, setWordCount] = useState<number>(25);
     const [customText, setCustomText] = useState('');
-    const [text, setText] = useState(() => getTextForMode(initialMode, 60));
+    const [text, setText] = useState(() => getTextForMode(initialMode, 60, '', 25));
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [isComplete, setIsComplete] = useState(false);
     const [result, setResult] = useState<PerformanceRecord | null>(null);
@@ -387,11 +388,12 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     // Dynamic text extension — reads currentIndex from store imperatively to avoid subscription
     useEffect(() => {
         if (!hasStarted || isComplete) return;
+        if (mode !== 'zen') return; // Only extend text dynamically in Zen mode
         const remainingChars = text.length - currentIndex;
         if (remainingChars < 100) {
             setText(prev => prev + ' ' + generateAdaptiveText(20, difficulty));
         }
-    }, [currentIndex, text.length, difficulty, hasStarted, isComplete]);
+    }, [currentIndex, text.length, difficulty, hasStarted, isComplete, mode]);
 
     // History tracking: getState() inside interval — no reactive deps on wpm/elapsedTime/errorIndices
     useEffect(() => {
@@ -407,11 +409,12 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
         return () => clearInterval(interval);
     }, [hasStarted, isPaused, isComplete]);
 
-    const handleStartTest = async (newMode: PracticeMode, newDuration?: SpeedTestDuration) => {
+    const handleStartTest = async (newMode: PracticeMode, newDuration?: SpeedTestDuration, newWordCount?: number) => {
         // Fix 8: Block empty input and sanitize text
         setMode(newMode);
         if (newDuration) setDuration(newDuration);
-        const rawText = getTextForMode(newMode, newDuration || duration, customText);
+        if (newWordCount) setWordCount(newWordCount);
+        const rawText = getTextForMode(newMode, newDuration || duration, customText, newWordCount || wordCount);
         setText(rawText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim());
         setIsComplete(false);
         setResult(null);
@@ -525,6 +528,36 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
                                                     onClick={() => handleStartTest('speed-test', d)}
                                                 >
                                                     {d / 60} min
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {mode === 'free' && (
+                                <Card className="glass-card">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="flex items-center gap-2 text-white">
+                                            <Target className="w-5 h-5 text-blue-400" />
+                                            Word Count
+                                        </CardTitle>
+                                        <CardDescription className="text-zinc-400">Choose how many words to type</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex gap-3">
+                                            {[10, 25, 50, 100].map((w) => (
+                                                <Button
+                                                    key={w}
+                                                    variant={wordCount === w ? 'default' : 'outline'}
+                                                    className={cn(
+                                                        wordCount === w 
+                                                            ? 'bg-blue-500 hover:bg-blue-600 text-white border-transparent' 
+                                                            : 'border-white/10 hover:bg-white/5 text-zinc-300'
+                                                    )}
+                                                    onClick={() => handleStartTest('free', undefined, w)}
+                                                >
+                                                    {w} words
                                                 </Button>
                                             ))}
                                         </div>
@@ -653,7 +686,7 @@ function PracticeContent() {
     return <StandardPracticeInterface initialMode={modeParam} />;
 }
 
-function getTextForMode(mode: PracticeMode, duration: number, customText?: string): string {
+function getTextForMode(mode: PracticeMode, duration: number, customText?: string, wordCount: number = 25): string {
     switch (mode) {
         case 'speed-test':
             return generateAdaptiveText(Math.ceil(duration / 60 * 50), 'medium');
@@ -667,9 +700,9 @@ function getTextForMode(mode: PracticeMode, duration: number, customText?: strin
         default:
             const problemKeys = useAnalyticsStore.getState().getProblematicKeys();
             if (problemKeys && problemKeys.length > 0) {
-                return generateWeaknessTargetedText(problemKeys, 30);
+                return generateWeaknessTargetedText(problemKeys, wordCount);
             }
-            return getRandomParagraph();
+            return generateRandomText(wordCount);
     }
 }
 
