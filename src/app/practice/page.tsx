@@ -431,6 +431,9 @@ function StandardPracticeInterface({ initialMode }: { initialMode: PracticeMode 
     };
 
     const handleReset = () => {
+        // Generate new text when restarting (unless it's a custom fixed text)
+        const rawText = getTextForMode(mode, duration, customText, wordCount);
+        setText(rawText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim());
         reset();
         setIsComplete(false);
         setResult(null);
