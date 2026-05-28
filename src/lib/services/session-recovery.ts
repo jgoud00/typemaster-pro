@@ -1,13 +1,15 @@
 /**
  * Session Recovery — Prevents data loss from accidental navigation
  *
- * Saves typing session state to sessionStorage every 5s during active sessions.
+ * Saves typing session state to localStorage immediately and syncs to backend.
  * On remount, detects incomplete session and enables resume.
  */
 
 const STORAGE_KEY = 'aloo-session-recovery';
-const SAVE_INTERVAL_MS = 5_000;
-const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+// Use a debouncer for backend sync so we don't bombard the server on every fast keystroke
+let backendSyncTimeout: NodeJS.Timeout | null = null;
+const BACKEND_SYNC_DEBOUNCE_MS = 2000;
 
 export interface RecoverableSession {
     text: string;
@@ -22,83 +24,124 @@ export interface RecoverableSession {
 
 function getStorage(): Storage | null {
     try {
-        return typeof window !== 'undefined' ? window.sessionStorage : null;
+        return typeof window !== 'undefined' ? window.localStorage : null;
     } catch {
         return null;
     }
 }
 
-export function saveSession(session: Omit<RecoverableSession, 'savedAt'>): void {
-    const storage = getStorage();
-    if (!storage) return;
+async function syncToBackend(session: RecoverableSession) {
     try {
-        const data: RecoverableSession = { ...session, savedAt: Date.now() };
-        storage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-        // Storage full or unavailable — silently degrade
-    }
-}
-
-export function loadSession(): RecoverableSession | null {
-    const storage = getStorage();
-    if (!storage) return null;
-    try {
-        const raw = storage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        const data = JSON.parse(raw) as RecoverableSession;
-        // Validate structure
-        if (
-            typeof data.text !== 'string' ||
-            typeof data.currentIndex !== 'number' ||
-            typeof data.startTime !== 'number' ||
-            typeof data.savedAt !== 'number' ||
-            !Array.isArray(data.errorIndices)
-        ) {
-            clearSession();
-            return null;
-        }
-        // Expired check
-        if (Date.now() - data.savedAt > MAX_AGE_MS) {
-            clearSession();
-            return null;
-        }
-        // Must have actual progress
-        if (data.currentIndex < 3) {
-            clearSession();
-            return null;
-        }
-        return data;
-    } catch {
-        clearSession();
-        return null;
-    }
-}
-
-export function clearSession(): void {
-    const storage = getStorage();
-    if (!storage) return;
-    try {
-        storage.removeItem(STORAGE_KEY);
+        await fetch('/api/session/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(session)
+        });
     } catch {
         // Silently degrade
     }
 }
 
-/**
- * Creates an auto-save interval that persists session state.
- * Returns a cleanup function to stop the interval.
- */
-export function startAutoSave(
-    getState: () => Omit<RecoverableSession, 'savedAt'> | null
-): () => void {
-    const id = setInterval(() => {
+export function saveSession(session: Omit<RecoverableSession, 'savedAt'>, immediateSync: boolean = false): void {
+    const storage = getStorage();
+    const data: RecoverableSession = { ...session, savedAt: Date.now() };
+
+    if (storage) {
+        try {
+            storage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch {
+            // Storage full or unavailable
+        }
+    }
+
+    // Backend sync
+    if (immediateSync) {
+        if (backendSyncTimeout) clearTimeout(backendSyncTimeout);
+        // Using keepalive allows the request to outlive the page if it's closing
+        fetch('/api/session/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+            keepalive: true
+        }).catch(() => {});
+    } else {
+        if (backendSyncTimeout) clearTimeout(backendSyncTimeout);
+        backendSyncTimeout = setTimeout(() => {
+            syncToBackend(data);
+        }, BACKEND_SYNC_DEBOUNCE_MS);
+    }
+}
+
+export async function loadSession(): Promise<RecoverableSession | null> {
+    // Attempt local storage first for speed
+    let localData: RecoverableSession | null = null;
+    const storage = getStorage();
+    if (storage) {
+        try {
+            const raw = storage.getItem(STORAGE_KEY);
+            if (raw) {
+                localData = JSON.parse(raw) as RecoverableSession;
+            }
+        } catch {}
+    }
+
+    // Concurrently try backend to see if it has a newer session (from another device)
+    let backendData: RecoverableSession | null = null;
+    try {
+        const res = await fetch('/api/session/progress');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.savedAt) {
+                backendData = data as RecoverableSession;
+            }
+        }
+    } catch {}
+
+    let newestData = backendData && localData
+        ? (backendData.savedAt > localData.savedAt ? backendData : localData)
+        : (backendData || localData);
+
+    if (!newestData) return null;
+
+    // Must have actual progress (at least 1 key typed)
+    if (newestData.currentIndex < 1) {
+        clearSession();
+        return null;
+    }
+
+    return newestData;
+}
+
+export function clearSession(): void {
+    const storage = getStorage();
+    if (storage) {
+        try {
+            storage.removeItem(STORAGE_KEY);
+        } catch {}
+    }
+    
+    // Clear on backend
+    try {
+        if (backendSyncTimeout) clearTimeout(backendSyncTimeout);
+        fetch('/api/session/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'clear' }),
+            keepalive: true
+        }).catch(() => {});
+    } catch {}
+}
+
+export function attachBeforeUnloadSync(getState: () => Omit<RecoverableSession, 'savedAt'> | null) {
+    if (typeof window === 'undefined') return () => {};
+    
+    const handler = () => {
         const state = getState();
         if (state && state.currentIndex > 0) {
-            saveSession(state);
+            saveSession(state, true); // Immediate sync with keepalive
         }
-    }, SAVE_INTERVAL_MS);
-
-    return () => {
-        clearInterval(id);
     };
+    
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
 }

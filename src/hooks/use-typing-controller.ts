@@ -7,7 +7,7 @@ import { createAntiCheatCollector, analyzeSession, generateIntegrityHashAsync } 
 import { useSettingsStore } from '@/stores/settings-store';
 import { getKeystrokeBuffer } from '@/stores/typing-store';
 import { PracticeMode, PerformanceRecord } from '@/types';
-import { startAutoSave, clearSession as clearRecoverySession } from '@/lib/services/session-recovery';
+import { saveSession, clearSession as clearRecoverySession, attachBeforeUnloadSync } from '@/lib/services/session-recovery';
 
 interface UseTypingControllerOptions {
     text: string;
@@ -57,8 +57,7 @@ export function useTypingController({
     // stale listeners on the typingBus after HMR or route changes.
     useEffect(() => {
         initializeTypingListeners();
-        // Session auto-save: persist state every 5s for recovery
-        const stopAutoSave = startAutoSave(() => {
+        const cleanupUnload = attachBeforeUnloadSync(() => {
             const s = useTypingStore.getState();
             if (!s.state.startTime || s.state.isComplete) return null;
             return {
@@ -71,9 +70,10 @@ export function useTypingController({
                 lessonId,
             };
         });
+
         return () => {
             disposeTypingListeners();
-            stopAutoSave();
+            cleanupUnload();
         };
     }, [mode, lessonId]);
 
@@ -100,6 +100,20 @@ export function useTypingController({
         }
         prevTextRef.current = text;
     }, [text, setText]);
+
+    // Save session on every keystroke (debounced under the hood by session-recovery.ts)
+    useEffect(() => {
+        if (!startTime || isComplete) return;
+        saveSession({
+            text: currentText,
+            currentIndex,
+            errorIndices,
+            startTime,
+            pausedMs: useTypingStore.getState().state.pausedMs,
+            mode,
+            lessonId
+        }, false);
+    }, [currentIndex, isComplete]);
 
     // Cleanup on unmount
     useEffect(() => {
