@@ -271,25 +271,6 @@ function StandardPracticeInterface({ initialMode, recoveredSession }: { initialM
     const [sessionData, setSessionData] = useState<{ sessionId: string; token: string } | null>(null);
     const sessionDataRef = useRef(sessionData);
 
-    // Mount logic: push recovered session into store immediately if it exists
-    useEffect(() => {
-        if (recoveredSession) {
-            useTypingStore.setState({
-                state: {
-                    ...useTypingStore.getState().state,
-                    text: recoveredSession.text,
-                    currentIndex: recoveredSession.currentIndex,
-                    errorIndices: recoveredSession.errorIndices,
-                    startTime: recoveredSession.startTime,
-                    pausedMs: recoveredSession.pausedMs,
-                    isComplete: false,
-                    isPaused: true, // Pause it so timer doesn't run wildly until user types
-                },
-                activeKey: recoveredSession.text[recoveredSession.currentIndex] || null
-            });
-        }
-    }, []);
-
     useEffect(() => {
         sessionDataRef.current = sessionData;
     }, [sessionData]);
@@ -715,6 +696,23 @@ function PracticeContent() {
 
     if (!modeParam && !recoveredSession) {
         return <PracticeHub />;
+    }
+
+    // Restore the store synchronously right before we mount the interface
+    if (recoveredSession && useTypingStore.getState().state.text !== recoveredSession.text) {
+        useTypingStore.setState({
+            state: {
+                ...useTypingStore.getState().state,
+                text: recoveredSession.text,
+                currentIndex: recoveredSession.currentIndex,
+                errorIndices: recoveredSession.errorIndices,
+                startTime: recoveredSession.startTime,
+                pausedMs: recoveredSession.pausedMs,
+                isComplete: false,
+                isPaused: false, // Don't pause, let the user type immediately
+            },
+            activeKey: recoveredSession.text[recoveredSession.currentIndex] || null
+        });
     }
 
     return <StandardPracticeInterface 
