@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TypingArea } from '@/components/typing/typing-area';
 import { TypingStats } from '@/components/typing/typing-stats';
 import { useTypingController } from '@/hooks/use-typing-controller';
-import { useTypingStore } from '@/stores/typing-store';
+import { useTypingStore, getKeystrokeBuffer } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
 import { useAnalyticsStore } from '@/stores/analytics-store';
 import { useConfetti } from '@/hooks/use-confetti';
@@ -29,7 +29,6 @@ import toast from 'react-hot-toast';
 import { ResultChart, WeaknessAnalysis } from '@/components/practice/result-chart';
 import { cn } from '@/lib/utils';
 import { API_ROUTES, TIMERS } from '@/lib/config/constants';
-import { loadSession, saveSession, clearSession as clearRecoverySession, attachBeforeUnloadSync, type RecoverableSession } from '@/lib/services/session-recovery';
 
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { triggerSync } from '@/components/providers/sync-provider';
@@ -168,82 +167,17 @@ function calculateFlowScore(wpms: number[], accuracy: number) {
     return Math.min(100, Math.max(0, Math.round((consistency * 0.4) + (stability * 0.3) + (accScore * 0.3))));
 }
 
-function LocalLeaderboard({ currentSessionDate }: { currentSessionDate: number }) {
-    const entries = useLeaderboardStore(s => s.entries).slice(0, 10);
-    
-    if (entries.length === 0) return null;
 
-    return (
-        <Card className="bg-black/20 border-white/10 mt-6">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-white">
-                    <Trophy className="w-4 h-4 text-yellow-500" />
-                    Local Leaderboard
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-2">
-                    <div className="grid grid-cols-5 gap-4 px-2.5 pb-2 text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-white/5">
-                        <div className="col-span-1">Rank</div>
-                        <div className="col-span-1">Name</div>
-                        <div className="col-span-1 text-right">WPM</div>
-                        <div className="col-span-1 text-right">Accuracy</div>
-                        <div className="col-span-1 text-right">Date</div>
-                    </div>
-                    {entries.map((entry, i) => {
-                        const isCurrent = Math.abs(entry.date - currentSessionDate) < 5000;
-                        return (
-                            <div key={`${entry.date}-${i}`} className={cn(
-                                "grid grid-cols-5 gap-4 items-center px-2.5 py-2 rounded-lg transition-colors border",
-                                isCurrent 
-                                    ? "bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]" 
-                                    : "bg-zinc-900/50 border-zinc-800/50 hover:bg-zinc-800/50"
-                            )}>
-                                <div className="col-span-1 flex items-center gap-3 min-w-0">
-                                    <div className={cn(
-                                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0",
-                                        i === 0 ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" :
-                                        i === 1 ? "bg-zinc-300/20 text-zinc-300 border border-zinc-300/30" :
-                                        i === 2 ? "bg-orange-600/20 text-orange-500 border border-orange-600/30" :
-                                        "bg-zinc-800/50 text-zinc-500 border border-zinc-700/50"
-                                    )}>
-                                        {i + 1}
-                                    </div>
-                                </div>
-                                <div className={cn("col-span-1 text-sm font-medium truncate", isCurrent ? "text-blue-400" : (i < 3 ? "text-white" : "text-zinc-300"))}>
-                                    {entry.username || 'Anonymous'}
-                                </div>
-                                <div className={cn("col-span-1 text-right font-bold text-sm", i === 0 ? "text-yellow-500" : "text-white")}>
-                                    {entry.wpm}
-                                </div>
-                                <div className="col-span-1 text-right text-sm text-zinc-400">
-                                    {entry.accuracy}%
-                                </div>
-                                <div className="col-span-1 text-right text-xs text-zinc-500 truncate">
-                                    {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 function Leaderboard() {
-    const localEntries = useLeaderboardStore(s => s.entries).slice(0, 10);
     const globalEntries = useLeaderboardStore(s => s.globalEntries);
     const globalLoading = useLeaderboardStore(s => s.globalLoading);
-    const [tab, setTab] = useState<'local' | 'global'>('global');
 
     useEffect(() => {
         useLeaderboardStore.getState().fetchGlobalLeaderboard();
     }, []);
 
-    const entries = tab === 'global'
-        ? globalEntries.map(e => ({ username: e.username || 'Anonymous', wpm: e.best_wpm, accuracy: e.best_accuracy }))
-        : localEntries.map(e => ({ username: e.username, wpm: e.wpm, accuracy: e.accuracy }));
+    const entries = globalEntries.map(e => ({ username: e.username || 'Anonymous', wpm: e.best_wpm, accuracy: e.best_accuracy }));
 
     return (
         <Card className="bg-black/20 border-white/10">
@@ -253,36 +187,16 @@ function Leaderboard() {
                         <Trophy className="w-4 h-4 text-yellow-500" />
                         Leaderboard
                     </CardTitle>
-                    <div className="flex gap-1">
-                        <button
-                            onClick={() => setTab('global')}
-                            className={cn(
-                                "px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-colors",
-                                tab === 'global' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-white'
-                            )}
-                        >
-                            Global
-                        </button>
-                        <button
-                            onClick={() => setTab('local')}
-                            className={cn(
-                                "px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-wider transition-colors",
-                                tab === 'local' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'
-                            )}
-                        >
-                            Local
-                        </button>
-                    </div>
                 </div>
             </CardHeader>
             <CardContent>
-                {globalLoading && tab === 'global' ? (
+                {globalLoading ? (
                     <div className="text-xs text-zinc-500 text-center py-8 animate-pulse">
                         Loading global leaderboard...
                     </div>
                 ) : entries.length === 0 ? (
                     <div className="text-xs text-zinc-500 text-center py-8">
-                        {tab === 'global' ? 'No global scores yet. Be the first!' : 'No scores yet. Start typing!'}
+                        No global scores yet. Be the first!
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -321,14 +235,14 @@ function Leaderboard() {
     );
 }
 
-function StandardPracticeInterface({ initialMode, recoveredSession, challengeParam }: { initialMode: PracticeMode, recoveredSession?: RecoverableSession | null, challengeParam?: string | null }) {
+function StandardPracticeInterface({ initialMode, challengeParam }: { initialMode: PracticeMode, challengeParam?: string | null }) {
     const router = useRouter();
     const settings = useSettingsStore(s => s.settings);
     const [mode, setMode] = useState<PracticeMode>(initialMode);
     const [duration, setDuration] = useState<SpeedTestDuration>(60);
     const [wordCount, setWordCount] = useState<number>(25);
     const [customText, setCustomText] = useState('');
-    const [text, setText] = useState(() => recoveredSession ? recoveredSession.text : getTextForMode(initialMode, 60, '', 25, challengeParam));
+    const [text, setText] = useState(() => getTextForMode(initialMode, 60, '', 25, challengeParam));
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
     const [isComplete, setIsComplete] = useState(false);
     const [result, setResult] = useState<PerformanceRecord | null>(null);
@@ -354,34 +268,19 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
         if (completionHandledRef.current) return;
         completionHandledRef.current = true;
 
-        // Calculate final flow score for leaderboard
-        const wpms = historyRef.current.map(h => Math.min(250, h.wpm));
-        const finalFlowScore = calculateFlowScore(wpms, record.accuracy);
-
-        // Update leaderboard
-        useLeaderboardStore.getState().addEntry({
-            username: useUserStore.getState().username || 'Anonymous',
-            wpm: record.wpm,
-            accuracy: record.accuracy,
-            flowScore: finalFlowScore,
-            date: Date.now()
-        });
-
         // Fire-and-forget sync to Supabase for authenticated users
         triggerSync();
 
-
-
         setIsComplete(true);
-        clearRecoverySession();
         fireLessonComplete();
         toast.dismiss();
 
-        // Task 5: Submit to hardened API
+        // Submit to hardened API
         const sd = sessionDataRef.current;
         if (sd && record.wpm > 0) {
             const loadingToast = toast.loading("Verifying performance...");
             try {
+                const mappedKeystrokes = getKeystrokeBuffer().map(k => ({ t: k.timestamp, correct: k.isCorrect }));
                 const res = await fetch(API_ROUTES.SUBMIT_SCORE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -389,7 +288,8 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
                         sid: sd.sessionId,
                         token: sd.token,
                         score: { wpm: record.wpm, accuracy: record.accuracy, durationMs: record.duration * 1000 },
-                        keystrokes: [],
+                        keystrokes: mappedKeystrokes,
+                        mode: mode,
                     })
                 });
                 
@@ -476,40 +376,7 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
         return () => clearInterval(interval);
     }, [hasStarted, isPaused, isComplete]);
 
-    // Active session saving
-    useEffect(() => {
-        const s = useTypingStore.getState().state;
-        if (s.currentIndex > 0 && !s.isComplete) {
-            saveSession({
-                text: s.text,
-                currentIndex: s.currentIndex,
-                errorIndices: [...s.errorIndices],
-                startTime: s.startTime ?? Date.now(),
-                pausedMs: s.pausedMs ?? 0,
-                mode: mode,
-                lessonId: undefined,
-            });
-        }
-    }, [currentIndex]); // Only trigger when currentIndex changes
 
-    // Before unload saving
-    useEffect(() => {
-        const cleanupUnload = attachBeforeUnloadSync(() => {
-            const s = useTypingStore.getState().state;
-            if (!s.isComplete && s.currentIndex > 0) {
-                return {
-                    text: s.text,
-                    currentIndex: s.currentIndex,
-                    errorIndices: [...s.errorIndices],
-                    startTime: s.startTime ?? Date.now(),
-                    pausedMs: s.pausedMs ?? 0,
-                    mode,
-                };
-            }
-            return null;
-        });
-        return cleanupUnload;
-    }, [mode]);
 
     const handleStartTest = async (newMode: PracticeMode, newDuration?: SpeedTestDuration, newWordCount?: number) => {
         // Fix 8: Block empty input and sanitize text
@@ -533,11 +400,8 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
     };
 
     const getInitialText = useCallback(() => {
-        if (recoveredSession && recoveredSession.mode === mode) {
-            return recoveredSession.text;
-        }
         return getTextForMode(mode, duration, customText, wordCount, challengeParam);
-    }, [mode, duration, customText, wordCount, challengeParam, recoveredSession]);
+    }, [mode, duration, customText, wordCount, challengeParam]);
 
     const handleReset = () => {
         // Generate new text when restarting (unless it's a custom fixed text)
@@ -763,8 +627,6 @@ function StandardPracticeInterface({ initialMode, recoveredSession, challengePar
                             maxCombo={result?.maxCombo ?? 0}
                             isNewPersonalBest={(result?.wpm ?? 0) > (useProgressStore.getState().progress.personalBests?.wpm ?? 0)}
                         />
-                        
-                        <LocalLeaderboard currentSessionDate={result?.timestamp ?? Date.now()} />
 
                         <div className="flex justify-center gap-4">
                             <Button size="lg" onClick={handleReset} className="min-w-[150px]">
@@ -791,49 +653,13 @@ function PracticeContent() {
     const searchParams = useSearchParams();
     const modeParam = searchParams.get('mode') as PracticeMode | null;
     const challengeParam = searchParams.get('challenge') as string | null;
-    const [recoveredSession, setRecoveredSession] = useState<RecoverableSession | null>(null);
-    const [hasLoaded, setHasLoaded] = useState(false);
 
-    useEffect(() => {
-        loadSession().then(session => {
-            if (session) {
-                setRecoveredSession(session);
-            }
-            setHasLoaded(true);
-        });
-    }, []);
-
-    if (!hasLoaded) {
-        return <div className="min-h-screen flex items-center justify-center text-zinc-500">Loading your session...</div>;
-    }
-
-    if (!modeParam && !recoveredSession) {
+    if (!modeParam) {
         return <PracticeHub />;
     }
 
-    // Restore the store synchronously right before we mount the interface
-    if (recoveredSession && useTypingStore.getState().state.text !== recoveredSession.text) {
-        // Calculate how long the user was offline so we don't unfairly penalize their time limit
-        const timeOffline = recoveredSession.savedAt ? Math.max(0, Date.now() - recoveredSession.savedAt) : 0;
-        
-        useTypingStore.setState({
-            state: {
-                ...useTypingStore.getState().state,
-                text: recoveredSession.text,
-                currentIndex: recoveredSession.currentIndex,
-                errorIndices: recoveredSession.errorIndices,
-                startTime: recoveredSession.startTime,
-                pausedMs: (recoveredSession.pausedMs || 0) + timeOffline,
-                isComplete: false,
-                isPaused: false, // Don't pause, let the user type immediately
-            },
-            activeKey: recoveredSession.text[recoveredSession.currentIndex] || null
-        });
-    }
-
     return <StandardPracticeInterface 
-        initialMode={recoveredSession?.mode as PracticeMode || modeParam || 'free'} 
-        recoveredSession={recoveredSession} 
+        initialMode={modeParam || 'free'} 
         challengeParam={challengeParam}
     />;
 }
