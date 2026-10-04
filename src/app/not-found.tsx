@@ -38,7 +38,7 @@ export default function NotFound() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4"
+      className="min-h-[70dvh] flex flex-col items-center justify-center px-4"
       onClick={() => inputRef.current?.focus()}
     >
       <motion.div
@@ -53,7 +53,8 @@ export default function NotFound() {
           style={{
             fontSize: '120px',
             lineHeight: 1,
-            background: 'linear-gradient(to bottom, var(--color-content-primary), var(--color-border-subtle))',
+            background:
+              'linear-gradient(to bottom, var(--color-content-primary), var(--color-border-subtle))',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -64,7 +65,7 @@ export default function NotFound() {
 
         {/* Interactive typing prompt */}
         <div
-          className="relative font-mono text-xl tracking-widest rounded-xl px-8 py-5 border mt-6 cursor-text"
+          className="relative font-mono text-xs sm:text-xl tracking-wide sm:tracking-widest rounded-xl px-4 sm:px-8 py-5 border mt-6 cursor-text"
           style={{
             background: 'var(--color-surface-elevated)',
             borderColor: 'var(--color-border-subtle)',
@@ -150,7 +151,9 @@ export default function NotFound() {
         <Link
           href="/"
           className="mt-6 inline-block font-bold px-8 py-3 rounded-xl transition-all bg-primary text-black hover:opacity-90 shadow-lg"
-          style={{ boxShadow: '0 8px 24px color-mix(in srgb, var(--color-primary) 25%, transparent)' }}
+          style={{
+            boxShadow: '0 8px 24px color-mix(in srgb, var(--color-primary) 25%, transparent)',
+          }}
         >
           Go Home
         </Link>

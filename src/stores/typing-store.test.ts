@@ -3,6 +3,7 @@ import { useTypingStore } from './typing-store';
 
 describe('typing-store', () => {
     beforeEach(() => {
+        useTypingStore.getState().setErrorMode('stop');
         useTypingStore.getState().reset();
         useTypingStore.getState().setText('hello world');
         vi.useFakeTimers();
@@ -119,5 +120,66 @@ describe('typing-store', () => {
         // 5 correct keystrokes = 1 word. 1 word / 2s = 30 WPM.
         expect(updatedStore.getElapsedTime()).toBe(2);
         expect(updatedStore.getWpm()).toBe(30);
+    });
+});
+
+
+describe('typing engine regression checks', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        useTypingStore.getState().setErrorMode('stop');
+        useTypingStore.getState().setText('hello world');
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it('does not inflate net WPM by repeatedly deleting and retyping a character', () => {
+        const store = useTypingStore.getState();
+        for (const key of 'hello') store.handleKeystroke(key);
+        for (let i=0;i<20;i++) { store.handleBackspace(); store.handleKeystroke('o'); }
+        vi.advanceTimersByTime(2000);
+        expect(store.getWpm()).toBe(30);
+        expect(store.getAccuracy()).toBe(100);
+        expect(useTypingStore.getState().correctCount).toBe(25);
+    });
+
+    it('advances through mistakes in test mode and retains all attempts in accuracy', () => {
+        const store = useTypingStore.getState();
+        store.setErrorMode('advance');
+        store.handleKeystroke('x');
+        expect(useTypingStore.getState().state.currentIndex).toBe(1);
+        store.handleBackspace();
+        store.handleKeystroke('h');
+        expect(useTypingStore.getState().state.errorIndices).toEqual([]);
+        expect(store.getAccuracy()).toBe(50);
+    });
+
+    it('counts repeated mistakes and clears their display after correction in guided mode', () => {
+        const store = useTypingStore.getState();
+        store.handleKeystroke('x');store.handleKeystroke('x');store.handleKeystroke('x');
+        expect(useTypingStore.getState().totalCount - useTypingStore.getState().correctCount).toBe(3);
+        expect(useTypingStore.getState().state.currentIndex).toBe(0);
+        store.handleKeystroke('h');
+        expect(useTypingStore.getState().state.errorIndices).toEqual([]);
+        expect(store.getAccuracy()).toBe(25);
+    });
+
+    it('freezes a deadline and rejects late input', () => {
+        const store = useTypingStore.getState();
+        for (const key of 'hello') store.handleKeystroke(key);
+        vi.advanceTimersByTime(2200);
+        store.finish(2000);
+        expect(store.getWpm()).toBe(30);
+        expect(store.getElapsedTime()).toBe(2);
+        expect(store.handleKeystroke(' ')).toBeNull();
+        vi.advanceTimersByTime(10000);
+        expect(store.getWpm()).toBe(30);
+    });
+
+    it('does not treat paused time as a hesitant key', () => {
+        const store = useTypingStore.getState();
+        store.handleKeystroke('h');vi.advanceTimersByTime(1000);store.pause();
+        vi.advanceTimersByTime(10000);store.resume();vi.advanceTimersByTime(200);
+        expect(store.handleKeystroke('e')?.hesitationMs).toBe(200);
     });
 });

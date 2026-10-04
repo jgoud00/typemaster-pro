@@ -1,165 +1,184 @@
 'use client';
-
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2 } from 'lucide-react';
+import { ArrowRight, Keyboard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
 import { updateProfile } from '@/lib/supabase/profiles';
 import { useUserStore } from '@/stores/user-store';
-
-interface AuthModalProps {
-    onClose: () => void;
-}
-
-type Tab = 'signin' | 'signup';
-
-export function AuthModal({ onClose }: AuthModalProps) {
-    const [tab, setTab] = useState<Tab>('signin');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [username, setUsername] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleSignIn = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const supabase = createClient();
-            const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-            if (authError) { setError(authError.message); return; }
-            await useUserStore.getState().loadProfile();
-            onClose();
-        } finally {
-            setLoading(false);
+export function AuthModal({ onClose }: { onClose: () => void }) {
+  const [returnFocus] = useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
+  const [tab, setTab] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const client = createClient();
+      if (tab === 'signin') {
+        const { error } = await client.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        if (!username.trim()) throw new Error('Please enter a display name.');
+        const { data, error } = await client.auth.signUp({
+          email,
+          password,
+          options: { data: { username: username.trim() } },
+        });
+        if (error) throw error;
+        if (!data.session) {
+          setMessage('Check your email to confirm your account, then sign in.');
+          return;
         }
-    };
-
-    const handleSignUp = async () => {
-        if (!username.trim()) { setError('Username is required'); return; }
-        setLoading(true);
-        setError(null);
-        try {
-            const supabase = createClient();
-            const { data, error: authError } = await supabase.auth.signUp({ email, password });
-            if (authError) { setError(authError.message); return; }
-            if (data.user) {
-                await updateProfile(data.user.id, { username: username.trim() });
-            }
-            await useUserStore.getState().loadProfile();
-            onClose();
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (tab === 'signin') handleSignIn();
-        else handleSignUp();
-    };
-
-    return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-                {/* Backdrop */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    onClick={onClose}
-                />
-
-                {/* Modal */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="relative z-10 w-full max-w-sm mx-4 glass-card rounded-2xl p-6 border border-white/[0.08] shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
-                >
-                    {/* Close */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
-                        aria-label="Close"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-
-                    {/* Tabs */}
-                    <div className="flex gap-1 p-1 rounded-xl glass-subtle mb-6">
-                        {(['signin', 'signup'] as Tab[]).map((t) => (
-                            <button
-                                key={t}
-                                onClick={() => { setTab(t); setError(null); }}
-                                className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
-                                    tab === t
-                                        ? 'bg-white/[0.1] text-white'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                            >
-                                {t === 'signin' ? 'Sign In' : 'Sign Up'}
-                            </button>
-                        ))}
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                        {tab === 'signup' && (
-                            <Input
-                                type="text"
-                                placeholder="Username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                autoComplete="username"
-                                required
-                            />
-                        )}
-                        <Input
-                            type="email"
-                            placeholder="Email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            autoComplete="email"
-                            required
-                        />
-                        <Input
-                            type="password"
-                            placeholder="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoComplete={tab === 'signin' ? 'current-password' : 'new-password'}
-                            required
-                            minLength={6}
-                        />
-
-                        {error && (
-                            <p className="text-sm text-rose-400 py-1">{error}</p>
-                        )}
-
-                        <Button
-                            type="submit"
-                            className="w-full h-10 font-bold"
-                            disabled={loading}
-                            style={{ background: 'var(--color-primary)', color: '#000' }}
-                        >
-                            {loading ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : tab === 'signin' ? 'Sign In' : 'Create Account'}
-                        </Button>
-                    </form>
-
-                    <button
-                        onClick={onClose}
-                        className="w-full mt-4 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-                    >
-                        Continue as guest
-                    </button>
-                </motion.div>
+        if (data.user) await updateProfile(data.user.id, { username: username.trim() });
+      }
+      await useUserStore.getState().loadProfile();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to connect. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          returnFocus?.focus();
+        }}
+        className="max-w-md bg-card p-7"
+      >
+        <DialogHeader>
+          <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Keyboard size={22} />
+          </span>
+          <DialogTitle className="text-2xl tracking-tight">
+            {tab === 'signin' ? 'Your workspace is waiting.' : 'Make progress your own.'}
+          </DialogTitle>
+          <DialogDescription className="pt-2 leading-6">
+            {tab === 'signin'
+              ? 'Sign in to keep your learning journey together.'
+              : 'Create an account to sync your progress across devices.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1">
+          {(['signin', 'signup'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={tab === t}
+              onClick={() => {
+                setTab(t);
+                setError(null);
+                setMessage(null);
+              }}
+              className={`rounded-lg py-2 text-xs font-medium ${tab === t ? 'bg-accent text-foreground' : 'text-muted-foreground'}`}
+            >
+              {t === 'signin' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          {tab === 'signup' && (
+            <div className="space-y-2">
+              <label htmlFor="auth-name" className="text-xs font-medium">
+                Display name
+              </label>
+              <Input
+                id="auth-name"
+                autoComplete="nickname"
+                required
+                maxLength={40}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="How should we call you?"
+              />
             </div>
-        </AnimatePresence>
-    );
+          )}
+          <div className="space-y-2">
+            <label htmlFor="auth-email" className="text-xs font-medium">
+              Email address
+            </label>
+            <Input
+              id="auth-email"
+              autoComplete="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="auth-password" className="text-xs font-medium">
+              Password
+            </label>
+            <PasswordInput
+              id="auth-password"
+              autoComplete={tab === 'signin' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
+          </div>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-xs leading-5 text-red-300"
+            >
+              {error}
+            </p>
+          )}
+          {message && (
+            <p
+              role="status"
+              className="rounded-lg bg-emerald-400/10 p-3 text-xs leading-5 text-emerald-300"
+            >
+              {message}
+            </p>
+          )}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <>
+                {tab === 'signin' ? 'Sign in' : 'Create account'}
+                <ArrowRight />
+              </>
+            )}
+          </Button>
+        </form>
+        <p className="text-center text-[11px] leading-5 text-muted-foreground">
+          Prefer to explore first? Your guest progress stays on this device.
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
 }

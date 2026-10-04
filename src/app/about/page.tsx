@@ -1,47 +1,82 @@
 'use client';
-
-import { Card, CardContent } from '@/components/ui/card';
+import Link from 'next/link';
+import { ArrowRight, BookOpen, ChartNoAxesCombined, Keyboard, Target } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { SiteHeader } from '@/components/layout/SiteHeader';
-
+import { lessons } from '@/lib/lessons';
+const features = [
+  {
+    icon: BookOpen,
+    title: 'A foundation that grows with you',
+    description:
+      'A structured curriculum takes you from home-row fundamentals to more demanding passages and symbols.',
+  },
+  {
+    icon: Target,
+    title: 'Practice where it matters',
+    description:
+      'Keystroke feedback helps you spot hesitant keys and build a practice routine around them.',
+  },
+  {
+    icon: ChartNoAxesCombined,
+    title: 'See the progress you make',
+    description:
+      'Track speed, accuracy, and practice history. Reflect on your sessions and set your next goal.',
+  },
+];
 export default function AboutPage() {
-    const router = useRouter();
-
-    return (
-        <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            <SiteHeader />
-
-            <main className="container mx-auto px-4 py-16 space-y-8 max-w-3xl">
-                <Card className="bg-white/5 border-white/10">
-                    <CardContent className="p-8 space-y-6">
-                        <div className="text-center space-y-2">
-                            <h1 className="font-display text-3xl font-black tracking-tight text-(--color-primary)">Aloo Type</h1>
-                            <p className="text-(--color-content-secondary) text-lg">
-                                Ultra-minimal, distraction-free typing application with flow intelligence.
-                            </p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <h2 className="font-display text-xl font-bold border-b border-white/10 pb-2 text-(--color-content-primary)">Tech Stack</h2>
-                            <ul className="list-disc pl-5 space-y-2 text-(--color-content-secondary)">
-                                <li><strong>Framework:</strong> Next.js 14</li>
-                                <li><strong>Language:</strong> TypeScript</li>
-                                <li><strong>Styling:</strong> Tailwind CSS v4</li>
-                                <li><strong>State Management:</strong> Zustand</li>
-                                <li><strong>Animations:</strong> Framer Motion</li>
-                                <li><strong>Backend &amp; Auth:</strong> Supabase</li>
-                            </ul>
-                        </div>
-                        
-                        <div className="pt-4 flex justify-center">
-                            <Button variant="outline" onClick={() => router.push('/')}>
-                                Return Home
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </main>
+  return (
+    <main className="about-page container mx-auto space-y-10">
+      <PageHeader
+        title="A calmer way to get better."
+        description="Aloo Type is your space to build confidence, find your flow, and feel at home at the keyboard."
+        badge={
+          <span className="text-[10px] tracking-[.18em] text-muted-foreground">
+            ABOUT ALOO TYPE
+          </span>
+        }
+      />
+      <section className="dashboard-hero">
+        <Keyboard size={32} className="mb-6 text-primary" />
+        <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight">
+          A useful skill.
+          <br />A few minutes of your day.
+          <br />
+          <span className="text-primary">A little more confidence.</span>
+        </h2>
+        <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground">
+          Typing is something you do every day. We believe learning it should feel focused and
+          rewarding. Aloo Type brings {lessons.length} guided lessons, flexible practice modes, and
+          personal insights into one thoughtful workspace.
+        </p>
+        <Button asChild className="mt-7">
+          <Link href="/lessons">
+            Explore the curriculum <ArrowRight />
+          </Link>
+        </Button>
+      </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        {features.map(({ icon: Icon, title, description }) => (
+          <div className="rounded-2xl border border-border bg-card p-6" key={title}>
+            <Icon className="mb-6 text-primary" size={22} />
+            <h3 className="mb-3 text-base font-semibold">{title}</h3>
+            <p className="text-sm leading-7 text-muted-foreground">{description}</p>
+          </div>
+        ))}
+      </section>
+      <section className="flex flex-col gap-4 rounded-2xl border border-border p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Start where you are.</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Explore as a guest. Sign in when you want to sync your progress.
+          </p>
         </div>
-    );
+        <Button asChild variant="outline">
+          <Link href="/practice">
+            Find your practice mode <ArrowRight />
+          </Link>
+        </Button>
+      </section>
+    </main>
+  );
 }

@@ -100,6 +100,9 @@ interface TypingStore {
     // O(1) counters
     correctCount: number;
     totalCount: number;
+    errorMode: 'stop' | 'advance';
+    setErrorMode: (mode: 'stop' | 'advance') => void;
+    finish: (endTime?: number) => void;
 
     // Actions
     setText: (text: string) => void;
@@ -139,6 +142,13 @@ export const useTypingStore = create<TypingStore>()(
         lastKeystrokeTime: null,
         correctCount: 0,
         totalCount: 0,
+        errorMode: 'stop',
+        setErrorMode: (errorMode) => set({ errorMode }),
+        finish: (endTime = epochTimestamp()) => {
+            const { state } = get();
+            if (state.isComplete) return;
+            set({ state: { ...state, isComplete: true, endTime, pausedMs: state.pausedMs + (state.pauseStart !== null ? endTime - state.pauseStart : 0), pauseStart: null, isPaused: false }, activeKey: null });
+        },
 
         setText: (text: string) => {
             clearKeystrokeBuffer();
@@ -155,7 +165,7 @@ export const useTypingStore = create<TypingStore>()(
         handleKeystroke: (key: string, layoutName?: LayoutName): KeystrokeEvent | null => {
             const { state, lastKeystrokeTime, correctCount, totalCount } = get();
 
-            if (state.isComplete || state.isPaused || state.text.length === 0) {
+            if (state.isComplete || state.isPaused || state.text.length === 0 || key.length !== 1) {
                 return null;
             }
 
@@ -166,9 +176,9 @@ export const useTypingStore = create<TypingStore>()(
                 ? state.text[state.currentIndex - 1]
                 : null;
 
-            const hesitationMs = lastKeystrokeTime
+            const hesitationMs = lastKeystrokeTime !== null
                 ? now - lastKeystrokeTime
-                : state.startTime
+                : state.startTime !== null
                     ? now - state.startTime
                     : 0;
 
@@ -187,10 +197,13 @@ export const useTypingStore = create<TypingStore>()(
 
             pushKeystroke(keystroke);
 
-            const newIndex = isCorrect ? state.currentIndex + 1 : state.currentIndex;
+            const newIndex = isCorrect || get().errorMode === 'advance' ? state.currentIndex + 1 : state.currentIndex;
             const isComplete = newIndex >= state.text.length;
 
             let newErrorIndices = state.errorIndices;
+            if (isCorrect && _errorSet.delete(state.currentIndex)) {
+                newErrorIndices = state.errorIndices.filter(index => index !== state.currentIndex);
+            }
             if (!isCorrect && !_errorSet.has(state.currentIndex)) {
                 _errorSet.add(state.currentIndex);
                 newErrorIndices = [...state.errorIndices, state.currentIndex];
@@ -219,7 +232,7 @@ export const useTypingStore = create<TypingStore>()(
         // Does NOT undo errors or change accuracy counts — it simply lets the user re-type.
         handleBackspace: (): boolean => {
             const { state } = get();
-            if (state.isComplete || state.isPaused || state.currentIndex === 0 || !state.startTime) {
+            if (state.isComplete || state.isPaused || state.currentIndex === 0 || state.startTime === null) {
                 return false;
             }
 
@@ -251,7 +264,7 @@ export const useTypingStore = create<TypingStore>()(
 
         pause: () => {
             set(s => {
-                if (s.state.isPaused) return s;
+                if (s.state.isPaused || s.state.isComplete || s.state.startTime === null) return s;
                 return { state: { ...s.state, isPaused: true, pauseStart: epochTimestamp() } };
             });
         },
@@ -260,10 +273,11 @@ export const useTypingStore = create<TypingStore>()(
             set(s => {
                 if (!s.state.isPaused) return s;
                 return {
+                    lastKeystrokeTime: epochTimestamp(),
                     state: {
                         ...s.state,
                         isPaused: false,
-                        pausedMs: s.state.pausedMs + (epochTimestamp() - (s.state.pauseStart || epochTimestamp())),
+                        pausedMs: s.state.pausedMs + (epochTimestamp() - (s.state.pauseStart ?? epochTimestamp())),
                         pauseStart: null,
                     },
                 };
@@ -271,19 +285,20 @@ export const useTypingStore = create<TypingStore>()(
         },
 
         getWpm: () => {
-            const { state, correctCount } = get();
-            if (!state.startTime) return 0;
+            const { state } = get();
+            if (state.startTime === null) return 0;
 
             const now = epochTimestamp();
             const endTime = state.endTime ?? now;
-            const activePause = state.pauseStart ? (now - state.pauseStart) : 0;
+            const activePause = state.pauseStart !== null ? (now - state.pauseStart) : 0;
             const elapsedSeconds = Math.max(
                 0,
                 (endTime - state.startTime - state.pausedMs - activePause)
             ) / 1000;
 
-            if (elapsedSeconds < 1 || correctCount < 3) return 0;
-            return Math.round((correctCount / 5) / (elapsedSeconds / 60));
+            const netCharacters = state.currentIndex - state.errorIndices.filter(index => index < state.currentIndex).length;
+            if (elapsedSeconds < 1 || netCharacters < 3) return 0;
+            return Math.round((netCharacters / 5) / (elapsedSeconds / 60));
         },
 
         getAccuracy: () => {
@@ -294,11 +309,11 @@ export const useTypingStore = create<TypingStore>()(
 
         getElapsedTime: () => {
             const { state } = get();
-            if (!state.startTime) return 0;
+            if (state.startTime === null) return 0;
 
             const now = epochTimestamp();
             const endTime = state.endTime ?? now;
-            const activePause = state.pauseStart ? (now - state.pauseStart) : 0;
+            const activePause = state.pauseStart !== null ? (now - state.pauseStart) : 0;
             return Math.max(
                 0,
                 Math.floor((endTime - state.startTime - state.pausedMs - activePause) / 1000)

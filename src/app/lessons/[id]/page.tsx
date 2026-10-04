@@ -19,203 +19,230 @@ import { useProgressStore } from '@/stores/progress-store';
 import { useTypingStore } from '@/stores/typing-store';
 
 export default function LessonPage() {
-    // ... (params, router, lesson, nextLesson logic remains)
-    const params = useParams();
-    const router = useRouter();
-    const lessonId = params.id as string;
-    const lesson = getLessonById(lessonId);
-    const nextLesson = lesson ? getNextLesson(lessonId) : undefined;
-    const [exerciseIndex, setExerciseIndex] = useState(0);
-    const [showHeatmap, setShowHeatmap] = useState(false);
-    const [showComplete, setShowComplete] = useState(false);
-    const [completedRecord, setCompletedRecord] = useState<PerformanceRecord | null>(null);
-    const [comboPopup, setComboPopup] = useState({ show: false, combo: 0, level: 0 });
-    const { progress } = useProgressStore();
-    const { fireComboMilestone, fireLessonComplete, fireStars } = useConfetti();
-    const currentExercise = lesson?.exercises[exerciseIndex];
-    
-    const [text, setText] = useState('');
+  // ... (params, router, lesson, nextLesson logic remains)
+  const params = useParams();
+  const router = useRouter();
+  const lessonId = params.id as string;
+  const lesson = getLessonById(lessonId);
+  const nextLesson = lesson ? getNextLesson(lessonId) : undefined;
+  const [exerciseIndex, setExerciseIndex] = useState(0);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
+  const [completedRecord, setCompletedRecord] = useState<PerformanceRecord | null>(null);
+  const [comboPopup, setComboPopup] = useState({ show: false, combo: 0, level: 0 });
+  const { progress } = useProgressStore();
+  const { fireComboMilestone, fireLessonComplete, fireStars } = useConfetti();
+  const currentExercise = lesson?.exercises[exerciseIndex];
 
-    // Generate dynamic text when the lesson or exercise changes
-    useEffect(() => {
-        if (lesson && currentExercise) {
-            let wordCount = 10;
-            if (currentExercise.difficulty === 'intermediate') wordCount = 15;
-            if (currentExercise.difficulty === 'advanced') wordCount = 20;
-            
-            setText(generateLessonText(lesson.keys, wordCount));
-        }
-    }, [lessonId, exerciseIndex]); // deliberately omitting lesson.keys to avoid deep ref checks on static arrays
+  const [text, setText] = useState('');
 
-    // Callback for lesson completion
-    const handleComplete = useCallback((record: PerformanceRecord) => {
-        setCompletedRecord(record);
-        setShowComplete(true);
-        fireLessonComplete();
+  // Generate dynamic text when the lesson or exercise changes
+  useEffect(() => {
+    if (lesson && currentExercise) {
+      let wordCount = 10;
+      if (currentExercise.difficulty === 'intermediate') wordCount = 15;
+      if (currentExercise.difficulty === 'advanced') wordCount = 20;
 
-        // Calculate stars
-        let stars = 0;
-        if (record.accuracy >= 95 && record.wpm >= 40) stars = 3;
-        else if (record.accuracy >= 90 && record.wpm >= 30) stars = 2;
-        else if (record.accuracy >= 80) stars = 1;
-
-        if (stars > 0) {
-            setTimeout(() => fireStars(stars), 500);
-        }
-
-        // Dispatch global event for sync
-        globalThis.window.dispatchEvent(new CustomEvent('lesson-complete'));
-    }, [fireLessonComplete, fireStars]);
-
-    // Callback for combo milestones
-    const handleComboMilestone = useCallback((combo: number, level: number) => {
-        setComboPopup({ show: true, combo, level });
-        fireComboMilestone(level);
-
-        setTimeout(() => {
-            setComboPopup(prev => ({ ...prev, show: false }));
-        }, 1500);
-    }, [fireComboMilestone]);
-
-    const {
-        reset,
-        hasStarted
-    } = useTypingController({
-        text,
-        mode: 'lesson',
-        lessonId,
-        onComplete: handleComplete,
-        onComboMilestone: handleComboMilestone,
-    });
-
-    const handleRestart = () => {
-        setShowComplete(false);
-        setCompletedRecord(null);
-        reset();
-    };
-
-    const handleNext = () => {
-        if (exerciseIndex < (lesson?.exercises.length || 1) - 1) {
-            setExerciseIndex(prev => prev + 1);
-            setShowComplete(false);
-            setCompletedRecord(null);
-        } else if (nextLesson) {
-            router.push(`/lessons/${nextLesson.id}`);
-        } else {
-            router.push('/');
-        }
-    };
-
-    const handleHome = () => {
-        router.push('/');
-    };
-
-    if (!lesson) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold mb-4">Lesson not found</h1>
-                    <Button onClick={() => router.push('/')}>Go Home</Button>
-                </div>
-            </div>
-        );
+      setText(generateLessonText(lesson.keys, wordCount));
     }
+  }, [lessonId, exerciseIndex]); // deliberately omitting lesson.keys to avoid deep ref checks on static arrays
 
-    // Check if this is a personal best
-    const previousBest = progress.lessonScores[lessonId]?.bestWpm || 0;
-    const isPersonalBest = completedRecord ? completedRecord.wpm > previousBest : false;
+  // Callback for lesson completion
+  const handleComplete = useCallback(
+    (record: PerformanceRecord) => {
+      if (lesson && exerciseIndex === lesson.exercises.length - 1 && record.valid !== false && record.wpm >= lesson.targetWpm && record.accuracy >= lesson.targetAccuracy) {
+        useProgressStore.getState().completeLesson(lessonId, record.wpm, record.accuracy, record.score);
+      }
+      setCompletedRecord(record);
+      setShowComplete(true);
+      fireLessonComplete();
 
-    // Calculate stars for completion modal
-    const stars = completedRecord
-        ? (completedRecord.accuracy >= 95 && completedRecord.wpm >= 40 ? 3
-            : completedRecord.accuracy >= 90 && completedRecord.wpm >= 30 ? 2
-                : completedRecord.accuracy >= 80 ? 1 : 0)
-        : 0;
+      // Calculate stars
+      let stars = 0;
+      if (record.accuracy >= 95 && record.wpm >= 40) stars = 3;
+      else if (record.accuracy >= 90 && record.wpm >= 30) stars = 2;
+      else if (record.accuracy >= 80) stars = 1;
 
+      if (stars > 0) {
+        setTimeout(() => fireStars(stars), 500);
+      }
+
+      // Dispatch global event for sync
+      globalThis.window.dispatchEvent(new CustomEvent('lesson-complete'));
+    },
+    [fireLessonComplete, fireStars, lesson, lessonId, exerciseIndex],
+  );
+
+  // Callback for combo milestones
+  const handleComboMilestone = useCallback(
+    (combo: number, level: number) => {
+      setComboPopup({ show: true, combo, level });
+      fireComboMilestone(level);
+
+      setTimeout(() => {
+        setComboPopup((prev) => ({ ...prev, show: false }));
+      }, 1500);
+    },
+    [fireComboMilestone],
+  );
+
+  const { reset, hasStarted } = useTypingController({
+    text,
+    mode: 'lesson',
+    lessonId,
+    onComplete: handleComplete,
+    onComboMilestone: handleComboMilestone,
+  });
+
+  const handleRestart = () => {
+    setShowComplete(false);
+    setCompletedRecord(null);
+    reset();
+  };
+
+  const handleNext = () => {
+    if (!lesson || !completedRecord || completedRecord.valid === false || completedRecord.wpm < lesson.targetWpm || completedRecord.accuracy < lesson.targetAccuracy) return;
+    if (exerciseIndex < (lesson?.exercises.length || 1) - 1) {
+      setExerciseIndex((prev) => prev + 1);
+      setShowComplete(false);
+      setCompletedRecord(null);
+    } else if (nextLesson) {
+      router.push(`/lessons/${nextLesson.id}`);
+    } else {
+      router.push('/lessons');
+    }
+  };
+
+  const handleHome = () => {
+    router.push('/lessons');
+  };
+
+  if (!lesson) {
     return (
-        <div className="min-h-screen">
-            {/* Header */}
-            <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-40 shadow-lg">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div>
-                            <h1 className="font-semibold">{lesson.title}</h1>
-                            <p className="text-sm text-muted-foreground">
-                                Exercise {exerciseIndex + 1} of {lesson.exercises.length}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowHeatmap(!showHeatmap)}
-                            title={showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
-                        >
-                            {showHeatmap ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={handleRestart}>
-                            <RotateCcw className="w-5 h-5" />
-                        </Button>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main content */}
-            <main className="container mx-auto px-4 py-8 space-y-6">
-                {/* Stats */}
-                <TypingStats />
-
-                {/* Typing area */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <TypingArea />
-                </motion.div>
-
-                {/* Instructions */}
-                {!hasStarted && (
-                    <motion.p
-                        className="text-center text-muted-foreground"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        Start typing to begin...
-                    </motion.p>
-                )}
-
-                {/* Virtual keyboard */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <VirtualKeyboard
-                        showHeatmap={showHeatmap}
-                    />
-                </motion.div>
-            </main>
-
-            {/* Combo popup */}
-            <ComboPopup />
-
-            {/* Lesson complete modal */}
-            {showComplete && completedRecord && (
-                <LessonComplete
-                    record={completedRecord}
-                    stars={stars}
-                    isPersonalBest={isPersonalBest}
-                    onRestart={handleRestart}
-                    onNext={handleNext}
-                    onHome={handleHome}
-                />
-            )}
+      <div className="min-h-full flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Lesson not found</h1>
+          <Button aria-label="Back to lessons" onClick={() => router.push('/lessons')}>
+            Back to Lessons
+          </Button>
         </div>
+      </div>
     );
+  }
+
+  // Check if this is a personal best
+  const previousBest = progress.lessonScores[lessonId]?.bestWpm || 0;
+  const isPersonalBest = completedRecord ? completedRecord.wpm > previousBest : false;
+
+  // Calculate stars for completion modal
+  const stars = completedRecord
+    ? completedRecord.accuracy >= 95 && completedRecord.wpm >= 40
+      ? 3
+      : completedRecord.accuracy >= 90 && completedRecord.wpm >= 30
+        ? 2
+        : completedRecord.accuracy >= 80
+          ? 1
+          : 0
+    : 0;
+
+  return (
+    <div className="min-h-full">
+      {/* Header */}
+      <header className="relative z-10 bg-background/90 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to lessons"
+              onClick={() => router.push('/lessons')}
+              className="rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="font-semibold text-foreground text-base leading-tight">{lesson.title}</h1>
+              <p className="text-xs text-muted-foreground">
+                Exercise {exerciseIndex + 1} of {lesson.exercises.length}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              aria-label={showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
+              title={showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
+              className="rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              {showHeatmap ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Restart lesson"
+              onClick={handleRestart}
+              className="rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        {/* Stats */}
+        <TypingStats />
+
+        {/* Typing area */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <TypingArea />
+        </motion.div>
+
+        {/* Instructions */}
+        {!hasStarted && (
+          <motion.p
+            className="text-center text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            Start typing to begin...
+          </motion.p>
+        )}
+
+        {/* Virtual keyboard */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <VirtualKeyboard showHeatmap={showHeatmap} />
+        </motion.div>
+      </main>
+
+      {/* Combo popup */}
+      <ComboPopup />
+
+      {/* Lesson complete modal */}
+      {showComplete && completedRecord && (
+        <LessonComplete
+          record={completedRecord}
+          passed={completedRecord.valid !== false && completedRecord.wpm >= lesson.targetWpm && completedRecord.accuracy >= lesson.targetAccuracy}
+          targetWpm={lesson.targetWpm}
+          targetAccuracy={lesson.targetAccuracy}
+          nextLabel={exerciseIndex < lesson.exercises.length - 1 ? 'Next exercise' : 'Next lesson'}
+          finalExercise={exerciseIndex === lesson.exercises.length - 1}
+          stars={stars}
+          isPersonalBest={isPersonalBest}
+          onRestart={handleRestart}
+          onNext={handleNext}
+          onHome={handleHome}
+        />
+      )}
+    </div>
+  );
 }

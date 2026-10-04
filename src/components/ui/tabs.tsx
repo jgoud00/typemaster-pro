@@ -1,14 +1,14 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Tabs as TabsPrimitive } from "radix-ui"
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { Tabs as TabsPrimitive } from 'radix-ui';
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
 function Tabs({
   className,
-  orientation = "horizontal",
+  orientation = 'horizontal',
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return (
@@ -16,36 +16,36 @@ function Tabs({
       data-slot="tabs"
       data-orientation={orientation}
       orientation={orientation}
-      className={cn(
-        "group/tabs flex gap-2 data-[orientation=horizontal]:flex-col",
-        className
-      )}
+      className={cn('group/tabs flex gap-2 data-[orientation=horizontal]:flex-col', className)}
       {...props}
     />
-  )
+  );
 }
 
-const tabsListVariants = cva(
-  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
-  {
-    variants: {
-      variant: {
-        default: "bg-muted",
-        line: "gap-1 bg-transparent",
-      },
+const tabsListVariants = cva('inline-flex w-fit items-center justify-center transition-all', {
+  variants: {
+    variant: {
+      default:
+        'bg-surface-elevated border border-border-subtle p-1 rounded-xl text-muted-foreground gap-1',
+      navigation:
+        'bg-muted/60 border border-border p-1 rounded-xl text-muted-foreground gap-1',
+      segmented:
+        'bg-surface-secondary border border-border-subtle p-1 rounded-xl text-muted-foreground gap-1',
+      compact:
+        'bg-surface-elevated/80 border border-border p-0.5 rounded-lg text-xs text-muted-foreground gap-0.5',
+      line: 'gap-2 bg-transparent border-b border-border-subtle rounded-none p-0',
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+});
 
 function TabsList({
   className,
-  variant = "default",
+  variant = 'default',
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List> &
-  VariantProps<typeof tabsListVariants>) {
+}: React.ComponentProps<typeof TabsPrimitive.List> & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
@@ -53,38 +53,57 @@ function TabsList({
       className={cn(tabsListVariants({ variant }), className)}
       {...props}
     />
-  )
+  );
 }
+
+const tabsTriggerVariants = cva(
+  'inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4 focus-visible:ring-2 focus-visible:ring-brand/30',
+  {
+    variants: {
+      variant: {
+        default:
+          'px-3.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground data-[state=active]:bg-muted/60 data-[state=active]:text-foreground data-[state=active]:shadow-xs',
+        navigation:
+          'px-3.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground data-[state=active]:bg-muted/60 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border',
+        segmented:
+          'px-3.5 py-1.5 rounded-lg text-muted-foreground hover:text-foreground data-[state=active]:bg-brand/15 data-[state=active]:text-brand data-[state=active]:border data-[state=active]:border-brand/30',
+        compact:
+          'px-2.5 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground data-[state=active]:bg-muted/60 data-[state=active]:text-foreground',
+        line: 'px-4 py-2 border-b-2 border-transparent text-muted-foreground hover:text-foreground data-[state=active]:text-brand data-[state=active]:border-brand rounded-none',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  },
+);
 
 function TabsTrigger({
   className,
+  variant = 'default',
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: React.ComponentProps<typeof TabsPrimitive.Trigger> & VariantProps<typeof tabsTriggerVariants>) {
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
-      className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium disabled:pointer-events-none disabled:opacity-50",
-        "border-b-2 border-transparent text-content-secondary hover:text-content-primary transition-all duration-200",
-        "data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border-primary",
-        className
-      )}
+      data-variant={variant}
+      className={cn(tabsTriggerVariants({ variant }), className)}
       {...props}
     />
-  )
+  );
 }
 
-function TabsContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      className={cn(
+        'flex-1 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4',
+        className,
+      )}
       {...props}
     />
-  )
+  );
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants };

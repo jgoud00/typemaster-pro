@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTypingStore } from '@/stores/typing-store';
 import { useGameStore } from '@/stores/game-store';
+import { useProgressStore } from '@/stores/progress-store';
 import { typingBus } from '@/lib/events/typing-bus';
 import { initializeTypingListeners, disposeTypingListeners } from '@/lib/events/typing-listeners';
 import { createAntiCheatCollector, analyzeSession, generateIntegrityHashAsync } from '@/lib/anti-cheat';
@@ -15,6 +16,7 @@ interface UseTypingControllerOptions {
     lessonId?: string;
     timeLimitSeconds?: number;
     errorLimit?: number;
+    stopOnError?: boolean;
     onComplete?: (record: PerformanceRecord) => void;
     onComboMilestone?: (combo: number, level: number) => void;
 }
@@ -30,9 +32,12 @@ export function useTypingController({
     lessonId,
     timeLimitSeconds,
     errorLimit,
+    stopOnError,
     onComplete,
     onComboMilestone,
 }: UseTypingControllerOptions) {
+    const stopOnErrorPreference = useSettingsStore(s => s.settings.stopOnError ?? true);
+    const shouldStopOnError = stopOnError ?? (mode === 'lesson' || stopOnErrorPreference);
     const setText = useTypingStore(s => s.setText);
     const reset = useTypingStore(s => s.reset);
     const getElapsedTime = useTypingStore(s => s.getElapsedTime);
@@ -44,14 +49,20 @@ export function useTypingController({
     const isPaused = useTypingStore(s => s.state.isPaused);
     const currentIndex = useTypingStore(s => s.state.currentIndex);
     const errorIndices = useTypingStore(s => s.state.errorIndices);
+    const errorCount = useTypingStore(s => s.totalCount - s.correctCount);
 
     const currentText = useTypingStore(s => s.state.text);
     const activeKey = useTypingStore(s => s.activeKey);
 
     const completionStateRef = useRef<CompletionState>({ completed: false, reason: null });
-    const rafIdRef = useRef<number>(0);
+
+    const generationRef = useRef(0);
     // Per-session collector: isolated from other sessions/HMR resets
     const collectorRef = useRef(createAntiCheatCollector());
+
+    useEffect(() => {
+        useTypingStore.getState().setErrorMode(shouldStopOnError ? 'stop' : 'advance');
+    }, [shouldStopOnError]);
 
     // Initialize listeners once per hook mount; clean up on unmount to prevent
     // stale listeners on the typingBus after HMR or route changes.
@@ -96,10 +107,13 @@ export function useTypingController({
                 state: { ...store.state, text },
                 activeKey: store.state.currentIndex < text.length ? text[store.state.currentIndex] : null,
             });
-        } else if (text !== storeText) {
+        } else if (text !== storeText || prevTextRef.current === '') {
             // Only reset the store if the incoming text actually differs from the store's text.
             // This allows us to inject a recovered session into the store without it being immediately wiped.
+            generationRef.current++;
             setText(text);
+            collectorRef.current = createAntiCheatCollector();
+            useGameStore.getState().resetSession();
             completionStateRef.current = { completed: false, reason: null };
         }
         prevTextRef.current = text;
@@ -145,13 +159,16 @@ export function useTypingController({
         };
     }, []);
 
-    // Pause on tab switch
+    // Resume only pauses owned by visibility changes.
     useEffect(() => {
+        let pausedForVisibility = false;
         const handler = () => {
             const s = useTypingStore.getState();
             if (document.hidden && s.state.startTime && !s.state.isComplete && !s.state.isPaused) {
+                pausedForVisibility = true;
                 useTypingStore.getState().pause();
-            } else if (!document.hidden && s.state.isPaused) {
+            } else if (!document.hidden && pausedForVisibility && s.state.isPaused) {
+                pausedForVisibility = false;
                 useTypingStore.getState().resume();
             }
         };
@@ -179,6 +196,7 @@ export function useTypingController({
 
         const isInvalidState = (s: ReturnType<typeof useTypingStore.getState>, e: KeyboardEvent) => {
             if (s.state.isComplete || s.state.isPaused || document.hidden) return true;
+            if (errorLimit && s.totalCount - s.correctCount >= errorLimit) return true;
             // Do NOT gate on !e.isTrusted here — untrusted events are recorded
             // as suspicious by the collector but must still flow through to count.
             if (timeLimitSeconds && s.state.startTime) {
@@ -213,7 +231,8 @@ export function useTypingController({
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (isIgnoredKey(e) || isInputTarget(e)) return;
+            if (e.repeat || e.isComposing || isIgnoredKey(e) || isInputTarget(e)) return;
+            if ((e.target as HTMLElement).closest('button, a, select, [role=slider]')) return;
 
             const s = useTypingStore.getState();
             if (isInvalidState(s, e)) return;
@@ -233,18 +252,21 @@ export function useTypingController({
 
         globalThis.window.addEventListener('keydown', handleKeyDown);
         return () => globalThis.window.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeystroke, handleBackspace, timeLimitSeconds]);
+    }, [handleKeystroke, handleBackspace, timeLimitSeconds, errorLimit]);
 
     const completeSession = useCallback((reason: 'text' | 'time' | 'errorLimit') => {
         if (completionStateRef.current.completed) return;
         completionStateRef.current = { completed: true, reason };
 
+        const generation = generationRef.current;
         const store = useTypingStore.getState();
+        store.finish(reason === 'time' && store.state.startTime !== null && timeLimitSeconds ? store.state.startTime + store.state.pausedMs + timeLimitSeconds * 1000 : undefined);
+        clearRecoverySession();
         const wpm = store.getWpm();
         const accuracy = store.getAccuracy();
         const duration = store.getElapsedTime();
         const freshIndex = store.state.currentIndex;
-        const freshErrors = store.state.errorIndices.length;
+        const freshErrors = store.totalCount - store.correctCount;
         const maxCombo = useGameStore.getState().game.maxCombo;
 
         const integrity = analyzeSession(collectorRef.current, wpm, accuracy);
@@ -280,17 +302,20 @@ export function useTypingController({
             integrityHash: integrity.hash,
         };
 
-        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid, duration });
+        useProgressStore.getState().addRecord(record);
+        useProgressStore.getState().addPracticeTime(duration);
+
+        typingBus.emit('TYPING_COMPLETED', { wpm, accuracy, totalErrors: freshErrors, valid: integrity.valid, duration, totalKeystrokes: store.totalCount });
 
         // Upgrade to async SHA-256 hash before calling onComplete
         generateIntegrityHashAsync(wpm, accuracy, integrity.cheatScore, collectorData.totalKeyEvents, collectorData.intervals)
             .then(strongHash => {
-                onComplete?.({ ...record, integrityHash: strongHash });
+                if (generation === generationRef.current) onComplete?.({ ...record, integrityHash: strongHash });
             })
             .catch(() => {
-                onComplete?.(record);
+                if (generation === generationRef.current) onComplete?.(record);
             });
-    }, [lessonId, mode, onComplete]);
+    }, [lessonId, mode, onComplete, timeLimitSeconds]);
 
     // Time limit check
     useEffect(() => {
@@ -314,10 +339,10 @@ export function useTypingController({
         if (!errorLimit || !startTime || isComplete) return;
         if (completionStateRef.current.completed) return;
         
-        if (errorIndices.length >= errorLimit) {
+        if (errorCount >= errorLimit) {
             completeSession('errorLimit');
         }
-    }, [startTime, isComplete, errorIndices.length, errorLimit, completeSession]);
+    }, [startTime, isComplete, errorCount, errorLimit, completeSession]);
 
     // Text completion check
     useEffect(() => {
@@ -327,6 +352,7 @@ export function useTypingController({
     }, [isComplete, completeSession]);
 
     const handleReset = useCallback(() => {
+        generationRef.current++;
         reset();
         clearRecoverySession();
         collectorRef.current = createAntiCheatCollector();

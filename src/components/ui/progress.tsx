@@ -1,10 +1,10 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import { Progress as ProgressPrimitive } from "radix-ui"
-import { motion } from "framer-motion"
+import * as React from 'react';
+import { Progress as ProgressPrimitive } from 'radix-ui';
+import { motion } from 'framer-motion';
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
 export interface ProgressProps extends React.ComponentProps<typeof ProgressPrimitive.Root> {
   indicatorClassName?: string;
@@ -22,8 +22,8 @@ const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root
           ref={ref}
           data-slot="progress"
           className={cn(
-            "bg-primary/20 relative h-2 w-full overflow-visible rounded-full",
-            className
+            'bg-primary/20 relative h-2 w-full overflow-visible rounded-full',
+            className,
           )}
           {...props}
         >
@@ -38,10 +38,15 @@ const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root
           <ProgressPrimitive.Indicator asChild>
             <motion.div
               data-slot="progress-indicator"
-              className={cn("bg-primary h-full rounded-full shadow-[0_0_10px_rgba(var(--color-primary-rgb),0.5)]", indicatorClassName)}
+              className={cn(
+                'bg-primary h-full rounded-full shadow-[0_0_10px_rgba(var(--color-primary-rgb),0.5)]',
+                indicatorClassName,
+              )}
               initial={{ width: 0 }}
               animate={{ width: `${safeValue}%` }}
-              transition={animated ? { type: "spring", stiffness: 100, damping: 20 } : { duration: 0 }}
+              transition={
+                animated ? { type: 'spring', stiffness: 100, damping: 20 } : { duration: 0 }
+              }
             />
           </ProgressPrimitive.Indicator>
         </ProgressPrimitive.Root>
@@ -52,9 +57,9 @@ const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root
           </span>
         )}
       </div>
-    )
-  }
-)
-Progress.displayName = ProgressPrimitive.Root.displayName
+    );
+  },
+);
+Progress.displayName = ProgressPrimitive.Root.displayName;
 
-export { Progress }
+export { Progress };

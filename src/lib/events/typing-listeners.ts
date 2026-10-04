@@ -90,7 +90,7 @@ export function initializeTypingListeners(): void {
             );
         }
 
-        progress.addKeystrokes(stats.wpm * 5);
+        progress.addKeystrokes(stats.totalKeystrokes ?? 0);
     });
 
     // 3. Combo Processors

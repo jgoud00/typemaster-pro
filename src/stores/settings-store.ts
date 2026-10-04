@@ -17,6 +17,7 @@ export interface SettingsState {
 
     // Typing
     smoothCaret: boolean;
+    stopOnError: boolean;
     quickRestart: boolean;
     fontSize: 'small' | 'medium' | 'large';
 
@@ -50,13 +51,14 @@ const defaultSettings: SettingsState = {
     volume: 70,
 
     // Display
-    theme: 'dark',
+    theme: 'light',
     showVirtualKeyboard: true,
     showFingerHints: true,
     showKeyboardOverlay: true,
 
     // Typing
     smoothCaret: true,
+    stopOnError: true,
     quickRestart: true,
     fontSize: 'medium',
 
@@ -96,6 +98,11 @@ export const useSettingsStore = create<SettingsStore>()(
         }),
         {
             name: 'typemaster-settings',
+            version: 2,
+            migrate: (persisted, version) => {
+                const previous = persisted as Partial<SettingsStore>;
+                return { ...previous, settings: { ...defaultSettings, ...previous.settings, theme: version === 0 && previous.settings?.theme === 'dark' ? 'light' : previous.settings?.theme === 'light' || !previous.settings?.theme ? 'light' : 'dark' } };
+            },
             skipHydration: true
         }
     )

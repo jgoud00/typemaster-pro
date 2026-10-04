@@ -1,221 +1,222 @@
 'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
-  Trophy, TrendingUp, Flame, Clock, Target,
-  Zap, Rocket, BookOpen, ChevronRight,
+  ArrowRight,
+  BookOpen,
+  Clock,
+  Flame,
+  Keyboard,
+  Rocket,
+  Target,
+  TrendingUp,
+  Zap,
 } from 'lucide-react';
-import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
+import { lessons } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
 import { useGameStore } from '@/stores/game-store';
-import { cn } from '@/lib/utils';
-
+import { useUserStore } from '@/stores/user-store';
 import { HeroBanner } from '@/components/dashboard/HeroBanner';
-import { SiteHeader } from '@/components/layout/SiteHeader';
-
+import { MetricCard } from '@/components/ui/metric-card';
+import { Button } from '@/components/ui/button';
+const modes = [
+  {
+    title: 'Speed test',
+    description: 'A fresh benchmark. Race the clock and find your current pace.',
+    href: '/practice?mode=speed-test',
+    icon: Zap,
+    color: 'text-primary bg-primary/10',
+    tag: 'TIMED PRACTICE',
+  },
+  {
+    title: 'Smart practice',
+    description: 'Give your weaker keys the attention they deserve.',
+    href: '/practice/smart',
+    icon: Target,
+    color: 'text-primary bg-primary/10',
+    tag: 'PERSONALIZED',
+  },
+  {
+    title: 'Speed training',
+    description: 'Short, focused bursts to build speed and consistency.',
+    href: '/practice/speed-training',
+    icon: Rocket,
+    color: 'text-violet-300 bg-violet-400/10',
+    tag: 'BUILD MOMENTUM',
+  },
+];
 export default function HomePage() {
-  const { progress } = useProgressStore();
-  const game = useGameStore(s => s.game);
-
-  const completedCount = progress.completedLessons.length;
-  const totalLessons = lessons.length;
-  const overallProgress = (completedCount / totalLessons) * 100;
-
-  const nextLesson = lessons.find(l => !progress.completedLessons.includes(l.id));
-  const nextLessonCategory = nextLesson
-    ? lessonCategories.find(c => getLessonsByCategory(c.id).some(l => l.id === nextLesson.id))
-    : null;
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins}m`;
-  };
-
-  const stats = [
-    {
-      icon: <TrendingUp className="w-4 h-4" />,
-      label: 'Best WPM',
-      value: progress.personalBests.wpm || null,
-      color: 'text-blue-400',
-      glow: 'shadow-[0_0_20px_rgba(59,130,246,0.15)]',
-      accent: 'from-blue-500/15 to-transparent',
-      border: 'border-blue-500/15',
-    },
-    {
-      icon: <Target className="w-4 h-4" />,
-      label: 'Best Accuracy',
-      value: progress.personalBests.accuracy ? `${progress.personalBests.accuracy}%` : null,
-      color: 'text-emerald-400',
-      glow: 'shadow-[0_0_20px_rgba(16,185,129,0.15)]',
-      accent: 'from-emerald-500/15 to-transparent',
-      border: 'border-emerald-500/15',
-    },
-    {
-      icon: <Flame className="w-4 h-4" />,
-      label: 'Best Combo',
-      value: progress.personalBests.combo || null,
-      color: 'text-orange-400',
-      glow: 'shadow-[0_0_20px_rgba(249,115,22,0.15)]',
-      accent: 'from-orange-500/15 to-transparent',
-      border: 'border-orange-500/15',
-    },
-    {
-      icon: <Clock className="w-4 h-4" />,
-      label: 'Practice Time',
-      value: formatTime(progress.totalPracticeTime) !== '0m' ? formatTime(progress.totalPracticeTime) : null,
-      color: 'text-purple-400',
-      glow: 'shadow-[0_0_20px_rgba(168,85,247,0.15)]',
-      accent: 'from-purple-500/15 to-transparent',
-      border: 'border-purple-500/15',
-    },
-  ];
-
-  const practiceModes = [
-    {
-      title: 'Speed Test',
-      description: 'Timed WPM challenges',
-      href: '/practice?mode=speed-test',
-      icon: <Zap className="w-5 h-5" />,
-      accent: 'text-yellow-400',
-      glow: 'hover:shadow-[0_0_30px_rgba(234,179,8,0.15)]',
-      border: 'hover:border-yellow-500/30',
-      bg: 'hover:bg-gradient-to-br hover:from-yellow-500/[0.08] hover:to-transparent',
-    },
-    {
-      title: 'Burst Mode',
-      description: 'High-intensity intervals',
-      href: '/practice/speed-training',
-      icon: <Rocket className="w-5 h-5" />,
-      accent: 'text-red-400',
-      glow: 'hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]',
-      border: 'hover:border-red-500/30',
-      bg: 'hover:bg-gradient-to-br hover:from-red-500/[0.08] hover:to-transparent',
-    },
-    {
-      title: 'Free Practice',
-      description: 'No time pressure',
-      href: '/practice?mode=free',
-      icon: <BookOpen className="w-5 h-5" />,
-      accent: 'text-blue-400',
-      glow: 'hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]',
-      border: 'hover:border-blue-500/30',
-      bg: 'hover:bg-gradient-to-br hover:from-blue-500/[0.08] hover:to-transparent',
-    },
-    {
-      title: 'Lessons',
-      description: '73 progressive exercises',
-      href: '/lessons',
-      icon: <Trophy className="w-5 h-5" />,
-      accent: 'text-purple-400',
-      glow: 'hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]',
-      border: 'hover:border-purple-500/30',
-      bg: 'hover:bg-gradient-to-br hover:from-purple-500/[0.08] hover:to-transparent',
-    },
-  ];
-
+  const progress = useProgressStore((s) => s.progress);
+  const streak = useGameStore((s) => s.game.dailyStreak);
+  const username = useUserStore((s) => s.username);
+  const completed = progress.completedLessons.length;
+  const nextLesson = lessons.find((l) => !progress.completedLessons.includes(l.id));
+  const percentage = Math.min(100, Math.round((completed / lessons.length) * 100));
+  const records = [...progress.records].sort((a, b) => b.timestamp - a.timestamp).slice(0, 4);
+  const minutes = Math.floor(progress.totalPracticeTime / 60);
   return (
-    <div className="min-h-screen">
-      <SiteHeader />
-
-      <main className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
-
-        {/* Hero */}
-        <HeroBanner
-          completedCount={completedCount}
-          totalLessons={totalLessons}
-          overallProgress={overallProgress}
-          nextLesson={nextLesson}
-          nextLessonCategory={nextLessonCategory}
+    <main className="container mx-auto studio-home">
+      <div className="studio-intro"><span><span className="studio-status-dot" /> YOUR PERSONAL TYPING STUDIO</span><span>{username ? `Welcome back, ${username}` : 'A little practice. A lot of possibility.'}</span></div>
+      <HeroBanner
+        completedCount={completed}
+        totalLessons={lessons.length}
+        overallProgress={percentage}
+        nextLesson={nextLesson}
+        nextLessonCategory={null}
+      />
+      <section aria-label="Your performance" className="studio-metrics grid grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Personal best"
+          value={progress.personalBests.wpm || '—'}
+          icon={<TrendingUp size={17} />}
+          subtext="Words per minute"
         />
-
-        {/* Practice Modes */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-white tracking-tight">Practice Modes</h2>
-            <Link
-              href="/practice"
-              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
-            >
-              View all <ChevronRight className="w-3 h-3" />
+        <MetricCard
+          label="Best accuracy"
+          value={progress.personalBests.accuracy ? `${progress.personalBests.accuracy}%` : '—'}
+          icon={<Target size={17} />}
+          subtext="Your most precise session"
+        />
+        <MetricCard
+          label="Practice time"
+          value={minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`}
+          icon={<Clock size={17} />}
+          subtext="Total focused practice"
+        />
+        <MetricCard
+          label="Current streak"
+          value={`${streak || 0} days`}
+          icon={<Flame size={17} />}
+          subtext="Keep the habit going"
+        />
+      </section>
+      <section>
+        <div className="section-heading">
+          <h2>Choose your next move</h2>
+          <Link href="/practice">
+            Explore modes <ArrowRight size={14} />
+          </Link>
+        </div>
+        <div className="studio-modes grid md:grid-cols-3">
+          {modes.map(({ title, description, href, icon: Icon, color, tag }, index) => (
+            <Link href={href} className="mode-card group" key={title}>
+              <div className="flex items-start justify-between">
+                <span className={`mode-card-icon ${color}`}>
+                  <Icon size={20} />
+                </span>
+                <span className="studio-mode-number">0{index + 1}</span>
+              </div>
+              <p className="mb-2 text-[9px] font-semibold tracking-[.16em] text-muted-foreground">
+                {tag}
+              </p>
+              <h3 className="mb-2 text-base font-semibold">{title}</h3>
+              <p className="text-xs leading-6 text-muted-foreground">{description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <div className="section-heading">
+            <h2>The long game</h2>
+            <Link href="/lessons">
+              Curriculum <ArrowRight size={14} />
             </Link>
           </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {practiceModes.map((mode, i) => (
-              <motion.div
-                key={mode.title}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Link href={mode.href} className="block h-full group">
-                  <div className={cn(
-                    'relative h-full rounded-2xl p-5 cursor-pointer transition-all duration-300',
-                    'glass-subtle border border-white/[0.06]',
-                    mode.glow,
-                    mode.border,
-                    mode.bg,
-                    'overflow-hidden'
-                  )}>
-                    {/* Top highlight line */}
-                    <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <div className={cn("mb-3", mode.accent)}>{mode.icon}</div>
-                    <h3 className="font-bold text-sm leading-tight text-white group-hover:text-white/90 transition-colors">{mode.title}</h3>
-                    <p className="text-xs text-zinc-500 mt-0.5">{mode.description}</p>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+          <div className="mb-5 flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-semibold tracking-tight">
+                {completed}
+                <span className="text-base font-normal text-muted-foreground">
+                  {' '}
+                  / {lessons.length} lessons
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A strong foundation, one lesson at a time.
+              </p>
+            </div>
+            <span className="text-sm font-mono text-primary">{percentage}%</span>
           </div>
-
-          {/* Stats Strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {stats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.28 + i * 0.08 }}
-              >
-                <div className={cn(
-                  'relative rounded-2xl p-4 transition-all duration-200 overflow-hidden',
-                  'glass-subtle border border-white/[0.06]',
-                  stat.value && stat.glow,
-                  stat.value && stat.border,
-                )}>
-                  {/* Accent gradient */}
-                  {stat.value && (
-                    <div className={cn('absolute inset-0 bg-gradient-to-br opacity-70 pointer-events-none', stat.accent)} />
-                  )}
-                  <div className={cn("mb-2 relative z-10", stat.color)}>{stat.icon}</div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-medium relative z-10">
-                    {stat.label}
-                  </p>
-                  {!stat.value ? (
-                    <div className="mt-1.5 relative z-10">
-                      <div className="flex items-end gap-2">
-                        <span className="text-xl font-black font-mono text-zinc-700">—</span>
-                        <span className="text-xs text-zinc-700 mb-0.5">No data yet</span>
-                      </div>
+          <div
+            role="progressbar"
+            aria-label="Course completion"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-1.5 overflow-hidden rounded-full bg-accent"
+          >
+            <div className="h-full rounded-full bg-primary" style={{ width: `${percentage}%` }} />
+          </div>
+          <Link
+            href={nextLesson ? `/lessons/${nextLesson.id}` : '/lessons'}
+            className="mt-6 flex items-center gap-4 rounded-xl border border-border bg-background/50 p-4"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <BookOpen size={19} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-[10px] text-muted-foreground">
+                {nextLesson ? 'UP NEXT' : 'ALL LESSONS COMPLETE'}
+              </p>
+              <p className="text-sm font-medium">
+                {nextLesson?.title || 'Revisit your favorite lesson'}
+              </p>
+            </div>
+            <ArrowRight size={17} className="text-primary" />
+          </Link>
+        </section>
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <div className="section-heading">
+            <h2>Recent sessions</h2>
+            <Link href="/stats">
+              View all <ArrowRight size={14} />
+            </Link>
+          </div>
+          {records.length ? (
+            <div className="divide-y divide-border">
+              {records.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="flex items-center gap-3">
+                    <Keyboard size={16} className="text-muted-foreground" />
+                    <div>
+                      <p className="text-xs font-medium capitalize">
+                        {r.mode.replaceAll('-', ' ')}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(r.timestamp).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
                     </div>
-                  ) : (
-                    <p className={cn("text-2xl font-black font-mono mt-1 relative z-10", stat.color)}>
-                      {stat.value}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-mono">
+                      {r.wpm} <span className="text-[10px] text-muted-foreground">WPM</span>
                     </p>
-                  )}
+                    <p className="text-[10px] text-muted-foreground">{r.accuracy}% accuracy</p>
+                  </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-      </main>
-    </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-6 text-center">
+              <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-accent">
+                <Keyboard size={19} className="text-muted-foreground" />
+              </span>
+              <p className="text-sm font-medium">No sessions yet.</p>
+              <p className="mb-4 mt-1 text-xs text-muted-foreground">
+                Complete a session to see your progress.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/practice">
+                  Start practicing <ArrowRight />
+                </Link>
+              </Button>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

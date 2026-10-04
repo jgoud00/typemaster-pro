@@ -1,110 +1,145 @@
 'use client';
-
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { Search, BookOpen, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 import { lessons, lessonCategories, getLessonsByCategory } from '@/lib/lessons';
 import { useProgressStore } from '@/stores/progress-store';
-import { cn } from '@/lib/utils';
 import { LessonPath } from '@/components/lessons/lesson-journey';
-import { SiteHeader } from '@/components/layout/SiteHeader';
-
+import { PageHeader } from '@/components/ui/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
 export default function LessonsPage() {
-    const { progress } = useProgressStore();
-    const completedCount = progress.completedLessons.length;
-    const totalLessons = lessons.length;
-    const overallProgress = (completedCount / totalLessons) * 100;
-
-    const getCategoryColor = (color: string) => {
-        const colors: Record<string, string> = {
-            blue: 'from-blue-500/20 to-blue-600/10 border-blue-500/30 hover:border-blue-500/50',
-            green: 'from-green-500/20 to-green-600/10 border-green-500/30 hover:border-green-500/50',
-            orange: 'from-orange-500/20 to-orange-600/10 border-orange-500/30 hover:border-orange-500/50',
-            purple: 'from-purple-500/20 to-purple-600/10 border-purple-500/30 hover:border-purple-500/50',
-            pink: 'from-pink-500/20 to-pink-600/10 border-pink-500/30 hover:border-pink-500/50',
-            red: 'from-red-500/20 to-red-600/10 border-red-500/30 hover:border-red-500/50',
-        };
-        return colors[color] || colors.blue;
-    };
-
-    return (
-        <div className="min-h-screen bg-linear-to-b from-background to-muted/30">
-            {/* Global progress bar */}
-            <div className="fixed top-16 left-0 right-0 z-30 h-[3px] bg-(--color-border-subtle)">
-                <div
-                    className="h-full bg-(--color-primary) transition-all duration-700"
-                    style={{ width: `${overallProgress}%` }}
-                />
-            </div>
-
-            <SiteHeader />
-
-            <main className="container mx-auto px-4 py-8 space-y-6">
-                {/* Progress Overview */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <div className="relative rounded-2xl glass-glow p-6 overflow-hidden">
-                        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-blue-400/30 to-transparent" />
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-                            <div>
-                                <h2 className="font-display text-2xl font-bold mb-1 text-white tracking-tight">
-                                    {completedCount} of {totalLessons} Lessons
-                                    <span className="text-blue-400 ml-2">Complete</span>
-                                </h2>
-                                <p className="text-zinc-500 text-sm">
-                                    Master typing from home row to advanced techniques
-                                </p>
-                            </div>
-                            <div className="w-full md:w-64 shrink-0">
-                                <div className="flex justify-between text-xs font-medium mb-2">
-                                    <span className="text-zinc-500">Overall Progress</span>
-                                    <span className="text-white font-bold">{Math.round(overallProgress)}%</span>
-                                </div>
-                                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
-                                    <motion.div
-                                        className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400"
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${overallProgress}%` }}
-                                        transition={{ duration: 1, ease: 'easeOut' }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </motion.section>
-
-                {/* Lesson Categories - Vertical Roadmap */}
-                <div className="space-y-12 relative pb-24">
-                    {lessonCategories.map((category, categoryIndex) => {
-                        const categoryLessons = getLessonsByCategory(category.id);
-                        // Calculate global start index for this category's lessons to maintain left/right alternating correctly
-                        const globalStartIndex = lessonCategories
-                            .slice(0, categoryIndex)
-                            .reduce((acc, cat) => acc + getLessonsByCategory(cat.id).length, 0);
-
-                        return (
-                            <motion.div
-                                key={category.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 + categoryIndex * 0.1 }}
-                                className="relative"
-                            >
-                                <LessonPath
-                                    lessons={categoryLessons}
-                                    completedLessonIds={progress.completedLessons}
-                                    lessonScores={progress.lessonScores}
-                                    categoryName={category.name}
-                                    categoryIcon={category.icon}
-                                    categoryLessonCount={categoryLessons.length}
-                                    globalStartIndex={globalStartIndex}
-                                    showHeader={true}
-                                />
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            </main>
+  const progress = useProgressStore((s) => s.progress);
+  const [category, setCategory] = useState('all');
+  const [query, setQuery] = useState('');
+  const completed = progress.completedLessons.length;
+  const next = lessons.find((l) => !progress.completedLessons.includes(l.id));
+  const filtered = lessonCategories
+    .filter((c) => category === 'all' || c.id === category)
+    .map((c) => ({
+      ...c,
+      items: getLessonsByCategory(c.id).filter((l) =>
+        `${l.title} ${l.description}`.toLowerCase().includes(query.toLowerCase()),
+      ),
+    }))
+    .filter((c) => c.items.length);
+  return (
+    <main className="curriculum-page container mx-auto space-y-8">
+      <PageHeader
+        badge={
+          <span className="text-[10px] tracking-[.18em] text-muted-foreground">THE CURRICULUM</span>
+        }
+        title="The curriculum."
+        description="From your first home-row keys to confident, effortless typing. Follow the lessons at your own pace."
+        actions={
+          next && (
+            <Button asChild>
+              <Link href={`/lessons/${next.id}`}>
+                Continue learning <ArrowRight />
+              </Link>
+            </Button>
+          )
+        }
+      />
+      <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BookOpen size={21} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">
+              {completed} of {lessons.length} lessons complete
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Keep showing up. Every lesson counts.
+            </p>
+          </div>
         </div>
-    );
+        <div className="w-full sm:w-56">
+          <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+            <span>Course progress</span>
+            <span className="font-mono text-primary">
+              {Math.round((completed / lessons.length) * 100)}%
+            </span>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-accent"
+            role="progressbar"
+            aria-label="Course progress"
+            aria-valuenow={Math.round((completed / lessons.length) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full bg-primary"
+              style={{ width: `${Math.min(100, (completed / lessons.length) * 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setCategory('all')}
+            aria-pressed={category === 'all'}
+            className={`rounded-lg border px-3 py-2 text-xs ${category === 'all' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}
+          >
+            All lessons
+          </button>
+          {lessonCategories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCategory(c.id)}
+              aria-pressed={category === c.id}
+              className={`rounded-lg border px-3 py-2 text-xs ${category === c.id ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <div className="relative shrink-0 sm:w-56">
+          <Search size={15} className="absolute left-3 top-3.5 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search lessons"
+            aria-label="Search curriculum"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="curriculum-chapters space-y-10">
+        {filtered.map((c) => (
+          <LessonPath
+            key={c.id}
+            lessons={c.items}
+            completedLessonIds={progress.completedLessons}
+            lessonScores={progress.lessonScores}
+            categoryName={c.name}
+            showHeader
+            globalStartIndex={lessons.findIndex((l) => l.id === c.items[0].id)}
+          />
+        ))}
+        {!filtered.length && (
+          <EmptyState
+            icon={<Search size={20} />}
+            title="No lessons found"
+            description="Try a different search or choose another category."
+            action={
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setQuery('');
+                  setCategory('all');
+                }}
+              >
+                Clear filters
+              </Button>
+            }
+          />
+        )}
+      </div>
+    </main>
+  );
 }
